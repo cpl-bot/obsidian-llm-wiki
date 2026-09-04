@@ -5,7 +5,7 @@ import {
   LLMClient,
   IngestReport,
 } from './types';
-import { NOTICE_NORMAL, NOTICE_ABORT, MINERU_API_TOKEN_SECRET_ID } from './constants';
+import { NOTICE_NORMAL, NOTICE_ABORT } from './constants';
 import { preloadLLMClientModules } from './llm-sdk/create-llm-client';
 import { isProviderConfigured } from './core/provider-auth';
 import { resolveProviderApiKey } from './llm-sdk/provider-api-key-resolver';
@@ -15,7 +15,9 @@ import { BedrockAuthManager } from './llm-sdk/bedrock-sso/credential-manager';
 import { BEDROCK_SSO_SECRET_ID, BEDROCK_IAM_SECRET_ID } from './llm-sdk/bedrock-sso/constants';
 import { CodexCredentialStore } from './llm-sdk/openai-codex/credential-store';
 import { obsidianFetchBridge } from './core/obsidian-fetch-bridge';
+import { registerEgressSettings } from './core/egress-policy';
 import type { FetchLike } from './llm-sdk/openai-codex/types';
+import { setActivePluginId } from './core/plugin-runtime-id';
 
 // v1.23.0 P1-7: AI-SDK migration. Eagerly preload SDK modules on plugin
 // load so sync `createLLMClient` works without blocking. Failure is
@@ -36,7 +38,7 @@ export async function initializeLLMClientAfterModules(modulesLoaded: Promise<voi
 export { createLLMClient };
 import { TEXTS } from './texts';
 import { getText } from './core/i18n';
-import { applySettingsMigrations, commitSettingsMigrationV1_25_3 } from './core/settings-migrations';
+import { applySettingsMigrations, commitSettingsMigrationV1_25_3, scrubRemovedConversionBackendSecret } from './core/settings-migrations';
 import { normalizeVocabularyCsv } from './core/tag-vocab';
 import { detectStaleWikiFolders } from './core/query-history-migration-check';
 import { BatchProgress } from './core/status-bar';
@@ -81,7 +83,18 @@ export class LLMWikiPlugin extends Plugin {
   ingestStatusBar: HTMLElement | null = null;
   batchProgress: BatchProgress | null = null;
   async onload() {
+    // Hardened-fork Phase 7: record this install's actual manifest.id
+    // before anything touches the plugin's own folder (e.g. the PDF cache
+    // in core/pdf-cache.ts). Must run before any such access — see
+    // core/plugin-runtime-id.ts for why this exists.
+    setActivePluginId(this.manifest.id);
     await this.loadSettings();
+    // Phase 4.2 (F-04): publish the live settings to the egress policy
+    // before ANY component that can make a request is constructed. The
+    // fetch chokepoints are free functions shared by every SDK client, so
+    // there is no constructor to thread settings through; until this runs
+    // the policy sees `{}` and is therefore strict (fail closed).
+    registerEgressSettings(() => this.settings);
     this.codexCredentialStore = new CodexCredentialStore(this.app.secretStorage, this.settings.openAICodexSecretId);
     this.codexAuthManager = new CodexAuthManager({
       store: this.codexCredentialStore,
@@ -179,6 +192,9 @@ export class LLMWikiPlugin extends Plugin {
   }
 
   onunload() {
+    // Drop the settings getter so a stale plugin instance can never
+    // authorize egress for the next one.
+    registerEgressSettings(null);
     this.codexAuthManager?.dispose();
     // #425: drop in-memory temp credentials ONLY — the persisted SSO
     // token survives so the user stays signed in across restarts.
@@ -245,23 +261,26 @@ export class LLMWikiPlugin extends Plugin {
 
     this.settings = settings;
 
-    const legacyMineru = this.settings as LLMWikiSettings & {
-      mineruApiToken?: string;
-      mineruTaskTimeoutMinutes?: number;
-    };
-    if ('mineruApiToken' in legacyMineru || 'mineruTaskTimeoutMinutes' in legacyMineru) {
+    // Hardening Phase 2.A (F-06): the third-party document-conversion backend
+    // is gone. `applySettingsMigrations` has already deleted its keys from the
+    // settings object; the paired keychain slot is blanked here because the
+    // migration helper is pure. No saveData() call: the shared
+    // `applied.length > 0` write below persists the whole pass, so an upgrade
+    // still serializes data.json exactly once.
+    if (applied.includes('harden-conversion-backend-removed')) {
       try {
-        const token = legacyMineru.mineruApiToken?.trim();
-        if (token && !this.app.secretStorage.getSecret(MINERU_API_TOKEN_SECRET_ID)) {
-          this.app.secretStorage.setSecret(MINERU_API_TOKEN_SECRET_ID, token);
+        if (scrubRemovedConversionBackendSecret(this.app.secretStorage)) {
+          console.debug('[main.loadSettings] Cleared the removed conversion backend token from SecretStorage');
         }
-        delete legacyMineru.mineruApiToken;
-        delete legacyMineru.mineruTaskTimeoutMinutes;
-        // No saveData() here: the line below (`applied.length > 0 && !migrationWriteFailed`)
-        // handles persistence for the whole loadSettings pass. Adding a second write would
-        // serialize data.json twice on every upgrade that triggers the MinerU migration.
       } catch (error) {
-        console.error('[main.loadSettings] Failed to migrate MinerU token to SecretStorage:', error);
+        // Best-effort: a keychain failure must not block startup. The
+        // settings keys are already gone, so the backend cannot be used
+        // either way. Drop the marker again before the shared saveData()
+        // below persists it, so the next load retries the slot — otherwise
+        // the marker records a scrub that never happened and the stale
+        // token would sit in the keychain forever.
+        delete this.settings._migrated_harden_conversion_backend_removed;
+        console.error('[main.loadSettings] Failed to clear the removed conversion backend token; retrying on next load:', error);
       }
     }
 

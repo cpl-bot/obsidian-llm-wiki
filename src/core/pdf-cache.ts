@@ -4,7 +4,11 @@
  * Stores converted PDF → Markdown results on disk, keyed by content hash.
  * Cache misses trigger the LLM conversion; hits skip the API call entirely.
  *
- * Cache directory: `.obsidian/plugins/karpathywiki/pdf-cache/{sha256}.json`
+ * Cache directory: `.obsidian/plugins/<plugin-id>/pdf-cache/{sha256}.json`
+ * (`<plugin-id>` is the running plugin's `manifest.id` — see
+ * `plugin-runtime-id.ts` — not a hardcoded string, so a renamed install
+ * such as the hardened fork's `karpathywiki-hardened` gets its own cache
+ * folder rather than the upstream `karpathywiki` one.)
  * Each entry: { markdown, metadata: { title?, author?, pageCount?, convertedAt, converter } }
  *
  * TTL defaults to 30 days; expired entries are silently treated as misses.
@@ -35,6 +39,7 @@ import {
   PDF_CACHE_MAX_SINGLE_ENTRY_BYTES,
 } from '../constants';
 import { DiskCache, isMissingDirError, type DiskCacheMaintenanceResult } from './disk-cache';
+import { getActivePluginId } from './plugin-runtime-id';
 
 /**
  * Converter version baked into the cache key. Bump on prompt/system-prompt
@@ -226,12 +231,14 @@ export class PdfConversionCache {
 }
 
 /**
- * Cache directory scheme: `.obsidian/plugins/karpathywiki/pdf-cache/`.
+ * Cache directory scheme: `.obsidian/plugins/<plugin-id>/pdf-cache/`.
  * Centralized here so the 3 call sites (pdf-converter, main.ts clear,
- * main.ts housekeeping) cannot drift.
+ * main.ts housekeeping) cannot drift. `<plugin-id>` comes from
+ * `getActivePluginId()` (set from `manifest.id` at `onload`), not a
+ * hardcoded literal — see `plugin-runtime-id.ts`.
  */
 export function getPdfCacheDir(app: { vault: { configDir: string } }): string {
-  return `${app.vault.configDir}/plugins/karpathywiki/pdf-cache`;
+  return `${app.vault.configDir}/plugins/${getActivePluginId()}/pdf-cache`;
 }
 
 /**

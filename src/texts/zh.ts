@@ -74,6 +74,17 @@ export const ZH_TEXTS = {
     baseUrlName: 'API Base URL',
     baseUrlDescCustom: '必填：自定义 OpenAI 兼容服务的 endpoint',
     baseUrlDescOverride: '可选：覆盖预设的 Base URL',
+    // Phase 4 (F-04) — network egress policy
+    strictEgressName: '严格出站限制（推荐）',
+    strictEgressDesc: '仅允许向内置服务商主机、你配置的 Base URL 以及 localhost 发起出站请求。仅在使用企业代理或网关时才关闭。',
+    strictEgressWarning: '严格出站限制已关闭。插件可能会把你的 API 密钥发送到 Base URL 指向的任意 HTTPS 主机。',
+    egressDeniedNotice: '已按出站策略拦截对 “{host}” 的请求：{reason}',
+    egressBaseUrlRejected: 'Base URL 被拒绝：{reason}',
+    egressReasonInvalidUrl: '该地址无法解析',
+    egressReasonScheme: '仅允许 https://（http:// 只能用于 localhost）',
+    egressReasonUserinfo: '该地址内嵌了凭据（user:pass@host）',
+    egressReasonPrivateAddress: '该地址指向内网或链路本地网络',
+    egressReasonHostNotAllowed: '该主机不在出站白名单中',
 
     // Ollama 提示
     ollamaHint: 'Ollama 本地运行，无需 API Key',
@@ -502,8 +513,6 @@ export const ZH_TEXTS = {
     rejectionReasonType: '不支持的类型',
     rejectionReasonDuplicate: '重复内容',
     rejectionReasonPdfUnsupported: '提供商无法读取 PDF',
-    rejectionReasonMineruPageLimit: '超过 MinerU 页数上限',
-    rejectionReasonMineruSizeLimit: '超过 MinerU 大小上限',
     ingestReportFailedGuidance: '这些条目未能自动创建。您可手动创建对应页面，或降低提取颗粒度后重新摄入源文件。',
 
     // 命令名称（sentence case 遵循 Obsidian Bot 规则）
@@ -714,7 +723,7 @@ export const ZH_TEXTS = {
     sourceRejectedType: '⏭️ "{filename}" 不是受支持的文件类型，已跳过。仅可提取文本笔记（如 .md、.txt）。',
     sourceRejectedDuplicate: '⏭️ "{filename}" 已跳过——其内容已存在于 Wiki 中。',
     pdfReadingInProgress: '正在读取 PDF: {filename}',
-    sourceRejectedPdfUnsupported: '⏭️ 「{filename}」已跳过——当前 provider 或模型不支持 PDF 输入。可在 Settings → LLM Configuration → Advanced 中切换 provider，或打开「强制启用 PDF 支持」再试一次，或切换 Markdown 转换后端为 MinerU（同时支持图片和 Office 文档）。',
+    sourceRejectedPdfUnsupported: '⏭️ 「{filename}」已跳过——当前 provider 或模型不支持 PDF 输入。可在 Settings → LLM Configuration → Advanced 中切换 provider，或打开「强制启用 PDF 支持」再试一次。',
     clearPdfCacheCommand: '清除 PDF 转换缓存',
     pdfCacheCleared: 'PDF 缓存已清除（{count} 个条目已移除）。',
     // v1.25.0 PR3: Advanced PDF settings
@@ -722,20 +731,8 @@ export const ZH_TEXTS = {
     forcePdfSupportDesc: '默认关闭。如果你的 provider 不是原生支持 PDF 的，但又确实能处理 PDF，可以打开这个开关试一试。打开后会发送 PDF 给当前 provider，如果被拒绝，会用提示告诉你。原生支持 PDF 的 provider（Anthropic / OpenAI / Bedrock）不需要这个开关。',
     writePdfMarkdownToVaultName: '将转换后的 Markdown 写入 Vault',
     writePdfMarkdownToVaultDesc: '默认关闭。开启后，每次 PDF 转换的结果会写入源 PDF 旁边的 “<原名>.pdf.md” 文件。关闭时，转换结果仅保存在插件缓存，不在你的 Vault 中留下实现产物。',
-    markdownConversionBackendName: 'Markdown 转换后端',
-    markdownConversionBackendDesc: 'Native 使用 provider 自带的 PDF 支持（范围有限，并非所有 provider/model 都支持 PDF，消耗 LLM tokens）。MinerU 是在线服务——速度快、按日配额免费、支持 PDF/图片/Office——但需要 API Token（在下方字段填写）。',
-    markdownConversionBackendNative: 'Provider PDF/图片 支持',
-    markdownConversionBackendMineru: 'MinerU 在线 API',
-    mineruApiTokenName: 'MinerU API Token',
-    mineruApiTokenDesc: '在 https://mineru.net/apiManage/token 获取你的 Token。MinerU 接受最大 200 MB、最多 200 页的文件。',
-    mineruApiTokenPlaceholder: '粘贴 MinerU API Token',
-    mineruUploadingInProgress: '正在上传 PDF 到 MinerU：{filename}',
-    mineruWaitingInProgress: '正在等待 MinerU 解析：{filename}',
-    mineruDownloadingInProgress: '正在下载 MinerU 解析结果：{filename}',
     markdownConversionComplete: '转换完成：{filename}',
     markdownConversionCompleteSaved: '转换完成 — 已写入 {path}：{filename}',
-    mineruPageLimitRejected: '{filename} 超过 MinerU 的 {limit} 页上限，请拆分文件后重试',
-    mineruSizeLimitRejected: '{filename} 超过 MinerU 的 {limit} MB 大小上限',
 
     ingestRejectedSummary: '已跳过 {count} 个文件（空文件、重复或不支持的类型）。',
     reingestConfirmTitle: '重新提取该文件？',

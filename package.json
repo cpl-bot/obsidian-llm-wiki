@@ -14,13 +14,15 @@
     "lint": "eslint src/ --max-warnings=0",
     "lint:tools-bot": "eslint --config eslint.tools-bot.config.mjs tools/ --max-warnings=-1 || true",
     "css-lint": "node scripts/css-lint.mjs",
+    "check:bundle-hosts": "node scripts/check-bundle-hosts.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "typecheck:tools": "tsc -p tools/dev-instrument/tsconfig.json --noEmit",
+    "check:bundle-mineru": "node scripts/check-bundle-no-mineru.mjs",
     "check:lockfile": "node scripts/check-lockfile-registry.mjs",
     "prepare": "node scripts/ensure-esbuild.mjs",
-    "gate:1": "pnpm lint && pnpm typecheck && pnpm build && pnpm test && pnpm css-lint && pnpm check:lockfile"
+    "gate:1": "pnpm lint && pnpm typecheck && pnpm build && pnpm test && pnpm css-lint && pnpm check:lockfile && pnpm check:bundle-mineru && pnpm check:bundle-hosts"
   },
   "keywords": [
     "obsidian",

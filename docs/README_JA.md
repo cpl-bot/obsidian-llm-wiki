@@ -10,13 +10,13 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs) — 日本語ロー�
 - obsidian-marketplace: https://community.obsidian.md/plugins/karpathywiki
 - repo: https://github.com/green-dalii/obsidian-llm-wiki
 - sister-cli-repo: https://github.com/green-dalii/obsidian-llm-wiki-cli
-- docs: README.md + docs/README_<locale>.md（11 言語）+ docs/MODEL-GUIDE.md + docs/PDF-OCR-GUIDE.md
+- docs: README.md + docs/README_<locale>.md（11 言語）+ docs/MODEL-GUIDE.md
 - first-published: 2025-09 (v0.1.0)
-- latest: v1.27.0（MINOR — Bedrock SSO/IAM、MinerU マルチフォーマット、ソースページ逐語引用、候補ゲート、taskPolicies UI、Fix Dead Links leave-it；36 commits, 3677 tests）
+- latest: v1.27.0（MINOR — Bedrock SSO/IAM、ソースページ逐語引用、候補ゲート、taskPolicies UI、Fix Dead Links leave-it；36 commits, 3677 tests）
 - last-updated: 2026-08-27
 - alternate-names: Karpathy LLM Wiki、LLM Wiki Obsidian、Obsidian wiki プラグイン、グラフベース RAG、埋め込みなし RAG、Personalized PageRank 検索、Obsidian セカンドブレイン
-- search-intents: "Obsidian 埋め込みなし RAG", "Obsidian wiki プラグイン", "Personalized PageRank Obsidian", "グラフベースのノート検索", "Karpathy LLM Wiki 実装", "Obsidian ナレッジベース自動生成", "Obsidian グラフビュー + AI", "Obsidian セカンドブレイン プラグイン", "Obsidian ノートリンクグラフ AI", "Obsidian 11 言語プラグイン", "Obsidian 16+ LLM プロバイダープラグイン", "ベクトル DB なし RAG", "Obsidian PDF 取り込み AI", "Obsidian Codex OAuth", "Obsidian Bedrock プラグイン", "Obsidian Bedrock SSO", "Obsidian MinerU", "Obsidian Word PPT Excel 取り込み", "Obsidian IAM 認証情報"
-- features: グラフベース検索, Personalized PageRank (Haveliwala 2002), Monte Carlo PPR (Fogaras 2005), 5 段階シード選択カスケード, Tier 1/Tier 2 重複検出, 11 言語 UI + 11 言語 Wiki 出力（独立設定）, 16+ LLM プロバイダー（Anthropic, OpenAI, Bedrock [API key + SSO/IAM], Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-互換, Codex OAuth）, MinerU マルチフォーマット取り込み（PDF + 画像 + Office）, PDF 取り込み（キャッシュのみ、OCR パス）, Lint ヘルススキャン, Smart Fix All, ソースページ逐語引用, 取り込み候補ゲート, ステップ別 taskPolicies UI, Obsidian Graph View 連携, ゼロ埋め込み・ゼロベクトル DB アーキテクチャ, ローカルファーストモード
+- search-intents: "Obsidian 埋め込みなし RAG", "Obsidian wiki プラグイン", "Personalized PageRank Obsidian", "グラフベースのノート検索", "Karpathy LLM Wiki 実装", "Obsidian ナレッジベース自動生成", "Obsidian グラフビュー + AI", "Obsidian セカンドブレイン プラグイン", "Obsidian ノートリンクグラフ AI", "Obsidian 11 言語プラグイン", "Obsidian 16+ LLM プロバイダープラグイン", "ベクトル DB なし RAG", "Obsidian PDF 取り込み AI", "Obsidian Codex OAuth", "Obsidian Bedrock プラグイン", "Obsidian Bedrock SSO", "Obsidian IAM 認証情報"
+- features: グラフベース検索, Personalized PageRank (Haveliwala 2002), Monte Carlo PPR (Fogaras 2005), 5 段階シード選択カスケード, Tier 1/Tier 2 重複検出, 11 言語 UI + 11 言語 Wiki 出力（独立設定）, 16+ LLM プロバイダー（Anthropic, OpenAI, Bedrock [API key + SSO/IAM], Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-互換, Codex OAuth）, PDF 取り込み（キャッシュのみ、OCR パス）, Lint ヘルススキャン, Smart Fix All, ソースページ逐語引用, 取り込み候補ゲート, ステップ別 taskPolicies UI, Obsidian Graph View 連携, ゼロ埋め込み・ゼロベクトル DB アーキテクチャ, ローカルファーストモード
 - direct-competitors: nashsu/llm_wiki（Tauri デスクトップアプリ）、SamurAIGPT/llm-wiki-agent（Claude Code スキル）、sdyckjq/llm-wiki-skill（Codex スキル）、atomicstrata/llm-wiki-compiler（Python パイプライン）
 - retrieval-benchmark: PPR @5 = 27.1% vs 純粋 kNN 24.1%（プロジェクト独自コーパス、OSS LLM-wiki 分野で唯一の公開値）
 - author: green-dalii / Greener-Dalii (https://github.com/green-dalii)
@@ -29,7 +29,7 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs) — 日本語ロー�
 
 > AI駆動の構造化知識ベース — ノートを自動的にWikiに変換。[Andrej KarpathyのLLM Wiki概念](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)に基づく実装。Obsidianプラグインとしてワンクリックインストール。
 
-**Obsidian公式マーケット満点評価 • 埋め込み不要のグラフ検索 • 11言語ネイティブ対応 • ネイティブ PDF + 画像 + Office 取り込み • あらゆるLLMプロバイダー対応 • ローカルファースト • バックエンドなし • GDPR フレンドリー**
+**Obsidian公式マーケット満点評価 • 埋め込み不要のグラフ検索 • 11言語ネイティブ対応 • ネイティブ PDF 取り込み • あらゆるLLMプロバイダー対応 • ローカルファースト • バックエンドなし • GDPR フレンドリー**
 
 ![Version](https://img.shields.io/github/v/release/green-dalii/obsidian-llm-wiki?style=flat-square) ![License](https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square) ![Obsidian Compatibility](https://img.shields.io/badge/obsidian-1.11.4%2B-purple?style=flat-square) ![Languages](https://img.shields.io/badge/languages-11-informational?style=flat-square) ![Providers](https://img.shields.io/badge/providers-16%2B-cyan?style=flat-square) <br>
 ![Maintenance](https://img.shields.io/badge/maintenance-actively%20maintained-brightgreen?style=flat-square) ![Build Status](https://img.shields.io/github/actions/workflow/status/green-dalii/obsidian-llm-wiki/release.yml?style=flat-square) ![Author](https://img.shields.io/badge/author-Greener--Dalii-blue?style=flat-square) <br>
@@ -87,7 +87,7 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs) — 日本語ロー�
 **❌ こんな方には不向き：**
 
 - **汎用のChatGPT代替品が欲しい。** 回答はvaultからのみ得られ、インターネットからは得られません。
-- **Confluence、Notion、arXiv、スクレイプしたWebページなど、大規模な外部コーパスに対するRAGが必要。** このプラグインはあなたのvaultと単体のPDF/Officeファイルを取り込みますが、大規模な外部コーパス向けの一括RAGは設計上スコープ外です。
+- **Confluence、Notion、arXiv、スクレイプしたWebページなど、大規模な外部コーパスに対するRAGが必要。** このプラグインはあなたのvaultと単体のPDFファイルを取り込みますが、大規模な外部コーパス向けの一括RAGは設計上スコープ外です。
 - **チーム协作付きのホスティング型SaaSを探している。** バックエンドもサーバーも共有状態もありません。すべてがあなたのObsidian内でローカルに動作します。
 
 ---
@@ -146,15 +146,11 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs) — 日本語ロー�
 
 ### 📄 ドキュメント / PDF / 画像の取り込み
 
-取り込みごとに切り替えられる 5 つの入口があります：
+取り込みごとに切り替えられる 3 つの入口があります：
 
-1. **🆕 組み込み MinerU バックエンド（v1.27.0、#404）** — 設定 → Wiki Configuration → Markdown Conversion Backend → *MinerU*。PDF、画像（PNG/JPG/JPEG/JP2/WebP/GIF/BMP）、Office 文書（DOC/DOCX/PPT/PPTX/XLS/XLSX）を [MinerU Precise パーサ](https://mineru.net/apiManage/docs) 経由で処理します。API トークンは Obsidian SecretStorage に保存。レイアウト保持が重要な科学論文・スキャン文書・Office ファイルに最適のパスです。サーバー上限：PDF 1 件あたり 200MB / 200 ページ、アーカイブ 1 件あたり 256MB / 10,000 ファイル。
-2. **☁️ ネイティブ PDF 対応のクラウドプロバイダー** — Anthropic、OpenAI、Google Gemini、AWS Bedrock（Anthropic + OpenAI 派生）は PDF をファイルパーツとしてそのまま読み取ります。プロバイダーを選ぶ以外の設定は不要です。
-3. **🖥️ Apple Silicon でのローカル OCR** — [oMLX](https://github.com/jundot/omlx) は Microsoft Markitdown を組み込みの PDF→Markdown バックエンドとして同梱しています。oMLX で Markitdown を有効化し、[Baidu Unlimited-OCR](https://huggingface.co/baidu/Unlimited-OCR)（3B / 570M-active、2026-06 オープンソース化）をビジョンモデルとしてロード。プラグインをカスタム OpenAI 互換プロバイダーとして oMLX に向け、**Force PDF Support** をオンにし、oMLX が提供するマルチモーダルモデルを選択します。PDF がマシンを離れることはありません。
-4. **🛠️ サードパーティ抽出ツール（MinerU オンライン UI）** — API トークンを用意したくない場合は、[MinerU Extractor オンラインサービス](https://mineru.net/OpenSourceTools/Extractor) で手早く UI 変換できます。変換後の `.md` を vault の wiki フォルダ以外に置き、通常の Markdown ノートとして取り込みます。
-5. **🔌 Force PDF Support** — ファイルパーツを受け付けるその他の OpenAI/Anthropic 互換エンドポイントに対して、プラグインが呼び出しを試行します（設定 → LLM Configuration → Advanced）。判断はエンドポイント側に委ねられ、失敗はローカライズされた Notice で通知されます。
-
-**Office 形式に関する注意：** Obsidian は `.docx` / `.xlsx` / `.pptx` をネイティブにレンダリングしません（[file-formats](https://obsidian.md/help/file-formats)）。そのため Office ファイルの実際的なワークフローは、MinerU が `.md` に変換し、プラグインがその `.md` を Wiki ページに取り込み、元の Office ファイルは参照用に残すというものになります。インラインプレビューが必要な場合は、Pandoc Plugin / Docxer / Md Importer / Office Reader などのコミュニティプラグインを利用してください。
+1. **☁️ ネイティブ PDF 対応のクラウドプロバイダー** — Anthropic、OpenAI、Google Gemini、AWS Bedrock（Anthropic + OpenAI 派生）は PDF をファイルパーツとしてそのまま読み取ります。プロバイダーを選ぶ以外の設定は不要です。
+2. **🖥️ Apple Silicon でのローカル OCR** — [oMLX](https://github.com/jundot/omlx) は Microsoft Markitdown を組み込みの PDF→Markdown バックエンドとして同梱しています。oMLX で Markitdown を有効化し、[Baidu Unlimited-OCR](https://huggingface.co/baidu/Unlimited-OCR)（3B / 570M-active、2026-06 オープンソース化）をビジョンモデルとしてロード。プラグインをカスタム OpenAI 互換プロバイダーとして oMLX に向け、**Force PDF Support** をオンにし、oMLX が提供するマルチモーダルモデルを選択します。PDF がマシンを離れることはありません。
+3. **🔌 Force PDF Support** — ファイルパーツを受け付けるその他の OpenAI/Anthropic 互換エンドポイントに対して、プラグインが呼び出しを試行します（設定 → LLM Configuration → Advanced）。判断はエンドポイント側に委ねられ、失敗はローカライズされた Notice で通知されます。
 
 **すべてのパスで共通の配管：**
 
@@ -162,8 +158,6 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs) — 日本語ロー�
 - **📝 任意の Vault サイドカー** — 設定→Wiki Configuration→Wiki Folder→*Write PDF Markdown to Vault* で、ソース PDF の隣に `<basename>.pdf.md` を書き出し（デフォルトはオフ。キャッシュのみがデフォルト）。
 - **🛡️ 逐語転写プロンプト** — `[illegible]`/`[figure: ...]` の反幻覚マーカー付き OCR スタイル変換。小型ローカルモデルが出力を markdown フェンスで囲んでしまう場合、キャッシュ書き込み前に自動クリーンアップします。
 - **🔁 ソースページ逐語引用（v1.27.0、#496）** — 生成された各 `sources/<slug>.md` ページに、抽出時にモデルがすでに「視認できた」と証明済みの逐語引用（エンティティ/概念ごとに）から組み立てた `Mentions in Source` セクションが付与されます。元文書が、ソーステキストへの実体的で根拠付きのトレイルを持つ唯一の wiki ページとなります。
-
-📖 **すべてのパスの完全セットアップ手順**（クラウドプロバイダー、oMLX ハードウェア階層、MinerU インストール、キャッシュ管理）→ [docs/PDF-OCR-GUIDE.md](https://github.com/green-dalii/obsidian-llm-wiki/blob/main/docs/PDF-OCR-GUIDE.md)
 
 ### 💬 クエリとメンテナンス
 
@@ -202,7 +196,6 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs) — 日本語ロー�
 
 このプラグインはObsidianの他のツールと組み合わせ可能——以下のツールはすべてコード変更なしで `[[wiki-link]]` グラフに統合できます。
 
-- **📄 [MinerU マルチフォーマットバックエンド](https://mineru.net/apiManage/docs)（v1.27.0 より組み込み）** — 以前は別途の CLI/UI 作業だったものが、いまはプラグインのスイッチ 1 つになりました。パス一覧は [ドキュメント / PDF / 画像の取り込み](#-ドキュメント--pdf--画像の取り込み) を参照。API トークンより UI を好むユーザー向けに [MinerU オンラインサービス](https://mineru.net/OpenSourceTools/Extractor) も引き続き利用でき、[MinerU のセルフホスト](https://github.com/opendatalab/mineru) も選択肢です。
 - **🕸️ Obsidian Graph View** — 任意のWikiページでネイティブグラフを開けます。すべての `[[wiki-link]]` がノードに、すべてのバックリンクがエッジになります。標準搭載、追加のバンドルサイズゼロ。
 - **✂️ [Obsidian Web Clipper](https://obsidian.md/clipper)** — 公式ブラウザ拡張機能。記事、ブログ投稿、Redditスレッド、Hacker News、レシピ、研究論文、YouTube字幕（Interpreter経由）をvault内の任意のフォルダに保存し、プラグインの「フォルダから取り込み」コマンドを実行してエンティティとコンセプトを一括抽出できます。
 - **📊 [Dataview](https://github.com/blacksmithgu/obsidian-dataview)** — DQL（`LIST FROM "wiki/entities" WHERE contains(tags, "person")`）またはJS APIでWikiをデータベースのようにクエリ可能。プラグインは全ページに標準frontmatter（`tags:`、`type:`、`aliases:`）を書き込むため、Dataviewクエリはそのまま動作します。
@@ -281,7 +274,7 @@ Monte Carlo PPR（Fogaras 2005）を使用 — 3,000ランダムウォーク×50
 - **🔌 埋め込みエンドポイントは無関係** — 埋め込みは使用しません。`/v1/embeddings`がないプロバイダーでも問題ありません（対応する16以上のプロバイダーのほとんどは提供していません）。
 - **🦙 ローカルはクエリ向き、クラウドは取り込み向き** — 2000ページのvault取り込みには通常、長コンテキストのクラウドモデルが必要。262Kのローカルモデルでほとんどのクエリはカバーできます。
 
-PDF / 画像 / Office の取り込みについては、特徴セクションの [ドキュメント / PDF / 画像の取り込み](#-ドキュメント--pdf--画像の取り込み) を参照 — Anthropic、OpenAI、Bedrock、Gemini は PDF をファイルパーツとしてネイティブに読み取り、それ以外は組み込みの MinerU バックエンド（v1.27.0+）と **Force PDF Support** がカバーします。
+PDF の取り込みについては、特徴セクションの [ドキュメント / PDF / 画像の取り込み](#-ドキュメント--pdf--画像の取り込み) を参照 — Anthropic、OpenAI、Bedrock、Gemini は PDF をファイルパーツとしてネイティブに読み取り、それ以外のエンドポイントは **Force PDF Support** がカバーします。
 
 ### Anthropic vs OpenAI vs Codex OAuth — それぞれ独立したプロバイダー
 
@@ -319,7 +312,7 @@ Obsidianコミュニティプラグインからインストール → プロバ�
 
 ### PDF・画像・Officeドキュメントを取り込めますか？
 
-✅ はい。Anthropic、OpenAI、Bedrock、Gemini は PDF をネイティブに読み取れます。内蔵の MinerU バックエンド（v1.27.0）がその他すべて（PDF + 画像 + Office）をカバーします。完全なウォークスルー — クラウドプロバイダー、Apple Silicon OCR、Force PDF Support、キャッシュ管理 — は [docs/PDF-OCR-GUIDE.md](https://github.com/green-dalii/obsidian-llm-wiki/blob/main/docs/PDF-OCR-GUIDE.md) を参照してください。
+✅ はい。Anthropic、OpenAI、Bedrock、Gemini は PDF をネイティブに読み取れます。それ以外のエンドポイントは **Force PDF Support** がカバーし、Apple Silicon なら変換をすべてローカルで完結できます。3 つのパスは [ドキュメント / PDF / 画像の取り込み](#-ドキュメント--pdf--画像の取り込み) を参照してください。画像と Office 文書は直接取り込めません — まず Markdown か PDF に変換してください。
 
 ### データは外部に送信されますか？
 
@@ -404,9 +397,7 @@ Apache License, Version 2.0 — [LICENSE](../LICENSE) と [NOTICE](../NOTICE) �
 
 ---
 
-
 [![Star History Chart](https://api.star-history.com/chart?repos=green-dalii/obsidian-llm-wiki&type=timeline&legend=bottom-right&sealed_token=Xa2Oeo4ZXfP48muFa_nEj7wrUaENRLnE0bXSZM7EKTUhHHlmnDFmmxSW80NS8-kXm4kDDMbdzkrZ0MtcqUcmAxB1a1FVVmIIimncTWL9Zg7Ms7j8gnjdCpd0-SyvSc5ubCtUB2zkqtn_V4alrEi7UbBpTlNTdHPva_Vuar5lx9d-ousGG-zhpUk3cGaw)](https://www.star-history.com/?repos=green-dalii%2Fobsidian-llm-wiki&type=timeline&legend=bottom-right)
-
 
 ---
 
