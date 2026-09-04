@@ -58,12 +58,44 @@
 // retarget the write at a different file than the caller resolved. That is
 // also why the returned path is built from the caller's string rather than
 // from `normalizePath`'s output, which NFC-folds it.
+//
+// ── Case ─────────────────────────────────────────────────────────────────
+//
+// Containment is compared CASE-SENSITIVELY, after the NFC fold. `Wiki/x.md`
+// is therefore out of scope when `wikiFolder` is `wiki`, on every platform.
+// That is the deliberate choice: Obsidian's own path index is case-sensitive
+// (`getAbstractFileByPath('Wiki/x')` does not find `wiki/x`), so a
+// case-folding gate would be *more* permissive than the API it guards —
+// on a case-insensitive macOS volume `Wiki/` and `wiki/` are the same
+// directory, and case-folding here would additionally admit `WIKI-BACKUP/`
+// style near-misses that no configured root names. A mismatched case is a
+// caller bug, and the gate reports it as one instead of guessing.
+//
+// ── Absolute-looking paths and a vault-root `wikiFolder` ─────────────────
+//
+// A leading `/` is refused (`absolute-path`) even though Obsidian's own
+// `normalizePath` would strip it. Consequence, pinned by test: configuring
+// `wikiFolder` as the vault root makes the callers that build
+// `` `${wikiFolder}/schema` `` produce `/schema`, which this gate refuses.
+// A root `wikiFolder` is therefore not a supported configuration — the
+// setting names a folder. The root *scope* below still exists because
+// `folder-scope.ts` models it, and because refusing every path is the wrong
+// answer for a scope that deliberately names the whole vault.
 
 import { normalizePath } from 'obsidian';
 import { isAtOrInFolderScope } from './folder-scope';
 
-/** The plugin's own id — its config dir is `<configDir>/plugins/<id>`. */
-const PLUGIN_ID = 'karpathywiki';
+/**
+ * Fallback plugin id, used only when no caller supplies one.
+ *
+ * The real id is `manifest.id`, which `main.ts` passes to `createVaultWriter`
+ * (`this.manifest.id`) — Phase 7 changes it to `karpathywiki-hardened`, and
+ * the config-dir root has to follow it rather than be pinned to a literal.
+ * This constant is what the default-constructed writers inside
+ * `wiki-engine` / `schema-manager` / `auto-maintain` fall back to; those are
+ * only reached from tests and non-plugin hosts, which have no manifest.
+ */
+export const DEFAULT_PLUGIN_ID = 'karpathywiki';
 
 export type VaultWriteRejectReason =
   | 'empty-path'
@@ -118,18 +150,22 @@ export interface VaultWriteScope {
 }
 
 /** `<configDir>/plugins/<pluginId>` — where `data.json` and the caches live. */
-export function pluginConfigDirFor(configDir: string, pluginId: string = PLUGIN_ID): string {
+export function pluginConfigDirFor(
+  configDir: string,
+  pluginId: string = DEFAULT_PLUGIN_ID
+): string {
   return `${configDir}/plugins/${pluginId}`;
 }
 
 /** The production scope: the wiki folder, its schema subtree, the plugin dir. */
 export function scopeFromSettings(
   settings: { wikiFolder: string },
-  configDir: string
+  configDir: string,
+  pluginId: string = DEFAULT_PLUGIN_ID
 ): VaultWriteScope {
   return {
     wikiFolder: settings.wikiFolder,
-    pluginConfigDir: pluginConfigDirFor(configDir),
+    pluginConfigDir: pluginConfigDirFor(configDir, pluginId),
   };
 }
 
@@ -151,7 +187,14 @@ function scopeRoots(scope: VaultWriteScope): string[] {
     roots.push(`${scope.wikiFolder.replace(/\/+$/, '')}/schema`);
   }
   if (scope.pluginConfigDir !== undefined) roots.push(scope.pluginConfigDir);
-  if (scope.extraFolders) roots.push(...scope.extraFolders);
+  if (scope.extraFolders) {
+    // An extra root that names the vault root would turn the gate off for
+    // every path — `VaultWriter.scoped()` rejects that outright, and the
+    // constructor path must not be the way around it. Dropping it leaves a
+    // scope built ONLY from such an entry with no roots at all, which denies
+    // everything: "unconfigured" must not read as "unrestricted".
+    roots.push(...scope.extraFolders.filter(folder => !isVaultRoot(folder)));
+  }
   return roots;
 }
 
@@ -243,11 +286,19 @@ export interface VaultWriteAdapter {
   remove(path: string): Promise<void>;
 }
 
+/**
+ * The read-modify-write callback `Vault.process` takes. Synchronous, like
+ * Obsidian's own signature — the whole point of `process` over `modify` is
+ * that the read and the write are one atomic step.
+ */
+export type VaultProcessFn = (data: string) => string;
+
 /** The subset of Obsidian's `Vault` that writes. */
 export interface VaultWriteVault {
   adapter: VaultWriteAdapter;
   create(path: string, data: string): Promise<VaultWriterFile>;
   modify(file: VaultWriterFile, data: string): Promise<void>;
+  process(file: VaultWriterFile, fn: VaultProcessFn): Promise<string>;
   createFolder(path: string): Promise<unknown>;
   delete(file: VaultWriterFile, force?: boolean): Promise<void>;
 }
@@ -255,6 +306,7 @@ export interface VaultWriteVault {
 /** The subset of Obsidian's `FileManager` that writes. */
 export interface VaultWriteFileManager {
   trashFile(file: VaultWriterFile): Promise<void>;
+  renameFile(file: VaultWriterFile, newPath: string): Promise<void>;
 }
 
 export interface VaultWriterOptions {
@@ -344,6 +396,43 @@ export class VaultWriter {
     await this.vault.modify(file, data);
   }
 
+  /**
+   * Obsidian's atomic read-modify-write. It is `modify` with the read folded
+   * in, not a read: `createOrUpdateFile` updates every existing page through
+   * it, so leaving it out of the gate would have left the plugin's primary
+   * write path — the one that takes a model-influenced path — ungated for
+   * every file that already exists.
+   */
+  async process(file: VaultWriterFile, fn: VaultProcessFn): Promise<string> {
+    this.assertWithinScope(file?.path, 'process');
+    if (!this.vault?.process) throw missing('vault', 'process');
+    return this.vault.process(file, fn);
+  }
+
+  /**
+   * Obsidian's link-safe move. BOTH ends are asserted: the source, because a
+   * rename is a delete of that path, and the destination, because it is where
+   * the bytes end up.
+   */
+  async rename(file: VaultWriterFile, newPath: string): Promise<void> {
+    this.assertWithinScope(file?.path, 'rename');
+    const target = this.assertWithinScope(newPath, 'rename');
+    if (!this.fileManager?.renameFile) throw missing('fileManager', 'rename');
+    await this.fileManager.renameFile(file, target);
+  }
+
+  /**
+   * Whether this writer can perform a link-safe rename at all.
+   *
+   * `path-resolution.ts` has a documented fallback for a host that offers no
+   * link-safe rename (it marks the classification conflict instead of moving
+   * the page). That branch has to be decidable without attempting the write,
+   * so the capability is exposed rather than discovered by catching.
+   */
+  get canRename(): boolean {
+    return typeof this.fileManager?.renameFile === 'function';
+  }
+
   async createFolder(path: string): Promise<unknown> {
     const target = this.assertWithinScope(path, 'createFolder');
     if (!this.vault?.createFolder) throw missing('vault', 'createFolder');
@@ -405,11 +494,14 @@ export interface VaultWriterHost {
  */
 export function createVaultWriter(
   app: VaultWriterHost,
-  settings: { wikiFolder: string }
+  settings: { wikiFolder: string },
+  /** `this.manifest.id` from `main.ts`. Defaults to `DEFAULT_PLUGIN_ID` for
+   *  the non-plugin hosts (tests, CLI) that have no manifest to read. */
+  pluginId: string = DEFAULT_PLUGIN_ID
 ): VaultWriter {
   return new VaultWriter({
     vault: app.vault,
     fileManager: app.fileManager,
-    scope: () => scopeFromSettings(settings, app.vault.configDir),
+    scope: () => scopeFromSettings(settings, app.vault.configDir, pluginId),
   });
 }

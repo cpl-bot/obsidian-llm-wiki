@@ -17,7 +17,7 @@
 
 import { App, TFile } from 'obsidian';
 import { backupFilename, rotateBackups } from '../core/backup-rotation';
-import { createVaultWriter, type VaultWriter } from '../core/vault-writer';
+import { VaultWriter } from '../core/vault-writer';
 
 export interface ApplySchemaSuggestionParams {
   app: App;
@@ -46,11 +46,20 @@ export async function applySchemaSuggestion(
   // Every write here — the backup, the pruned older backups, the rewrite —
   // is a sibling of `currentPath`. With no writer supplied, scope the gate to
   // exactly that folder, which is tighter than the whole wiki folder.
+  //
+  // A `currentPath` with no directory component names a file at the VAULT
+  // ROOT, and a root scope would turn the gate off for every path in the
+  // vault ("unconfigured" must not read as "unrestricted"). It denies
+  // instead: the production caller always passes a writer, and the schema
+  // file is always `<wikiFolder>/schema/config.md`.
+  const dir = currentPath.includes('/')
+    ? currentPath.slice(0, currentPath.lastIndexOf('/'))
+    : '';
   const writer = params.vaultWriter
-    ?? createVaultWriter(app, {
-      wikiFolder: currentPath.includes('/')
-        ? currentPath.slice(0, currentPath.lastIndexOf('/'))
-        : '',
+    ?? new VaultWriter({
+      vault: app.vault,
+      fileManager: app.fileManager,
+      scope: { extraFolders: dir ? [dir] : [] },
     });
   const file = app.vault.getAbstractFileByPath(currentPath);
   if (!(file instanceof TFile)) {
@@ -67,8 +76,8 @@ export async function applySchemaSuggestion(
   const bakPath = backupFilename(currentPath, iso);
   await writer.create(bakPath, originalContent);
 
-  // 3. Prune old backups to enforce MAX_BACKUPS
-  const dir = currentPath.substring(0, currentPath.lastIndexOf('/'));
+  // 3. Prune old backups to enforce MAX_BACKUPS (`dir` above is the same
+  //    directory component this step used to recompute).
   const baseName = currentPath.split('/').pop() ?? currentPath;
   const bakPrefix = `${dir}/${baseName}.bak.`;
   const allBackups: string[] = [];

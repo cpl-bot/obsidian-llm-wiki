@@ -35,6 +35,15 @@ export function mapStore(files: Map<string, string>): FakeVaultStore {
   };
 }
 
+/** The same, for the plain object literal the lint-phase fixtures hold. */
+export function recordStore(files: Record<string, string>): FakeVaultStore {
+  return {
+    read: (path) => files[path] ?? null,
+    write: (path, content) => { files[path] = content; },
+    remove: (path) => { delete files[path]; },
+  };
+}
+
 /** A real gate plus the side effects a fixture wants to assert on. */
 export interface TestVaultWriterHandle {
   /** The gate itself — a genuine `VaultWriter`, not a stub. */
@@ -43,6 +52,8 @@ export interface TestVaultWriterHandle {
   folders: string[];
   /** Paths deleted or trashed through the gate, in call order. */
   removed: string[];
+  /** `[from, to]` for every rename that passed the gate, in call order. */
+  renamed: Array<[string, string]>;
 }
 
 /**
@@ -57,6 +68,7 @@ export function createTestVaultWriter(
 ): TestVaultWriterHandle {
   const folders: string[] = [];
   const removed: string[] = [];
+  const renamed: Array<[string, string]> = [];
   const writeThrough = async (path: string, data: string): Promise<void> => {
     store.write(path, data);
   };
@@ -69,6 +81,13 @@ export function createTestVaultWriter(
     vault: {
       create: async (path, data) => { await writeThrough(path, data); return { path }; },
       modify: async (file, data) => { await writeThrough(file.path, data); },
+      // Obsidian's atomic read-modify-write: the fixture must see the real
+      // read, so a gated `process` observes the content the gate let through.
+      process: async (file, fn) => {
+        const next = fn(store.read(file.path) ?? '');
+        store.write(file.path, next);
+        return next;
+      },
       createFolder: async (path) => { folders.push(path); return undefined; },
       delete: async (file) => { await dropPath(file.path); },
     },
@@ -80,11 +99,16 @@ export function createTestVaultWriter(
     },
     fileManager: {
       trashFile: async (file) => { await dropPath(file.path); },
+      renameFile: async (file, newPath) => {
+        renamed.push([file.path, newPath]);
+        store.write(newPath, store.read(file.path) ?? '');
+        store.remove?.(file.path);
+      },
     },
     scope,
   });
 
-  return { writer, folders, removed };
+  return { writer, folders, removed, renamed };
 }
 
 /**

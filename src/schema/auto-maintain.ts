@@ -424,7 +424,7 @@ export class AutoMaintainManager {
     // cleanIncompletePages in src/core/incomplete-page-cleaner.ts).
     const sourcesPreserveCase = this.settings.slugCase === 'preserve';
     const { filesCleaned: sourcesFilesCleaned, entriesCleaned: sourcesEntriesCleaned } =
-      await normalizeSourcesInFolder(this.app, wikiFolder, sourcesPreserveCase);
+      await normalizeSourcesInFolder(this.app, wikiFolder, sourcesPreserveCase, this.vaultWriter);
 
     // ---- Phase 3: Incomplete-page cleanup (Issue #170) ----
     // Scan wiki/{entities,concepts,sources} for pages whose `generation_complete`

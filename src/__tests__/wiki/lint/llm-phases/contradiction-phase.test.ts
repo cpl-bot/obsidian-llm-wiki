@@ -16,6 +16,7 @@ import {
   type ContradictionPhaseResult,
 } from '../../../../wiki/lint/llm-phases/contradiction-phase';
 import type { LintPhaseContext } from '../../../../wiki/lint/types';
+import { createTestVaultWriter, recordStore, testScopeFor } from '../../../__support__/vault-writer';
 
 // ── Pure helper: formatContradictionReport ──────────────────────
 
@@ -122,6 +123,7 @@ function makeLintPhaseContext(wikiEngine: LintPhaseContext['wikiEngine']): LintP
   return {
     app: {} as LintPhaseContext['app'],
     settings: { wikiFolder: 'wiki', language: 'en' } as LintPhaseContext['settings'],
+    vaultWriter: createTestVaultWriter(recordStore({}), testScopeFor('wiki')).writer,
     llmClient: () => null,
     wikiEngine,
     checkCancelled: () => {},

@@ -64,7 +64,7 @@ export async function runPreparationPhase(
   for (const [path, info] of pageMap) {
     const abstractFile = ctx.app.vault.getAbstractFileByPath(path);
     if (abstractFile) {
-      await ctx.app.vault.process(abstractFile, (data) => {
+      await ctx.vaultWriter.process(abstractFile, (data) => {
         const { fixed, content } = fixDoubleNestedWikiLinks(data);
         if (fixed > 0) {
           doubleNestFixes += fixed;
@@ -78,7 +78,7 @@ export async function runPreparationPhase(
   const logPath = `${ctx.settings.wikiFolder}/log.md`;
   const logFile = ctx.app.vault.getAbstractFileByPath(logPath);
   if (logFile) {
-    await ctx.app.vault.process(logFile, (data) => {
+    await ctx.vaultWriter.process(logFile, (data) => {
       const { fixed, content } = fixDoubleNestedWikiLinks(data);
       if (fixed > 0) {
         doubleNestFixes += fixed;
@@ -101,7 +101,7 @@ export async function runPreparationPhase(
     if (abstractFile) {
       const { fixed, content } = fixPollutedSources(info.content, ctx.settings.wikiFolder, sourcesPreserveCase);
       if (fixed > 0) {
-        await ctx.app.vault.process(abstractFile, () => content);
+        await ctx.vaultWriter.process(abstractFile, () => content);
         sourcesNormalizedFiles += 1;
         sourcesNormalizedEntries += fixed;
         info.content = content;

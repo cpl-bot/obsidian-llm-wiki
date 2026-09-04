@@ -107,7 +107,10 @@ export class LLMWikiPlugin extends Plugin {
     this.cleanupVocabularyTags();
     await initializeLLMClientAfterModules(aiSdkModulesLoaded, () => this.initializeLLMClient());
 
-    this.vaultWriter = createVaultWriter(this.app, this.settings);
+    // The config-dir root follows `manifest.id`, not a literal: Phase 7
+    // renames the plugin to `karpathywiki-hardened`, and a pinned literal
+    // would then scope the gate at a directory the plugin does not use.
+    this.vaultWriter = createVaultWriter(this.app, this.settings, this.manifest.id);
 
     this.schemaManager = new SchemaManager(
       this.app,

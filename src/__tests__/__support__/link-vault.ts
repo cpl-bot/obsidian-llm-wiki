@@ -25,7 +25,7 @@ export interface FakeReference {
 export interface FakeLinkVault {
   vault: {
     getMarkdownFiles(): Array<{ path: string }>;
-    process(file: { path: string }, fn: (data: string) => string): Promise<string>;
+    processFile(file: { path: string }, fn: (data: string) => string): Promise<string>;
   };
   metadataCache: {
     getFileCache(file: { path: string }): { links?: FakeReference[]; embeds?: FakeReference[] } | null;
@@ -33,7 +33,7 @@ export interface FakeLinkVault {
   };
   read(path: string): string;
   write(path: string, content: string): void;
-  /** Paths whose content was handed to `vault.process`, in call order. */
+  /** Paths whose content was handed to `vault.processFile`, in call order. */
   processed: string[];
 }
 
@@ -112,7 +112,7 @@ export function createFakeLinkVault(initial: Record<string, string>): FakeLinkVa
   return {
     vault: {
       getMarkdownFiles: () => [...files.keys()].map(path => ({ path })),
-      process: async (file, fn) => {
+      processFile: async (file, fn) => {
         processed.push(file.path);
         const next = fn(files.get(file.path) ?? '');
         files.set(file.path, next);

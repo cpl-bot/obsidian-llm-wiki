@@ -335,7 +335,7 @@ export class WikiEngine {
         if (flipped === current) return;
         const file = this.app.vault.getAbstractFileByPath(path);
         if (file instanceof TFile) {
-          await this.app.vault.process(file, () => flipped);
+          await this.vaultWriter.process(file, () => flipped);
         }
       } catch (e) {
         console.warn(`[wiki-engine] markPageComplete failed for ${path}:`, e);
@@ -1577,7 +1577,7 @@ export class WikiEngine {
         const file = this.app.vault.getAbstractFileByPath(path);
         if (file instanceof TFile) {
           console.debug(`Attempt ${attempt + 1}: File exists, updating:`, path);
-          await this.app.vault.process(file, () => content);
+          await this.vaultWriter.process(file, () => content);
           console.debug('Update success:', path);
           if (this.isInWikiContentFolder(path, this.settings.wikiFolder)) {
             this.markPageComplete(path);
@@ -1595,7 +1595,7 @@ export class WikiEngine {
           const resolved = this.resolveFileInVault(path);
           if (resolved instanceof TFile) {
             console.debug('createOrUpdateFile: resolved via directory scan:', path);
-            await this.app.vault.process(resolved, () => content);
+            await this.vaultWriter.process(resolved, () => content);
             console.debug('Update success (resolved path):', path);
             if (this.isInWikiContentFolder(path, this.settings.wikiFolder)) {
               this.markPageComplete(path);
@@ -1632,7 +1632,7 @@ export class WikiEngine {
             if (resolved) console.debug('Retry found file via full scan:', path);
           }
           if (resolved instanceof TFile) {
-            await this.app.vault.process(resolved, () => content);
+            await this.vaultWriter.process(resolved, () => content);
             console.debug('Update succeeded after file resolution:', path);
             this.onFileWrite?.(path);
             this.invalidatePageCaches();
@@ -1659,7 +1659,7 @@ export class WikiEngine {
       if (file) console.debug('createOrUpdateFile: resolved via full scan:', path);
     }
     if (file) {
-      await this.app.vault.process(file, () => content);
+      await this.vaultWriter.process(file, () => content);
       console.debug('Final update succeeded:', path);
       this.onFileWrite?.(path);
       this.invalidatePageCaches();

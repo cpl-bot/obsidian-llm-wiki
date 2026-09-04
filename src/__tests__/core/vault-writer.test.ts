@@ -40,6 +40,7 @@ function makeFakeVault() {
   return {
     create: vi.fn(async (path: string) => ({ path })),
     modify: vi.fn(async () => undefined),
+    process: vi.fn(async (_file: { path: string }, fn: (d: string) => string) => fn('old')),
     createFolder: vi.fn(async () => undefined),
     delete: vi.fn(async () => undefined),
     adapter: {
@@ -52,7 +53,10 @@ function makeFakeVault() {
 }
 
 function makeFakeFileManager() {
-  return { trashFile: vi.fn(async () => undefined) };
+  return {
+    trashFile: vi.fn(async () => undefined),
+    renameFile: vi.fn(async () => undefined),
+  };
 }
 
 function makeWriter(scope: VaultWriteScope = WIKI) {
@@ -205,6 +209,18 @@ describe('assertWithinScope — extra folders', () => {
     expect(assertWithinScope('Papers/a.pdf.md', scope)).toBe('Papers/a.pdf.md');
   });
 
+  it('ignores an extra root that names the vault root', () => {
+    // `scoped()` refuses this outright; the constructor path must not be a
+    // way around it, so such an entry is dropped rather than honoured. A
+    // scope built only from one is then rootless, which denies everything.
+    expectRejected(() => assertWithinScope('anything.md', { extraFolders: [''] }), 'out-of-scope');
+    expectRejected(() => assertWithinScope('anything.md', { extraFolders: ['/'] }), 'out-of-scope');
+    expectRejected(
+      () => assertWithinScope('Inbox/n.md', { wikiFolder: 'wiki', extraFolders: ['//'] }),
+      'out-of-scope'
+    );
+  });
+
   it('does not widen beyond the listed root', () => {
     const scope: VaultWriteScope = { wikiFolder: 'wiki', extraFolders: ['Papers'] };
     expectRejected(() => assertWithinScope('Papers-old/a.md', scope), 'out-of-scope');
@@ -282,6 +298,83 @@ describe('scopeFromSettings', () => {
       .toBe('.obsidian/plugins/karpathywiki/pdf-cache/a.json');
     expectRejected(() => assertWithinScope('Inbox/n.md', scope), 'out-of-scope');
   });
+
+  it('follows the plugin id it is given, not a literal', () => {
+    // Phase 7 renames the plugin to `karpathywiki-hardened`; `main.ts` passes
+    // `this.manifest.id`, so the config-dir root has to move with it.
+    const scope = scopeFromSettings({ wikiFolder: 'wiki' }, '.obsidian', 'karpathywiki-hardened');
+    expect(scope.pluginConfigDir).toBe('.obsidian/plugins/karpathywiki-hardened');
+    expect(assertWithinScope('.obsidian/plugins/karpathywiki-hardened/data.json', scope))
+      .toBe('.obsidian/plugins/karpathywiki-hardened/data.json');
+    // And the OLD directory is then out of scope, which is the point of not
+    // pinning the literal: the gate names the directory the plugin uses.
+    expectRejected(
+      () => assertWithinScope('.obsidian/plugins/karpathywiki/data.json', scope),
+      'out-of-scope'
+    );
+  });
+});
+
+describe('assertWithinScope — case', () => {
+  // Obsidian's own path index is case-sensitive: `getAbstractFileByPath`
+  // does not find `wiki/x.md` when asked for `Wiki/x.md`. A case-FOLDING
+  // gate would therefore be more permissive than the API it guards, so the
+  // comparison is case-sensitive on every platform (including a
+  // case-insensitive macOS volume, where the mismatched-case write would
+  // land in the wiki folder — and is refused anyway, deliberately).
+  it('denies a wrong-case wiki folder', () => {
+    expectRejected(() => assertWithinScope('Wiki/x.md', WIKI), 'out-of-scope');
+    expectRejected(() => assertWithinScope('WIKI/x.md', WIKI), 'out-of-scope');
+  });
+
+  it('denies a wrong-case configured root just the same', () => {
+    expectRejected(() => assertWithinScope('wiki/x.md', { wikiFolder: 'Wiki' }), 'out-of-scope');
+  });
+
+  it('leaves the case of everything BELOW the root alone', () => {
+    expect(assertWithinScope('wiki/Entities/X.MD', WIKI)).toBe('wiki/Entities/X.MD');
+  });
+});
+
+describe('assertWithinScope — literal filenames that only look like traversal', () => {
+  // Obsidian never URL-decodes a vault path, so `%2e%2e` is an ordinary
+  // three-character folder name. Allowing it is correct; the property that
+  // matters is that it cannot escape.
+  it('accepts a percent-encoded segment inside the wiki folder, unchanged', () => {
+    expect(assertWithinScope('wiki/%2e%2e/x.md', WIKI)).toBe('wiki/%2e%2e/x.md');
+    expect(assertWithinScope('wiki/%2E%2E%2Fetc/x.md', WIKI)).toBe('wiki/%2E%2E%2Fetc/x.md');
+  });
+
+  it('does not let a percent-encoded segment climb out of the wiki folder', () => {
+    expectRejected(() => assertWithinScope('%2e%2e/x.md', WIKI), 'out-of-scope');
+    expectRejected(() => assertWithinScope('wiki/%2e%2e/../../x.md', WIKI), 'parent-traversal');
+  });
+
+  it('treats `...` and `..foo` as ordinary names, not traversal', () => {
+    expect(assertWithinScope('wiki/.../x.md', WIKI)).toBe('wiki/.../x.md');
+    expect(assertWithinScope('wiki/..foo/x.md', WIKI)).toBe('wiki/..foo/x.md');
+  });
+
+  it('accepts control characters inside the folder but never as an escape', () => {
+    // Only NUL is refused outright (host-filesystem truncation). A newline or
+    // tab is an ugly filename, not a way out of the scope.
+    expect(assertWithinScope('wiki/a\nb.md', WIKI)).toBe('wiki/a\nb.md');
+    expect(assertWithinScope('wiki/a\tb.md', WIKI)).toBe('wiki/a\tb.md');
+    expectRejected(() => assertWithinScope('wiki\n/../x.md', WIKI), 'parent-traversal');
+    expectRejected(() => assertWithinScope('\twiki/x.md', WIKI), 'out-of-scope');
+  });
+});
+
+describe('assertWithinScope — a vault-root wikiFolder is not a usable configuration', () => {
+  // The root SCOPE accepts every relative path (pinned above). What it cannot
+  // do is accept the paths the callers build from a root `wikiFolder`:
+  // `${wikiFolder}/schema` is then `/schema`, which the absolute-path rule
+  // refuses. Pinned so the limitation is visible rather than latent — the
+  // setting names a folder, and a root wiki folder is unsupported.
+  it('refuses the `/…` paths a root wikiFolder makes the callers build', () => {
+    expectRejected(() => assertWithinScope('/schema/config.md', { wikiFolder: '' }), 'absolute-path');
+    expectRejected(() => assertWithinScope('/entities/X.md', { wikiFolder: '/' }), 'absolute-path');
+  });
 });
 
 describe('VaultWriter — forwards exactly once on allow', () => {
@@ -326,6 +419,32 @@ describe('VaultWriter — forwards exactly once on allow', () => {
     await writer.trash(file);
     expect(fileManager.trashFile).toHaveBeenCalledTimes(1);
     expect(fileManager.trashFile).toHaveBeenCalledWith(file);
+  });
+
+  it('process', async () => {
+    const { writer, vault } = makeWriter();
+    const file = { path: 'wiki/x.md' };
+    const next = await writer.process(file, prev => `${prev}+new`);
+    expect(vault.process).toHaveBeenCalledTimes(1);
+    expect(vault.process.mock.calls[0][0]).toBe(file);
+    expect(next).toBe('old+new');
+  });
+
+  it('rename', async () => {
+    const { writer, fileManager } = makeWriter();
+    const file = { path: 'wiki/concepts/x.md' };
+    await writer.rename(file, 'wiki/entities/x.md');
+    expect(fileManager.renameFile).toHaveBeenCalledTimes(1);
+    expect(fileManager.renameFile).toHaveBeenCalledWith(file, 'wiki/entities/x.md');
+  });
+
+  it('rename forwards the collapsed destination, not the raw one', async () => {
+    const { writer, fileManager } = makeWriter();
+    await writer.rename({ path: 'wiki/concepts/x.md' }, 'wiki//entities/./x.md');
+    expect(fileManager.renameFile).toHaveBeenCalledWith(
+      { path: 'wiki/concepts/x.md' },
+      'wiki/entities/x.md'
+    );
   });
 
   it('adapterWrite', async () => {
@@ -389,6 +508,35 @@ describe('VaultWriter — never forwards on deny', () => {
     const { writer, fileManager } = makeWriter();
     await expect(writer.trash({ path: 'Inbox/n.md' })).rejects.toBeInstanceOf(VaultWriteScopeError);
     expect(fileManager.trashFile).not.toHaveBeenCalled();
+  });
+
+  it('process', async () => {
+    const { writer, vault } = makeWriter();
+    await expect(writer.process({ path: outOfScope }, d => d))
+      .rejects.toBeInstanceOf(VaultWriteScopeError);
+    expect(vault.process).not.toHaveBeenCalled();
+  });
+
+  it('rename refuses an out-of-scope DESTINATION', async () => {
+    const { writer, fileManager } = makeWriter();
+    await expect(writer.rename({ path: 'wiki/x.md' }, 'Inbox/x.md'))
+      .rejects.toBeInstanceOf(VaultWriteScopeError);
+    expect(fileManager.renameFile).not.toHaveBeenCalled();
+  });
+
+  it('rename refuses an out-of-scope SOURCE', async () => {
+    // A rename is also a delete of the source path, so both ends are gated.
+    const { writer, fileManager } = makeWriter();
+    await expect(writer.rename({ path: 'Inbox/x.md' }, 'wiki/x.md'))
+      .rejects.toBeInstanceOf(VaultWriteScopeError);
+    expect(fileManager.renameFile).not.toHaveBeenCalled();
+  });
+
+  it('rename refuses a traversal destination that would leave the vault', async () => {
+    const { writer, fileManager } = makeWriter();
+    await expect(writer.rename({ path: 'wiki/x.md' }, 'wiki/../../x.md'))
+      .rejects.toBeInstanceOf(VaultWriteScopeError);
+    expect(fileManager.renameFile).not.toHaveBeenCalled();
   });
 
   it('adapterWrite', async () => {
@@ -461,6 +609,15 @@ describe('VaultWriter — construction', () => {
     await widened.create('Papers/thesis.pdf.md', 'x');
     await expect(widened.create('Papers/other.md', 'x')).rejects.toBeInstanceOf(VaultWriteScopeError);
     expect(vault.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('`canRename` reports whether a link-safe rename is available', async () => {
+    // `path-resolution.ts` branches on this to mark a classification conflict
+    // instead of moving the page, so it must be decidable without writing.
+    expect(makeWriter().writer.canRename).toBe(true);
+    expect(new VaultWriter({ scope: WIKI }).canRename).toBe(false);
+    await expect(new VaultWriter({ scope: WIKI }).rename({ path: 'wiki/x.md' }, 'wiki/y.md'))
+      .rejects.toThrow(/requires a fileManager/);
   });
 
   it('throws a clear error when the needed capability was not supplied', async () => {

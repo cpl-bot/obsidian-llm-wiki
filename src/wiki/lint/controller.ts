@@ -91,6 +91,7 @@ export async function runLintWiki(
     const phaseCtx: LintPhaseContext = {
       app: ctx.app,
       settings: ctx.settings,
+      vaultWriter: ctx.vaultWriter,
       llmClient: () => ctx.llmClient,
       wikiEngine: ctx.wikiEngine,
       checkCancelled,

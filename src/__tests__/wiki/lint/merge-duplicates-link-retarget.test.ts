@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { mergeDuplicatePages } from '../../../wiki/lint/merge-duplicates';
 import { createFakeLinkVault } from '../../__support__/link-vault';
 import type { EngineContext } from '../../../types';
+import { VaultWriter } from '../../../core/vault-writer';
+import { testScopeFor } from '../../__support__/vault-writer';
 
 // Issue #386 at the call site. PR #389 deliberately left the merge-duplicates
 // site without leak-direction coverage because this issue replaces the filter
@@ -19,6 +21,13 @@ function makeCtx(files: Record<string, string>) {
   const ctx = {
     app: { vault: fake.vault, metadataCache: fake.metadataCache },
     settings: { wikiFolder: 'wiki', language: 'en' },
+    // Phase 5 (F-08): a real gate. #386 retargets vault-wide, so the call
+    // site widens it per file; the write still lands in the fake vault and
+    // `fake.processed` still records exactly the files that were rewritten.
+    vaultWriter: new VaultWriter({
+      vault: { process: (file, fn) => fake.vault.processFile(file, fn) },
+      scope: testScopeFor('wiki'),
+    }),
     getClient: () => null,
     tryReadFile: async (path: string) => (files[path] === undefined ? fake.read(path) || null : fake.read(path)),
     createOrUpdateFile: async (path: string, content: string) => { fake.write(path, content); },
