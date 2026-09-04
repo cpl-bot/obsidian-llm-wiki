@@ -74,6 +74,17 @@ export const JA_TEXTS = {
     baseUrlName: 'API Base URL',
     baseUrlDescCustom: '必須：カスタムOpenAI互換エンドポイント',
     baseUrlDescOverride: '任意：定義済みBase URLを上書き',
+    // Phase 4 (F-04) — network egress policy
+    strictEgressName: '厳格な送信制限（推奨）',
+    strictEgressDesc: '組み込みプロバイダーのホスト、設定した Base URL、localhost 宛ての送信のみを許可します。企業プロキシやゲートウェイを使う場合のみオフにしてください。',
+    strictEgressWarning: '厳格な送信制限がオフです。Base URL が指す任意の HTTPS ホストに API キーが送信される可能性があります。',
+    egressDeniedNotice: '送信ポリシーにより「{host}」へのリクエストをブロックしました: {reason}',
+    egressBaseUrlRejected: 'Base URL を拒否しました: {reason}',
+    egressReasonInvalidUrl: 'アドレスを解析できません',
+    egressReasonScheme: 'https:// のみ許可されています（http:// は localhost のみ）',
+    egressReasonUserinfo: 'アドレスに認証情報が埋め込まれています（user:pass@host）',
+    egressReasonPrivateAddress: 'アドレスがプライベート／リンクローカルのネットワークを指しています',
+    egressReasonHostNotAllowed: 'このホストは送信許可リストにありません',
 
     // Ollama Hint
     ollamaHint: 'Ollamaはローカルで動作するため、API Keyは不要です',

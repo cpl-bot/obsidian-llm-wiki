@@ -15,7 +15,7 @@
 //   - CORS / network error → throws TypeError (caller falls back)
 //   - isLocalBaseURL: localhost / 127. / RFC 1918 private IPs
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { requestUrl } from 'obsidian';
 import {
   obsidianFetchBridge,
@@ -23,6 +23,17 @@ import {
   streamingObsidianFetch,
   isLocalBaseURL,
 } from '../../core/obsidian-fetch-bridge';
+import { registerEgressSettings } from '../../core/egress-policy';
+
+// Phase 4.2 (F-04): both bridge entry points now assert the egress policy
+// before touching a transport. These tests exercise transport MECHANICS
+// (headers, bodies, abort, fallback) against the placeholder host
+// `api.example.com`; the policy itself has its own suite. Registering that
+// host as the user's configured provider base URL is the same clause of
+// the policy that keeps a self-hosted endpoint working, and keeps these
+// tests about what they were written to test.
+beforeEach(() => registerEgressSettings(() => ({ baseUrl: 'https://api.example.com/v1' })));
+afterEach(() => registerEgressSettings(null));
 
 const mockRequestUrl = vi.mocked(requestUrl);
 

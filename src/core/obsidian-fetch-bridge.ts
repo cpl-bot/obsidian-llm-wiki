@@ -25,6 +25,8 @@
 
 import { requestUrl, RequestUrlParam } from 'obsidian';
 
+import { assertAllowedEgress, currentEgressSettings } from './egress-policy';
+
 export interface ObsidianFetchInit {
   method?: string;
   /** Fetch-API HeadersInit: plain object, Headers instance, or tuple array. */
@@ -94,6 +96,17 @@ export async function obsidianFetchBridge(
   url: string,
   init?: ObsidianFetchInit
 ): Promise<Response> {
+  // Phase 4.2 (F-04): egress policy FIRST — before the abort check, before
+  // any request construction. A denial must never be able to race a
+  // credentialed request onto the wire. Settings come from the registry
+  // (`registerEgressSettings` in main.ts) because this is a free function
+  // shared by every SDK client; unregistered means fail-closed/strict.
+  //
+  // NOTE: `requestUrl` follows redirects itself and obsidian 1.12.3's
+  // `RequestUrlParam` exposes no redirect option, so a 3xx from an allowed
+  // host is NOT re-validated. See the header comment in egress-policy.ts.
+  assertAllowedEgress(url, currentEgressSettings());
+
   // AbortSignal short-circuit: AI-SDK respects AbortSignal but requestUrl
   // doesn't accept one. We honor cancellation here.
   if (init?.signal?.aborted) {
@@ -195,6 +208,12 @@ export async function streamingObsidianFetch(
   url: string,
   init?: ObsidianFetchInit
 ): Promise<Response> {
+  // Phase 4.2 (F-04): the native-`fetch` path is a second chokepoint and
+  // gets the identical gate. `window.fetch` is not given `redirect:
+  // 'manual'` (AI-SDK needs the followed response), so — as with
+  // `requestUrl` — only the first hop is policed.
+  assertAllowedEgress(url, currentEgressSettings());
+
   // AbortSignal short-circuit: matches fetch API semantics.
   if (init?.signal?.aborted) {
     throw new DOMException('The operation was aborted.', 'AbortError');
@@ -270,6 +289,11 @@ export async function streamWithFallback(
   url: string,
   init?: ObsidianFetchInit
 ): Promise<Response> {
+  // Phase 4.2 (F-04): gate here too, so the `isLocalBaseURL` shortcut
+  // below can never hand a private-range URL to requestUrl unchecked.
+  // The delegates re-assert; the cost is one extra URL parse per request.
+  assertAllowedEgress(url, currentEgressSettings());
+
   // Local providers: skip the CORS gamble. Use requestUrl directly.
   if (isLocalBaseURL(url)) {
     console.debug(`[${STREAM_FETCH_LOG}] isLocal, fallback to obsidianFetchBridge (requestUrl): ${url}`);

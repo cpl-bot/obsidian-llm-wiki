@@ -74,6 +74,17 @@ export const ZH_TEXTS = {
     baseUrlName: 'API Base URL',
     baseUrlDescCustom: '必填：自定义 OpenAI 兼容服务的 endpoint',
     baseUrlDescOverride: '可选：覆盖预设的 Base URL',
+    // Phase 4 (F-04) — network egress policy
+    strictEgressName: '严格出站限制（推荐）',
+    strictEgressDesc: '仅允许向内置服务商主机、你配置的 Base URL 以及 localhost 发起出站请求。仅在使用企业代理或网关时才关闭。',
+    strictEgressWarning: '严格出站限制已关闭。插件可能会把你的 API 密钥发送到 Base URL 指向的任意 HTTPS 主机。',
+    egressDeniedNotice: '已按出站策略拦截对 “{host}” 的请求：{reason}',
+    egressBaseUrlRejected: 'Base URL 被拒绝：{reason}',
+    egressReasonInvalidUrl: '该地址无法解析',
+    egressReasonScheme: '仅允许 https://（http:// 只能用于 localhost）',
+    egressReasonUserinfo: '该地址内嵌了凭据（user:pass@host）',
+    egressReasonPrivateAddress: '该地址指向内网或链路本地网络',
+    egressReasonHostNotAllowed: '该主机不在出站白名单中',
 
     // Ollama 提示
     ollamaHint: 'Ollama 本地运行，无需 API Key',

@@ -74,6 +74,17 @@ export const ZH_HANT_TEXTS = {
     baseUrlName: 'API Base URL',
     baseUrlDescCustom: '必填：自定義 OpenAI 相容服務的 endpoint',
     baseUrlDescOverride: '可選：覆蓋預設的 Base URL',
+    // Phase 4 (F-04) — network egress policy
+    strictEgressName: '嚴格外連限制（建議）',
+    strictEgressDesc: '僅允許向內建服務商主機、你設定的 Base URL 以及 localhost 發出外連請求。僅在使用企業 Proxy 或閘道時才關閉。',
+    strictEgressWarning: '嚴格外連限制已關閉。外掛可能會將你的 API 金鑰送往 Base URL 指向的任意 HTTPS 主機。',
+    egressDeniedNotice: '已依外連政策攔截對「{host}」的請求：{reason}',
+    egressBaseUrlRejected: 'Base URL 遭拒：{reason}',
+    egressReasonInvalidUrl: '此位址無法解析',
+    egressReasonScheme: '僅允許 https://（http:// 只能用於 localhost）',
+    egressReasonUserinfo: '此位址內嵌了憑證（user:pass@host）',
+    egressReasonPrivateAddress: '此位址指向內網或連結本地網路',
+    egressReasonHostNotAllowed: '此主機不在外連白名單中',
 
     // Ollama 提示
     ollamaHint: 'Ollama 本地執行，無需 API Key',

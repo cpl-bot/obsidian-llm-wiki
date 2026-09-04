@@ -78,6 +78,17 @@ export const RU_TEXTS = {
     baseUrlName: 'API Base URL',
     baseUrlDescCustom: 'Обязательно: собственный OpenAI-совместимый эндпоинт',
     baseUrlDescOverride: 'Необязательно: переопределить предустановленный Base URL',
+    // Phase 4 (F-04) — network egress policy
+    strictEgressName: 'Строгий контроль исходящих (рекомендуется)',
+    strictEgressDesc: 'Разрешает исходящие запросы только к встроенным хостам провайдеров, к настроенному вами Base URL и к localhost. Отключайте только ради корпоративного прокси или шлюза.',
+    strictEgressWarning: 'Строгий контроль исходящих ВЫКЛЮЧЕН. Плагин может отправить ваш API-ключ на любой HTTPS-хост, на который указывает Base URL.',
+    egressDeniedNotice: 'Запрос к «{host}» заблокирован политикой исходящих: {reason}',
+    egressBaseUrlRejected: 'Base URL отклонён: {reason}',
+    egressReasonInvalidUrl: 'адрес не удалось разобрать',
+    egressReasonScheme: 'разрешён только https:// (http:// — только для localhost)',
+    egressReasonUserinfo: 'адрес содержит встроенные учётные данные (user:pass@host)',
+    egressReasonPrivateAddress: 'адрес указывает на частную или link-local сеть',
+    egressReasonHostNotAllowed: 'хост отсутствует в списке разрешённых исходящих',
 
     // Подсказка Ollama
     ollamaHint: 'Ollama работает локально, API Key не требуется',
