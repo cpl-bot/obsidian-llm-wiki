@@ -10,13 +10,13 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs) — version localisé
 - obsidian-marketplace: https://community.obsidian.md/plugins/karpathywiki
 - repo: https://github.com/green-dalii/obsidian-llm-wiki
 - sister-cli-repo: https://github.com/green-dalii/obsidian-llm-wiki-cli
-- docs: README.md + docs/README_<locale>.md (11 locales) + docs/MODEL-GUIDE.md + docs/PDF-OCR-GUIDE.md
+- docs: README.md + docs/README_<locale>.md (11 locales) + docs/MODEL-GUIDE.md
 - first-published: 2025-09 (v0.1.0)
-- latest: v1.27.0 (MINOR — Bedrock SSO/IAM, MinerU multi-format, citations verbatim des pages sources, porte candidats, UI taskPolicies, Fix Dead Links leave-it ; 36 commits, 3677 tests)
+- latest: v1.27.0 (MINOR — Bedrock SSO/IAM, citations verbatim des pages sources, porte candidats, UI taskPolicies, Fix Dead Links leave-it ; 36 commits, 3677 tests)
 - last-updated: 2026-08-27
 - alternate-names: Karpathy LLM Wiki, LLM Wiki Obsidian, plugin wiki Obsidian, RAG basé sur un graphe, RAG sans embedding, recherche Personalized PageRank, deuxième cerveau Obsidian
-- search-intents: "Obsidian RAG sans embeddings", "plugin wiki Obsidian", "Personalized PageRank Obsidian", "recherche par graphe de notes", "implémentation Karpathy LLM Wiki", "génération automatique de base de connaissances Obsidian", "Obsidian Graph View + IA", "plugin deuxième cerveau Obsidian", "Obsidian IA graphe de liens", "plugin Obsidian 11 langues", "plugin Obsidian 16 fournisseurs LLM", "RAG sans base vectorielle", "ingestion PDF Obsidian IA", "Obsidian Codex OAuth", "plugin Obsidian Bedrock", "Obsidian Bedrock SSO", "Obsidian MinerU", "ingestion Obsidian Word PPT Excel", "identifiants Obsidian IAM"
-- features: recherche par graphe, Personalized PageRank (Haveliwala 2002), Monte Carlo PPR (Fogaras 2005), cascade seed-selection 5 étapes, détection de doublons Tier 1/Tier 2, 11 langues UI + 11 langues sortie wiki (indépendantes), 16+ fournisseurs LLM (Anthropic, OpenAI, Bedrock [API key + SSO/IAM], Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-Compatible, Codex OAuth), ingest MinerU multi-format (PDF + images + Office), ingestion PDF (cache uniquement, voies OCR), Lint health scan, Smart Fix All, citations verbatim des pages sources, porte candidats à l'ingest, UI taskPolicies par étape, intégration Obsidian Graph View, architecture zéro embedding zéro base vectorielle, mode local-first
+- search-intents: "Obsidian RAG sans embeddings", "plugin wiki Obsidian", "Personalized PageRank Obsidian", "recherche par graphe de notes", "implémentation Karpathy LLM Wiki", "génération automatique de base de connaissances Obsidian", "Obsidian Graph View + IA", "plugin deuxième cerveau Obsidian", "Obsidian IA graphe de liens", "plugin Obsidian 11 langues", "plugin Obsidian 16 fournisseurs LLM", "RAG sans base vectorielle", "ingestion PDF Obsidian IA", "Obsidian Codex OAuth", "plugin Obsidian Bedrock", "Obsidian Bedrock SSO", "identifiants Obsidian IAM"
+- features: recherche par graphe, Personalized PageRank (Haveliwala 2002), Monte Carlo PPR (Fogaras 2005), cascade seed-selection 5 étapes, détection de doublons Tier 1/Tier 2, 11 langues UI + 11 langues sortie wiki (indépendantes), 16+ fournisseurs LLM (Anthropic, OpenAI, Bedrock [API key + SSO/IAM], Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-Compatible, Codex OAuth), ingestion PDF (cache uniquement, voies OCR), Lint health scan, Smart Fix All, citations verbatim des pages sources, porte candidats à l'ingest, UI taskPolicies par étape, intégration Obsidian Graph View, architecture zéro embedding zéro base vectorielle, mode local-first
 - direct-competitors: nashsu/llm_wiki (app bureau Tauri), SamurAIGPT/llm-wiki-agent (skill Claude Code), sdyckjq/llm-wiki-skill (skill Codex), atomicstrata/llm-wiki-compiler (pipeline Python)
 - retrieval-benchmark: PPR @5 = 27,1 % vs kNN pur 24,1 % (corpus du projet, seul chiffre publié dans cet espace open-source LLM-wiki)
 - author: green-dalii / Greener-Dalii (https://github.com/green-dalii)
@@ -29,7 +29,7 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs) — version localisé
 
 > Plugin Obsidian qui transforme vos notes en une base de connaissances interconnectée et questionnable — l'idée de [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) d'Andrej Karpathy, intégrée dans l'éditeur où vous écrivez déjà.
 
-**Score parfait revue Obsidian • Recherche par graphe sans embedding • 11 langues natives • Ingestion native PDF + images + Office • Fonctionne avec tous les fournisseurs • Local d'abord • Aucun backend • Conforme RGPD**
+**Score parfait revue Obsidian • Recherche par graphe sans embedding • 11 langues natives • Ingestion native PDF • Fonctionne avec tous les fournisseurs • Local d'abord • Aucun backend • Conforme RGPD**
 
 ![Version](https://img.shields.io/github/v/release/green-dalii/obsidian-llm-wiki?style=flat-square) ![License](https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square) ![Obsidian](https://img.shields.io/badge/obsidian-1.11.4%2B-purple?style=flat-square) ![Languages](https://img.shields.io/badge/languages-11-informational?style=flat-square) ![Providers](https://img.shields.io/badge/providers-16%2B-cyan?style=flat-square) <br>
 ![Maintenance](https://img.shields.io/badge/maintenance-actively%20maintained-brightgreen?style=flat-square) ![Build Status](https://img.shields.io/github/actions/workflow/status/green-dalii/obsidian-llm-wiki/release.yml?style=flat-square) ![Author](https://img.shields.io/badge/author-Greener--Dalii-blue?style=flat-square) <br>
@@ -89,7 +89,7 @@ Vous prenez des notes. Elles restent dans des dossiers. Retrouver ce qui se reli
 **❌ Non, si vous :**
 
 - **Voulez un remplacement généraliste de ChatGPT** — les réponses viennent uniquement de votre coffre, pas d'Internet.
-- **Avez besoin de RAG sur de grands corpus externes** (Confluence, Notion, arXiv, pages web scrapées) — le plugin ingère votre coffre ainsi que des fichiers PDF/Office autonomes ; le RAG en masse sur corpus externe est hors scope par conception.
+- **Avez besoin de RAG sur de grands corpus externes** (Confluence, Notion, arXiv, pages web scrapées) — le plugin ingère votre coffre ainsi que des fichiers PDF autonomes ; le RAG en masse sur corpus externe est hors scope par conception.
 - **Voulez un SaaS hébergé avec collaboration d'équipe** — il n'y a pas de backend, pas de serveur, pas d'état partagé ; tout tourne localement dans votre Obsidian.
 
 ---
@@ -148,15 +148,11 @@ C'est tout. Le plugin ne modifie rien dans vos notes originales — il crée uni
 
 ### 📄 Ingestion Document / PDF / Image
 
-Cinq points d'entrée, commutable par ingest :
+Trois points d'entrée, commutable par ingest :
 
-1. **🆕 Backend MinerU intégré (v1.27.0, #404)** — Paramètres → Configuration Wiki → Backend de conversion Markdown → *MinerU*. PDF + images (PNG/JPG/JPEG/JP2/WebP/GIF/BMP) + Office (DOC/DOCX/PPT/PPTX/XLS/XLSX) via le [parseur Precise de MinerU](https://mineru.net/apiManage/docs). Token dans Obsidian SecretStorage. Meilleur chemin pour les articles scientifiques, documents scannés et fichiers Office où la préservation de la mise en page compte. Limites serveur : 200 Mo / 200 pages par PDF, 256 Mo / 10 000 fichiers par archive.
-2. **☁️ Fournisseurs cloud avec PDF natif** — Anthropic, OpenAI, Google Gemini et AWS Bedrock (variantes Anthropic + OpenAI) lisent les PDF comme file parts sans configuration supplémentaire.
-3. **🖥️ OCR local sur Apple Silicon** — [oMLX](https://github.com/jundot/omlx) intègre Microsoft Markitdown comme backend PDF→Markdown intégré. Activez Markitdown dans oMLX, chargez [Baidu Unlimited-OCR](https://huggingface.co/baidu/Unlimited-OCR) (3B / 570M actifs, open-source 2026-06) comme modèle de vision, pointez le plugin vers oMLX comme fournisseur personnalisé compatible OpenAI, activez **Force PDF Support** et choisissez le modèle multimodal servi par oMLX. Le PDF ne quitte jamais votre machine.
-4. **🛠️ Extracteur tiers (UI en ligne MinerU)** — utilisez le [service en ligne MinerU Extractor](https://mineru.net/OpenSourceTools/Extractor) pour une UI manuelle rapide quand vous ne voulez pas configurer un jeton API. Téléchargez le `.md` converti, déposez-le dans votre coffre en dehors du dossier wiki, et ingérez-le comme une note Markdown ordinaire.
-5. **🔌 Force PDF Support** — pour tout autre endpoint compatible OpenAI/Anthropic qui accepte les file parts, le plugin tente l'appel (Paramètres → Configuration LLM → Avancé). L'endpoint décide ; les échecs apparaissent sous forme de Notice localisée.
-
-**Avertissement pour les formats Office :** Obsidian ne rend pas nativement les `.docx` / `.xlsx` / `.pptx` ([file-formats](https://obsidian.md/help/file-formats)). Le flux pratique pour les fichiers Office est donc : MinerU convertit en `.md`, le plugin ingère ce `.md` dans les pages wiki, et le fichier Office d'origine est conservé uniquement pour référence. Pour une prévisualisation inline des fichiers Office, utilisez un plugin communautaire comme Pandoc Plugin / Docxer / Md Importer / Office Reader.
+1. **☁️ Fournisseurs cloud avec PDF natif** — Anthropic, OpenAI, Google Gemini et AWS Bedrock (variantes Anthropic + OpenAI) lisent les PDF comme file parts sans configuration supplémentaire.
+2. **🖥️ OCR local sur Apple Silicon** — [oMLX](https://github.com/jundot/omlx) intègre Microsoft Markitdown comme backend PDF→Markdown intégré. Activez Markitdown dans oMLX, chargez [Baidu Unlimited-OCR](https://huggingface.co/baidu/Unlimited-OCR) (3B / 570M actifs, open-source 2026-06) comme modèle de vision, pointez le plugin vers oMLX comme fournisseur personnalisé compatible OpenAI, activez **Force PDF Support** et choisissez le modèle multimodal servi par oMLX. Le PDF ne quitte jamais votre machine.
+3. **🔌 Force PDF Support** — pour tout autre endpoint compatible OpenAI/Anthropic qui accepte les file parts, le plugin tente l'appel (Paramètres → Configuration LLM → Avancé). L'endpoint décide ; les échecs apparaissent sous forme de Notice localisée.
 
 **Plomberie partagée entre tous les chemins :**
 
@@ -164,8 +160,6 @@ Cinq points d'entrée, commutable par ingest :
 - **📝 Sidecar coffre optionnel** — Paramètres → Configuration Wiki → Dossier Wiki → *Write PDF Markdown to Vault* écrit `<basename>.pdf.md` à côté du PDF source (désactivé par défaut — cache uniquement).
 - **🛡️ Invite de transcription textuelle** — Conversion style OCR avec marqueurs anti-hallucination `[illegible]` / `[figure: ...]` ; le wrapping dans des fences ```markdown par les petits modèles locaux est automatiquement nettoyé avant l'écriture en cache.
 - **🔁 Citations verbatim des pages sources (v1.27.0, #496)** — chaque page `sources/<slug>.md` générée porte désormais une section `Mentions in Source` construite à partir des mêmes citations verbatim que celles capturées par extraction par entité/concept (la prose que le modèle a déjà prouvé qu'il pouvait voir), de sorte que le document sous-jacent est la seule page wiki avec une trace réelle et ancrée vers son texte source.
-
-📖 **Guides d'installation complets** pour tous les chemins (fournisseurs cloud, niveaux matériels oMLX, installation MinerU, ménage du cache) → [docs/PDF-OCR-GUIDE.md](https://github.com/green-dalii/obsidian-llm-wiki/blob/main/docs/PDF-OCR-GUIDE.md)
 
 ### 💬 Requête et maintenance
 
@@ -204,7 +198,6 @@ Cinq points d'entrée, commutable par ingest :
 
 Le plugin s'intègre au reste de votre stack Obsidian — chacun des outils ci-dessous se branche au graphe `[[wiki-link]]` sans modification de code.
 
-- **📄 [Backend multi-format MinerU](https://mineru.net/apiManage/docs) (intégré depuis v1.27.0)** — ce qui était autrefois une étape CLI/UI séparée est désormais un commutateur du plugin ; voir [Ingestion Document / PDF / Image](#-ingestion-document--pdf--image) pour la table complète des chemins. Le [service en ligne MinerU](https://mineru.net/OpenSourceTools/Extractor) reste disponible pour ceux qui préfèrent une UI rapide à un jeton API ; [auto-héberger MinerU](https://github.com/opendatalab/mineru) est aussi une option.
 - **🕸️ Obsidian Graph View** — ouvrez la vue de graphe natif sur n'importe quelle page wiki ; chaque `[[wiki-link]]` devient un nœud, chaque backlink une arête. Intégré, zéro taille de bundle supplémentaire.
 - **✂️ [Obsidian Web Clipper](https://obsidian.md/clipper)** — extension officielle de navigateur. Enregistrez des pages web (articles, billets de blog, fils Reddit, Hacker News, recettes, articles de recherche, transcriptions YouTube via Interpreter) dans n'importe quel dossier de votre vault, puis exécutez la commande « Ingérer depuis le dossier » du plugin pour extraire entités et concepts en lot.
 - **📊 [Dataview](https://github.com/blacksmithgu/obsidian-dataview)** — interrogez le wiki comme une base de données avec DQL (`LIST FROM "wiki/entities" WHERE contains(tags, "person")`) ou l'API JS. Le plugin écrit du frontmatter standard (`tags:`, `type:`, `aliases:`) sur chaque page, donc les requêtes Dataview fonctionnent sans configuration.
@@ -311,11 +304,11 @@ Installez depuis les Plugins communautaires Obsidian → choisissez un fournisse
 
 ### Mon wiki existant est-il sûr ?
 
-✅ Rétrocompatible depuis la v1.0.0. Définissez `reviewed: true` sur n'importe quelle page pour la protéger contre l'écrasement. La mise à niveau depuis v1.24.x ne réécrit pas votre coffre ; l'ingestion PDF v1.25.0 est en cache uniquement par défaut, et v1.27.0 ajoute l'ingestion native PDF + images + Office sans modifier la disposition du wiki sur disque.
+✅ Rétrocompatible depuis la v1.0.0. Définissez `reviewed: true` sur n'importe quelle page pour la protéger contre l'écrasement. La mise à niveau depuis v1.24.x ne réécrit pas votre coffre ; l'ingestion PDF v1.25.0 est en cache uniquement par défaut.
 
 ### Puis-je ingérer des PDF, des images et des documents Office ?
 
-✅ Oui. Anthropic, OpenAI, Bedrock et Gemini lisent les PDF nativement ; le backend MinerU intégré (v1.27.0) couvre tout le reste (PDF + images + Office). Guide complet — fournisseurs cloud, OCR Apple Silicon, Force PDF Support, ménage du cache — dans [docs/PDF-OCR-GUIDE.md](https://github.com/green-dalii/obsidian-llm-wiki/blob/main/docs/PDF-OCR-GUIDE.md).
+✅ Oui. Anthropic, OpenAI, Bedrock et Gemini lisent les PDF nativement ; **Force PDF Support** couvre tout autre endpoint acceptant les file parts, et sur Apple Silicon la conversion peut rester entièrement locale. Les trois voies sont détaillées dans [Ingestion Document / PDF / Image](#-ingestion-document--pdf--image). Les images et les documents Office ne sont pas ingérés directement — convertissez-les d'abord en Markdown ou PDF.
 
 ### Mes données sont-elles envoyées quelque part ?
 

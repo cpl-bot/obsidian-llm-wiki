@@ -28,7 +28,6 @@ import { parseFrontmatter, upsertFrontmatterField, mergeFrontmatterArrayField, e
 import { setGenerationComplete } from '../core/incomplete-page-cleaner';
 import { createVaultWriter, type VaultWriter } from '../core/vault-writer';
 import { convertPdfToMarkdown, UnsupportedProviderError, EncryptedPdfError } from '../core/pdf-converter';
-import { MineruPdfError, MINERU_PHASE_KEY } from '../core/mineru-converter';
 import { hashBody, checkContentRequirements } from '../core/source-requirements';
 import { resolveModelForTask } from '../core/model-resolver';
 import type { SourceRejection } from '../core/source-requirements';
@@ -57,7 +56,7 @@ import { fixPollutedSources } from '../core/sources-normalizer';
 // v1.25.1 Phase C-PR1: buildLogHeader moved into LogWriter.
 import { UNIVERSAL_LINK_CONSTRAINTS } from './prompts/constraints';
 import { SourceAnalyzer } from './source-analyzer';
-import { TOKENS_PAGE_GENERATION, NOTICE_ABORT, NOTICE_RATE_LIMIT, NOTICE_NORMAL, NOTICE_SHORT, PAGES_CACHE_TTL_MS, COMPATIBLE_SOURCE_EXTENSIONS, MINERU_API_TOKEN_SECRET_ID, MINERU_CONVERSION_EXTENSIONS, MINERU_MAX_PDF_MB, MINERU_MAX_PDF_PAGES } from '../constants';
+import { TOKENS_PAGE_GENERATION, NOTICE_ABORT, NOTICE_RATE_LIMIT, NOTICE_NORMAL, NOTICE_SHORT, PAGES_CACHE_TTL_MS, COMPATIBLE_SOURCE_EXTENSIONS } from '../constants';
 import { PageFactory } from './page-factory';
 import { ConversationIngestor, ConversationOrchestration, formatConversation, ConversationHistory } from './conversation-ingest';
 import type { Graph } from '../core/build-graph';
@@ -557,12 +556,10 @@ export class WikiEngine {
    * mapping, users would see the generic "empty content" Notice for a PDF
    * their provider can't handle — the dedicated i18n key would be orphaned.
    */
-  private rejectionNoticeKey(reason: SourceRejection['reason']): 'sourceRejectedEmpty' | 'sourceRejectedType' | 'sourceRejectedDuplicate' | 'sourceRejectedPdfUnsupported' | 'mineruPageLimitRejected' | 'mineruSizeLimitRejected' {
+  private rejectionNoticeKey(reason: SourceRejection['reason']): 'sourceRejectedEmpty' | 'sourceRejectedType' | 'sourceRejectedDuplicate' | 'sourceRejectedPdfUnsupported' {
     if (reason === 'incompatible-type') return 'sourceRejectedType';
     if (reason === 'duplicate') return 'sourceRejectedDuplicate';
     if (reason === 'unsupported-pdf') return 'sourceRejectedPdfUnsupported';
-    if (reason === 'mineru-page-limit') return 'mineruPageLimitRejected';
-    if (reason === 'mineru-size-limit') return 'mineruSizeLimitRejected';
     return 'sourceRejectedEmpty';
   }
 
@@ -573,8 +570,7 @@ export class WikiEngine {
     // (the batch summary / console covers them) to avoid Notice spam.
     if (opts?.interactive) {
       // {filename} is always available; rejection.params supplies extras
-      // (e.g. the MinerU limit behind `{limit}`) so new rejections don't
-      // need per-key plumbing here.
+      // so new rejections don't need per-key plumbing here.
       const params: Record<string, string> = { filename: file.basename, ...rejection.params };
       const msg = getText(this.settings.language, this.rejectionNoticeKey(rejection.reason))
         .replace(/\{(\w+)\}/g, (match, key: string) => params[key] ?? match);
@@ -705,8 +701,8 @@ export class WikiEngine {
     let conversionResult;
     // Altitude #3: completion-signal driven by wall-clock duration, not by
     // backend identity. Below the threshold (cached hit, fast native read)
-    // the path is silent; above it (MinerU's upload+wait, or a long native
-    // PDF through Anthropic Vision), the user gets a Toast. Captured here
+    // the path is silent; above it (a long native PDF through the
+    // provider's vision path), the user gets a Toast. Captured here
     // so the elapsed time survives the catch — a thrown conversion still
     // tells the user how long the failed attempt ran.
     const conversionStartedAt = Date.now();
@@ -721,14 +717,6 @@ export class WikiEngine {
           baseUrl: this.settings.baseUrl,
           model: this.settings.model,
           forcePdfSupport: this.settings.forcePdfSupport,
-          markdownConversionBackend: this.settings.markdownConversionBackend,
-        },
-        ...(this.settings.markdownConversionBackend === 'mineru'
-          ? { mineruApiToken: this.app.secretStorage.getSecret(MINERU_API_TOKEN_SECRET_ID) ?? '' }
-          : {}),
-        onMineruPhase: phase => {
-          const key = MINERU_PHASE_KEY[phase];
-          this.notifyProgress(getText(lang, key).replace('{filename}', file.basename));
         },
         pdfFile: file,
         llmClient: this.getLLMClient() as never,
@@ -752,25 +740,6 @@ export class WikiEngine {
       if (error instanceof EncryptedPdfError) {
         this.reportSkip(file, { reason: 'unsupported-pdf', detail: error.message }, opts);
         return;
-      }
-      if (error instanceof MineruPdfError && error.code !== undefined) {
-        // Coded MinerU limit rejections (server-side page cap, client-side
-        // size cap) are expected source rejections, not runtime failures —
-        // route them through the standard skip pipeline: localized Notice
-        // (interactive), console.warn with the raw server message, onDone
-        // report so folder batches count them and continue. Uncoded
-        // MineruPdfErrors (HTTP failures, timeouts, invalid URLs) keep the
-        // throw semantics below.
-        const isPageLimit = error.code === 'page-limit';
-        this.reportSkip(file, {
-          reason: isPageLimit ? 'mineru-page-limit' : 'mineru-size-limit',
-          detail: error.message,
-          params: { limit: String(isPageLimit ? MINERU_MAX_PDF_PAGES : MINERU_MAX_PDF_MB) },
-        }, opts);
-        return;
-      }
-      if (error instanceof MineruPdfError) {
-        throw error;
       }
       // v1.25.0 PR3 follow-up #2 (P1 #3): LLM errors during PDF conversion
       // surface via the localized `sourceRejectedPdfUnsupported` Notice so the
@@ -823,7 +792,7 @@ export class WikiEngine {
     // which could trigger auto-ingest cascades if the source folder is watched.
     //
     // Efficiency #4: `sidecarPath` is computed ONLY inside the gated block.
-    // The previous follow-up hoisted it out so the MinerU Notice could
+    // A previous follow-up hoisted it out so the completion Notice could
     // reference it unconditionally — but the Notice only had a path to
     // print when writePdfMarkdownToVault was on, so the unconditional
     // compute was pure waste. Native short reads (cache hit, fast
@@ -851,11 +820,9 @@ export class WikiEngine {
     }
 
     // Altitude #3: duration-driven completion Notice. Below NOTICE_SHORT
-    // (cached hit, fast native read) the path is silent; above it
-    // (MinerU's upload+wait, or a long native PDF through Anthropic Vision)
-    // the user gets a Toast that names the saved sidecar when
-    // writePdfMarkdownToVault is on. Backend-agnostic — no longer gated
-    // on `markdownConversionBackend === 'mineru'`. Reuses NOTICE_SHORT
+    // (cached hit, fast native read) the path is silent; above it (a long
+    // native PDF through Anthropic Vision) the user gets a Toast that names
+    // the saved sidecar when writePdfMarkdownToVault is on. Reuses NOTICE_SHORT
     // (3s) as the trigger threshold: it matches the display duration by
     // convention (long-running conversions get a short-duration notice
     // so the user sees the result and moves on).
@@ -914,34 +881,27 @@ export class WikiEngine {
       this.onIngestionStart?.(file.basename);
     }
 
-    // v1.25.0 PR2 redo + Altitude #1/#2 (v1.27.0 MINOR #404 follow-up):
-    // markdown-conversion ingest path. The configured backend (provider's
-    // native PDF handling or MinerU's online API) transcribes the source
-    // file to markdown, the result is cached by content hash, then the
-    // standard ingest path re-runs with the markdown as a virtual body
-    // (contentOverride). No sidecar file is written by this branch — the
-    // `.obsidian` cache is the sole persistent artifact unless the user
-    // has explicitly opted in via `writePdfMarkdownToVault`.
+    // v1.25.0 PR2 redo: markdown-conversion ingest path. The provider's
+    // native PDF handling transcribes the source file to markdown, the
+    // result is cached by content hash, then the standard ingest path
+    // re-runs with the markdown as a virtual body (contentOverride). No
+    // sidecar file is written by this branch — the `.obsidian` cache is the
+    // sole persistent artifact unless the user has explicitly opted in via
+    // `writePdfMarkdownToVault`.
     //
-    // Routing:
-    // - Native backend: PDF only (Anthropic Vision / OpenAI Vision's
-    //   PDF handling is the established scope; their image / Office
-    //   input surfaces are not exercised by this branch).
-    // - MinerU backend: PDF + images (png/jpg/jpeg/jp2/webp/gif/bmp) +
-    //   Office docs (doc/docx/ppt/pptx/xls/xlsx). Per the MinerU API
-    //   docs, the Precise parser accepts the full set; the routing
-    //   check below uses MINERU_CONVERSION_EXTENSIONS.
+    // Routing: PDF only. Anthropic Vision / OpenAI Vision's PDF handling is
+    // the established scope; their image / Office input surfaces are not
+    // exercised by this branch. Hardening Phase 2.A removed the optional
+    // third-party backend that accepted images and Office documents by
+    // uploading them to an unrelated service (finding F-06).
     //
     // Guard: only dispatch to the conversion branch when the caller has
     // NOT already provided a converted body — otherwise this would recurse
     // forever (the conversion result is fed back as contentOverride and
     // `ingestConversionSource` re-enters this method).
     if (!opts?.contentOverride) {
-      const ext = file.extension.toLowerCase();
-      const needsMineruConversion = this.settings.markdownConversionBackend === 'mineru'
-        && (MINERU_CONVERSION_EXTENSIONS as readonly string[]).includes(ext);
-      const isPdf = ext === 'pdf';
-      if (needsMineruConversion || isPdf) {
+      const isPdf = file.extension.toLowerCase() === 'pdf';
+      if (isPdf) {
         try {
           return await this.ingestConversionSource(file, opts);
       } catch (error) {

@@ -18,6 +18,7 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "typecheck:tools": "tsc -p tools/dev-instrument/tsconfig.json --noEmit",
+    "check:bundle-mineru": "node scripts/check-bundle-no-mineru.mjs",
     "gate:1": "pnpm lint && pnpm typecheck && pnpm build && pnpm test && pnpm css-lint"
   },
   "keywords": [
