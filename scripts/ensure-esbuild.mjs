@@ -4,18 +4,25 @@
  *
  * `.npmrc` sets `ignore-scripts=true` (Phase 1, task 1.4) so that no package
  * in the dependency graph can execute code merely by being installed. esbuild
- * is the single legitimate exception: its postinstall (`install.js`) fetches
- * and links the platform-specific `esbuild` binary, without which
- * `pnpm build` cannot run.
+ * is the one package whose postinstall (`install.js`) is legitimate: it
+ * validates and links the platform-specific `esbuild` binary.
  *
- * pnpm re-enables it declaratively via `onlyBuiltDependencies: [esbuild]` in
- * `pnpm-workspace.yaml`, so under pnpm this script normally finds the binary
- * already in place and does nothing. npm has no equivalent allowlist — and
- * npm's `ignore-scripts` also suppresses the root project's own lifecycle
- * scripts, including `prepare` — so after `npm ci` this script must be run
- * explicitly:
+ * `ignore-scripts=true` is read by BOTH npm and pnpm and suppresses every
+ * lifecycle script — pnpm's `onlyBuiltDependencies: [esbuild]` allowlist and
+ * this project's own `prepare` included. So esbuild's postinstall does not
+ * run under either package manager, and this script is not invoked
+ * automatically either. That is fine in the normal case: esbuild ships its
+ * executable inside the `@esbuild/<platform>` optional dependency, which
+ * installs without any script, so `pnpm build` works from a clean tree.
+ *
+ * This script is the manual repair path for the case where the binary is
+ * missing anyway (a partial install, a relaxed `ignore-scripts`, an
+ * `--omit=optional` tree). Run it by hand:
  *
  *     node scripts/ensure-esbuild.mjs
+ *
+ * It is also wired as `prepare`, which makes it run for anyone who installs
+ * with `ignore-scripts` turned off.
  *
  * Contract: never fail the install. If esbuild is absent (it is a
  * devDependency; a production-only install legitimately has no esbuild), or

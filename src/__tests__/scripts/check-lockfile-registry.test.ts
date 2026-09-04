@@ -11,11 +11,15 @@
  * pnpm-lock with no URLs at all).
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
   OFFICIAL_REGISTRY_HOST,
   findNonOfficialResolved,
   findNonOfficialUrlsInText,
+  main,
 } from '../../../scripts/check-lockfile-registry.mjs';
 
 describe('OFFICIAL_REGISTRY_HOST', () => {
@@ -218,5 +222,82 @@ describe('findNonOfficialUrlsInText', () => {
     expect(findNonOfficialUrlsInText('')).toEqual([]);
     expect(findNonOfficialUrlsInText(undefined as unknown as string)).toEqual([]);
     expect(findNonOfficialUrlsInText(null as unknown as string)).toEqual([]);
+  });
+});
+
+describe('main', () => {
+  const created: string[] = [];
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    for (const dir of created.splice(0)) rmSync(dir, { recursive: true, force: true });
+  });
+
+  /**
+   * Build a throwaway repo root. `undefined` for either lockfile means "do not
+   * write this file at all", which is the case the fail-closed branches guard.
+   */
+  function repoWith(npmLock: string | undefined, pnpmLock: string | undefined): string {
+    const dir = mkdtempSync(join(tmpdir(), 'lockfile-registry-'));
+    created.push(dir);
+    if (npmLock !== undefined) writeFileSync(join(dir, 'package-lock.json'), npmLock);
+    if (pnpmLock !== undefined) writeFileSync(join(dir, 'pnpm-lock.yaml'), pnpmLock);
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    return dir;
+  }
+
+  const CLEAN_NPM_LOCK = JSON.stringify({
+    packages: {
+      '': { name: 'karpathywiki' },
+      'node_modules/esbuild': {
+        resolved: 'https://registry.npmjs.org/esbuild/-/esbuild-0.28.2.tgz',
+      },
+    },
+  });
+  const CLEAN_PNPM_LOCK = "lockfileVersion: '9.0'\npackages:\n  esbuild@0.28.2: {}\n";
+
+  it('passes when both lockfiles are present and resolve from the official registry', () => {
+    expect(main(repoWith(CLEAN_NPM_LOCK, CLEAN_PNPM_LOCK))).toBe(0);
+  });
+
+  it('fails closed when package-lock.json is absent rather than reporting OK', () => {
+    expect(main(repoWith(undefined, CLEAN_PNPM_LOCK))).toBe(1);
+  });
+
+  it('fails closed when pnpm-lock.yaml is absent rather than reporting OK', () => {
+    expect(main(repoWith(CLEAN_NPM_LOCK, undefined))).toBe(1);
+  });
+
+  it('fails when package-lock.json is not valid JSON', () => {
+    expect(main(repoWith('{ not json', CLEAN_PNPM_LOCK))).toBe(1);
+  });
+
+  it('fails on a mirror URL in package-lock.json and names the offending entry', () => {
+    const dir = repoWith(
+      JSON.stringify({
+        packages: {
+          'node_modules/esbuild': {
+            resolved: 'https://registry.npmmirror.com/esbuild/-/esbuild-0.28.2.tgz',
+          },
+        },
+      }),
+      CLEAN_PNPM_LOCK,
+    );
+
+    expect(main(dir)).toBe(1);
+    expect(vi.mocked(console.error).mock.calls.flat().join('\n')).toContain(
+      'node_modules/esbuild -> https://registry.npmmirror.com/esbuild/-/esbuild-0.28.2.tgz',
+    );
+  });
+
+  it('fails on a mirror tarball in pnpm-lock.yaml even when package-lock.json is clean', () => {
+    const dir = repoWith(
+      CLEAN_NPM_LOCK,
+      '      tarball: https://registry.npmmirror.com/esbuild/-/esbuild-0.28.2.tgz\n',
+    );
+
+    expect(main(dir)).toBe(1);
+    expect(vi.mocked(console.error).mock.calls.flat().join('\n')).toContain('pnpm-lock.yaml:1');
   });
 });
