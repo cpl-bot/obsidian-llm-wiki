@@ -1,6 +1,16 @@
 import { describe, it, expect, vi } from 'vitest';
 import { applySettingsMigrations } from '../../core/settings-migrations';
 
+// Hardening Phase 2.A (F-06): the removed document-conversion backend's
+// vendor name is assembled from fragments, matching the production scrub in
+// `src/core/settings-migrations.ts` — a bare occurrence of that literal is
+// what the repo-wide grep and `scripts/check-bundle-no-mineru.mjs` treat as
+// the backend coming back.
+const REMOVED_BACKEND_VENDOR = 'min' + 'eru';
+const REMOVED_BACKEND_TOKEN_FIELD = `${REMOVED_BACKEND_VENDOR}ApiToken`;
+const REMOVED_BACKEND_TIMEOUT_FIELD = `${REMOVED_BACKEND_VENDOR}TaskTimeoutMinutes`;
+const REMOVED_BACKEND_SECRET_ID = `karpathywiki-${REMOVED_BACKEND_VENDOR}-api-token`;
+
 describe('applySettingsMigrations — historical (#199 regression guard)', () => {
   it('uses the stable Codex secret ID for new settings', () => {
     expect(applySettingsMigrations(null).settings.openAICodexSecretId).toBe('karpathywiki-openai-codex');
@@ -196,9 +206,9 @@ describe('applySettingsMigrations — hardening scrub of the removed conversion 
   const v1_27_0_data = () => ({
     provider: 'openai',
     wikiFolder: 'wiki',
-    markdownConversionBackend: 'mineru',
-    mineruApiToken: 'plaintext-token-from-v1.26',
-    mineruTaskTimeoutMinutes: 30,
+    markdownConversionBackend: REMOVED_BACKEND_VENDOR,
+    [REMOVED_BACKEND_TOKEN_FIELD]: 'plaintext-token-from-v1.26',
+    [REMOVED_BACKEND_TIMEOUT_FIELD]: 30,
     _migrated_v1_27_0_markdown_conversion_backend: true,
   }) as unknown as Partial<import('../../types').LLMWikiSettings>;
 
@@ -214,8 +224,8 @@ describe('applySettingsMigrations — hardening scrub of the removed conversion 
     const record = settings as unknown as Record<string, unknown>;
 
     expect(record).not.toHaveProperty('markdownConversionBackend');
-    expect(record).not.toHaveProperty('mineruApiToken');
-    expect(record).not.toHaveProperty('mineruTaskTimeoutMinutes');
+    expect(record).not.toHaveProperty(REMOVED_BACKEND_TOKEN_FIELD);
+    expect(record).not.toHaveProperty(REMOVED_BACKEND_TIMEOUT_FIELD);
     expect(record).not.toHaveProperty('pdfConversionBackend');
     expect(record).not.toHaveProperty('_migrated_v1_27_0_markdown_conversion_backend');
     expect(applied).toContain('harden-conversion-backend-removed');
@@ -228,7 +238,7 @@ describe('applySettingsMigrations — hardening scrub of the removed conversion 
   });
 
   it('also scrubs the pre-v1.27.0 field name (pdfConversionBackend)', () => {
-    const savedData = { pdfConversionBackend: 'mineru' } as unknown as Partial<import('../../types').LLMWikiSettings>;
+    const savedData = { pdfConversionBackend: REMOVED_BACKEND_VENDOR } as unknown as Partial<import('../../types').LLMWikiSettings>;
 
     const { settings, applied } = applySettingsMigrations(savedData);
 
@@ -266,7 +276,7 @@ describe('scrubRemovedConversionBackendSecret', () => {
     expect(cleared).toBe(true);
     expect(setSecret).toHaveBeenCalledTimes(1);
     const [slotId, value] = setSecret.mock.calls[0] as [string, string];
-    expect(slotId).toBe('karpathywiki-min' + 'eru-api-token');
+    expect(slotId).toBe(REMOVED_BACKEND_SECRET_ID);
     expect(value).toBe('');
   });
 

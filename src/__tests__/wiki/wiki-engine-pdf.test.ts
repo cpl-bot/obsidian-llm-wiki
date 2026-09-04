@@ -605,13 +605,20 @@ describe('WikiEngine.ingestSource — only PDF routes to conversion (hardening P
   });
 
   it('does NOT route a .docx to conversion and rejects it as an incompatible type', async () => {
-    const h = createWikiEngineHarness();
+    // Seed real bytes: a .docx read as text is never blank, so the #164 gate
+    // that must fire is `checkCompatibleType`, not `checkNonEmpty`. Without
+    // content the file would be skipped as 'empty' and this test would pass
+    // for the wrong reason — it would prove nothing about the extension
+    // allowlist that now guards the (formerly uploadable) Office formats.
+    const h = createWikiEngineHarness({ files: { 'sources/report.docx': 'PK\u0003\u0004 binary docx payload' } });
 
     await h.engine.ingestSource(binaryFile('sources/report.docx', 'report', 'docx'));
 
     expect(mockedConvert).not.toHaveBeenCalled();
     expect(wikiPagesWritten(h.writtenPaths)).toEqual([]);
     expect(h.reports.at(-1)?.skipped).toBe(true);
+    expect(h.reports.at(-1)?.rejectedFiles?.[0]?.reason).toBe('incompatible-type');
+    expect(h.reports.at(-1)?.rejectedFiles?.[0]?.detail).toBe('docx');
   });
 
   it('still routes a .pdf to conversion', async () => {

@@ -259,8 +259,12 @@ export class LLMWikiPlugin extends Plugin {
       } catch (error) {
         // Best-effort: a keychain failure must not block startup. The
         // settings keys are already gone, so the backend cannot be used
-        // either way; the stale slot is retried on the next upgrade.
-        console.error('[main.loadSettings] Failed to clear the removed conversion backend token:', error);
+        // either way. Drop the marker again before the shared saveData()
+        // below persists it, so the next load retries the slot — otherwise
+        // the marker records a scrub that never happened and the stale
+        // token would sit in the keychain forever.
+        delete this.settings._migrated_harden_conversion_backend_removed;
+        console.error('[main.loadSettings] Failed to clear the removed conversion backend token; retrying on next load:', error);
       }
     }
 
