@@ -143,3 +143,34 @@ export function setSettingsVisible(
     if (s) s.settingEl.style.display = display;
   }
 }
+
+// ============================================================================
+// Phase 4 (F-04) — egress denial → localized reason key.
+//
+// `EgressDeniedError.reason` is a machine code precisely so the UI never has
+// to string-match an error message. This map is the single translation point
+// between the policy's vocabulary and the i18n bundles; the return type is a
+// literal union so `tab.getText(...)` still type-checks the key.
+// ============================================================================
+
+import type { EgressDenialReason } from '../core/egress-policy';
+
+export type EgressReasonTextKey =
+  | 'egressReasonInvalidUrl'
+  | 'egressReasonScheme'
+  | 'egressReasonUserinfo'
+  | 'egressReasonPrivateAddress'
+  | 'egressReasonHostNotAllowed';
+
+const EGRESS_REASON_TEXT_KEYS: Record<EgressDenialReason, EgressReasonTextKey> = {
+  'invalid-url': 'egressReasonInvalidUrl',
+  'unsupported-scheme': 'egressReasonScheme',
+  'cleartext-scheme': 'egressReasonScheme',
+  'userinfo': 'egressReasonUserinfo',
+  'private-address': 'egressReasonPrivateAddress',
+  'host-not-allowed': 'egressReasonHostNotAllowed',
+};
+
+export function egressReasonTextKey(reason: EgressDenialReason): EgressReasonTextKey {
+  return EGRESS_REASON_TEXT_KEYS[reason];
+}

@@ -36,7 +36,8 @@ import { PREDEFINED_PROVIDERS } from '../../types';
 import { resolveModelTaskUiMode } from '../settings-per-task-helpers';
 import { fetchModelsWithFallback } from '../../core/url-fallback';
 import { resolveProviderApiKey } from '../../llm-sdk/provider-api-key-resolver';
-import { classifyFetchError } from '../settings-helpers';
+import { classifyFetchError, egressReasonTextKey } from '../settings-helpers';
+import { assertAllowedEgress, EgressDeniedError } from '../../core/egress-policy';
 import { NOTICE_NORMAL, NOTICE_ERROR } from '../../constants';
 
 export function renderModelSection(tab: LLMWikiSettingTab, containerEl: HTMLElement): void {
@@ -92,6 +93,12 @@ export function renderModelSection(tab: LLMWikiSettingTab, containerEl: HTMLElem
             tempSettings.provider as 'openai-compatible' | 'anthropic-compatible';
 
           const fetchOneUrl = async (modelsUrl: string): Promise<string[]> => {
+            // Phase 4.2 (F-04): the hard gate for the one direct `requestUrl`
+            // call outside the fetch bridge. Deliberately OUTSIDE the try
+            // below — the catch there rewrites everything into
+            // `Network error: …`, and an egress denial must reach the outer
+            // handler intact so the user is told what was actually blocked.
+            assertAllowedEgress(modelsUrl, tempSettings);
             try {
               const response = await requestUrl({
                 url: modelsUrl,
@@ -144,6 +151,12 @@ export function renderModelSection(tab: LLMWikiSettingTab, containerEl: HTMLElem
             ''
           );
 
+          // Phase 4.2 (F-04): fail fast on the configured base URL before the
+          // fallback orchestrator starts probing candidates — every candidate
+          // shares this hostname, so one check gives the clear message.
+          // (An empty baseUrl keeps its pre-existing 'no models' path.)
+          if (effectiveBaseUrl) assertAllowedEgress(effectiveBaseUrl, tempSettings);
+
           let models: string[];
           try {
             models = await fetchModelsWithFallback({
@@ -178,6 +191,24 @@ export function renderModelSection(tab: LLMWikiSettingTab, containerEl: HTMLElem
           }
           tab.display();
         } catch (error) {
+          // Phase 4.2 (F-04): an egress denial is not a transport failure —
+          // classifyFetchError has no branch for it and would mislabel it
+          // "Network". Surface the policy reason instead. One Notice per
+          // user-initiated Fetch Models click, never per request.
+          if (error instanceof EgressDeniedError) {
+            new Notice(
+              tab.getText('egressDeniedNotice')
+                .replace('{host}', error.hostname)
+                .replace('{reason}', tab.getText(egressReasonTextKey(error.reason))),
+              NOTICE_ERROR,
+            );
+            tempSettings.useCustomModel = true;
+            tempSettings.availableModels = [];
+            tab.display();
+            button.setButtonText(tab.getText('fetchModelsButton'));
+            button.setDisabled(false);
+            return;
+          }
           const errorMsg = error instanceof Error ? error.message : String(error);
           const category = classifyFetchError(errorMsg);
           new Notice(tab.getTextDynamic(`fetchError${category}`), NOTICE_ERROR);

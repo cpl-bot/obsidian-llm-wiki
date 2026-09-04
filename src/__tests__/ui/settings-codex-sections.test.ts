@@ -35,6 +35,8 @@ vi.mock('obsidian', () => {
     setHeading(): this { return this; }
     addDropdown(callback: (control: ControlMock) => void): this { callback(new ControlMock()); return this; }
     addText(callback: (control: ControlMock) => void): this { callback(new ControlMock()); return this; }
+    // Phase 4.4 (F-04): provider-section now renders a Strict-egress toggle.
+    addToggle(callback: (control: ControlMock) => void): this { callback(new ControlMock()); return this; }
     addSlider(callback: (control: ControlMock) => void): this { callback(new ControlMock()); return this; }
     addButton(callback: (control: ControlMock) => void): this { callback(new ControlMock()); return this; }
     then(callback: (setting: SettingMock) => void): this { callback(this); return this; }

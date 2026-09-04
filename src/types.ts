@@ -203,6 +203,16 @@ export interface LLMWikiSettings {
   openAICodexModelsFetchedAt?: number;
   openAICodexUnavailableModels?: string[];
   baseUrl: string;
+  /**
+   * Phase 4.4 (F-04) — network egress control. `true` (the default, and
+   * the value every pre-existing `data.json` inherits from
+   * DEFAULT_SETTINGS) restricts outbound requests to the compile-time
+   * provider allowlist, the hostnames of the URLs configured above, and
+   * loopback. `false` skips the allowlist so a corporate proxy or
+   * gateway can be used without a code change — cleartext `http:` to a
+   * remote host and URLs embedding credentials stay blocked either way.
+   */
+  strictEgress?: boolean;
   model: string;
   wikiFolder: string;
   language: 'en' | 'zh' | 'zh-Hant' | 'ja' | 'ko' | 'de' | 'fr' | 'es' | 'pt' | 'it';
@@ -1179,6 +1189,8 @@ export const DEFAULT_SETTINGS: LLMWikiSettings = {
   openAICodexModels: [],
   openAICodexModelsFetchedAt: 0,
   baseUrl: '',
+  // Phase 4.4 (F-04): egress allowlist enforced unless the user opts out.
+  strictEgress: true,
   model: '',  // No hardcoded default — user must fetch models or enter manually
   wikiFolder: 'wiki',
   language: 'en',

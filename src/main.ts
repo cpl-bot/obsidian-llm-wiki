@@ -15,7 +15,9 @@ import { BedrockAuthManager } from './llm-sdk/bedrock-sso/credential-manager';
 import { BEDROCK_SSO_SECRET_ID, BEDROCK_IAM_SECRET_ID } from './llm-sdk/bedrock-sso/constants';
 import { CodexCredentialStore } from './llm-sdk/openai-codex/credential-store';
 import { obsidianFetchBridge } from './core/obsidian-fetch-bridge';
+import { registerEgressSettings } from './core/egress-policy';
 import type { FetchLike } from './llm-sdk/openai-codex/types';
+import { setActivePluginId } from './core/plugin-runtime-id';
 
 // v1.23.0 P1-7: AI-SDK migration. Eagerly preload SDK modules on plugin
 // load so sync `createLLMClient` works without blocking. Failure is
@@ -88,7 +90,18 @@ export class LLMWikiPlugin extends Plugin {
   ingestStatusBar: HTMLElement | null = null;
   batchProgress: BatchProgress | null = null;
   async onload() {
+    // Hardened-fork Phase 7: record this install's actual manifest.id
+    // before anything touches the plugin's own folder (e.g. the PDF cache
+    // in core/pdf-cache.ts). Must run before any such access — see
+    // core/plugin-runtime-id.ts for why this exists.
+    setActivePluginId(this.manifest.id);
     await this.loadSettings();
+    // Phase 4.2 (F-04): publish the live settings to the egress policy
+    // before ANY component that can make a request is constructed. The
+    // fetch chokepoints are free functions shared by every SDK client, so
+    // there is no constructor to thread settings through; until this runs
+    // the policy sees `{}` and is therefore strict (fail closed).
+    registerEgressSettings(() => this.settings);
     this.codexCredentialStore = new CodexCredentialStore(this.app.secretStorage, this.settings.openAICodexSecretId);
     this.codexAuthManager = new CodexAuthManager({
       store: this.codexCredentialStore,
@@ -194,6 +207,9 @@ export class LLMWikiPlugin extends Plugin {
   }
 
   onunload() {
+    // Drop the settings getter so a stale plugin instance can never
+    // authorize egress for the next one.
+    registerEgressSettings(null);
     this.codexAuthManager?.dispose();
     // #425: drop in-memory temp credentials ONLY — the persisted SSO
     // token survives so the user stays signed in across restarts.
