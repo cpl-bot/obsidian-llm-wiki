@@ -1,13 +1,15 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   PdfConversionCache,
+  getPdfCacheDir,
   sha256Bytes,
   type PdfCacheEntry,
 } from '../../core/pdf-cache';
+import { setActivePluginId, resetActivePluginIdForTests } from '../../core/plugin-runtime-id';
 
 // PDF_DIR is a test-only fake path; the hardcoded `.obsidian` here is
 // intentional and confined to the test sandbox.
-const PDF_DIR = '/fake/.obsidian/plugins/karpathywiki/pdf-cache'; // eslint-disable-line obsidianmd/hardcoded-config-path
+const PDF_DIR = 'fake/.obsidian/plugins/karpathywiki/pdf-cache'; // eslint-disable-line obsidianmd/hardcoded-config-path
 const SAMPLE_HASH = 'abc123def456';
 
 // Use a runtime timestamp so TTL tests are deterministic regardless of when
@@ -535,5 +537,33 @@ describe('PdfConversionCache — three-defense-layer growth management (v1.25.0 
     expect(result.removed).toBe(2);
     expect(result.freedBytes).toBeGreaterThan(0);
     expect(fakeFilesRef.current.size).toBe(0);
+  });
+});
+
+// Hardened-fork Phase 7: getPdfCacheDir must follow the runtime plugin id
+// (manifest.id), not the hardcoded upstream literal, so a renamed install
+// (e.g. `karpathywiki-hardened`) reads/writes its own cache folder rather
+// than silently falling back to `.obsidian/plugins/karpathywiki/pdf-cache`.
+describe('getPdfCacheDir — follows the active plugin id', () => {
+  const fakeApp = { vault: { configDir: '.obsidian' } };
+
+  afterEach(() => {
+    resetActivePluginIdForTests();
+  });
+
+  it('defaults to the upstream literal when no id has been set', () => {
+    expect(getPdfCacheDir(fakeApp)).toBe('.obsidian/plugins/karpathywiki/pdf-cache'); // eslint-disable-line obsidianmd/hardcoded-config-path
+  });
+
+  it('uses the hardened install id once set (as main.ts::onload does)', () => {
+    setActivePluginId('karpathywiki-hardened');
+    expect(getPdfCacheDir(fakeApp)).toBe('.obsidian/plugins/karpathywiki-hardened/pdf-cache'); // eslint-disable-line obsidianmd/hardcoded-config-path
+  });
+
+  it('respects the configured configDir alongside a non-default plugin id', () => {
+    setActivePluginId('karpathywiki-hardened');
+    expect(getPdfCacheDir({ vault: { configDir: '.obsidian-custom' } })).toBe(
+      '.obsidian-custom/plugins/karpathywiki-hardened/pdf-cache' // eslint-disable-line obsidianmd/hardcoded-config-path
+    );
   });
 });

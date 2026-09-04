@@ -130,7 +130,7 @@ export async function runAliasCompletion(
             const mergedAliases = Array.isArray(fmAfter?.aliases) ? fmAfter.aliases : [];
             const newAliases = mergedAliases.length - existingAliases.length;
 
-            await ctx.app.vault.adapter.write(page.path, updated);
+            await ctx.vaultWriter.adapterWrite(page.path, updated);
             results.push(`- [[${pageRel}]]: added ${newAliases} aliases (total ${mergedAliases.length})`);
             return { success: true, name: page.basename, count: newAliases };
           }
@@ -601,7 +601,7 @@ Task: Return a JSON object with a single field "tags" that is an array of string
         // LLM's retag un-applied. The replace helper also handles the
         // block-style case correctly.
         const updated = replaceFrontmatterArrayField(content, 'tags', safeNewTags);
-        await ctx.app.vault.adapter.write(v.path, updated);
+        await ctx.vaultWriter.adapterWrite(v.path, updated);
         return {
           v,
           kind: 'fixed' as const,

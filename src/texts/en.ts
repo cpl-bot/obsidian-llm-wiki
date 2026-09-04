@@ -76,6 +76,17 @@ export const EN_TEXTS = {
     baseUrlName: 'API Base URL',
     baseUrlDescCustom: 'Required: Custom OpenAI-compatible endpoint',
     baseUrlDescOverride: 'Optional: Override preset Base URL',
+    // Phase 4 (F-04) — network egress policy
+    strictEgressName: 'Strict egress (recommended)',
+    strictEgressDesc: 'Only allow outbound requests to the built-in provider hosts, the Base URL you configured, and localhost. Turn this off only for a corporate proxy or gateway.',
+    strictEgressWarning: 'Strict egress is OFF. The plugin may send your API key to any HTTPS host a Base URL points at.',
+    egressDeniedNotice: 'Request to "{host}" blocked by the egress policy: {reason}',
+    egressBaseUrlRejected: 'Base URL rejected: {reason}',
+    egressReasonInvalidUrl: 'the address could not be parsed',
+    egressReasonScheme: 'only https:// is allowed (http:// only for localhost)',
+    egressReasonUserinfo: 'the address embeds credentials (user:pass@host)',
+    egressReasonPrivateAddress: 'the address points at a private or link-local network',
+    egressReasonHostNotAllowed: 'the host is not on the egress allowlist',
 
     // Ollama Hint
     ollamaHint: 'Ollama runs locally, no API Key required',

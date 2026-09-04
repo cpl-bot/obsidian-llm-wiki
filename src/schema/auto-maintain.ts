@@ -15,12 +15,15 @@ import { isLocalNoKeyProvider } from '../core/local-no-key-provider';
 import { resolveProviderApiKey } from '../llm-sdk/provider-api-key-resolver';
 import type { LLMClient } from '../types';
 import { isIngestableSource } from '../core/folder-scope';
+import { createVaultWriter, type VaultWriter } from '../core/vault-writer';
 
 export class AutoMaintainManager {
   private app: App;
   settings: LLMWikiSettings;
   private wikiEngine: WikiEngine;
   private plugin: Plugin;
+  /** Phase 5 (F-08): the vault write-gate for the Welcome-note lifecycle. */
+  private readonly vaultWriter: VaultWriter;
 
   // Watcher state
   private debounceTimer: number | null = null;
@@ -43,13 +46,17 @@ export class AutoMaintainManager {
     settings: LLMWikiSettings,
     wikiEngine: WikiEngine,
     plugin: Plugin,
-    lintCallback?: () => Promise<void>
+    lintCallback?: () => Promise<void>,
+    /** Phase 5 (F-08) vault write-gate. Defaults to a writer scoped to the
+     *  same settings, so every construction path is gated. */
+    vaultWriter?: VaultWriter
   ) {
     this.app = app;
     this.settings = settings;
     this.wikiEngine = wikiEngine;
     this.plugin = plugin;
     this.lintCallback = lintCallback || null;
+    this.vaultWriter = vaultWriter ?? createVaultWriter(app, settings);
   }
 
   // === File Watcher ===
@@ -417,7 +424,7 @@ export class AutoMaintainManager {
     // cleanIncompletePages in src/core/incomplete-page-cleaner.ts).
     const sourcesPreserveCase = this.settings.slugCase === 'preserve';
     const { filesCleaned: sourcesFilesCleaned, entriesCleaned: sourcesEntriesCleaned } =
-      await normalizeSourcesInFolder(this.app, wikiFolder, sourcesPreserveCase);
+      await normalizeSourcesInFolder(this.app, wikiFolder, sourcesPreserveCase, this.vaultWriter);
 
     // ---- Phase 3: Incomplete-page cleanup (Issue #170) ----
     // Scan wiki/{entities,concepts,sources} for pages whose `generation_complete`
@@ -430,7 +437,7 @@ export class AutoMaintainManager {
       const incomplete = await findIncompletePages(this.app, wikiFolder);
       incompleteFilesScanned = incomplete.length;
       if (incomplete.length > 0) {
-        incompleteFilesArchived = await cleanIncompletePages(this.app, incomplete);
+        incompleteFilesArchived = await cleanIncompletePages(this.vaultWriter, incomplete);
         console.debug(`[QuickFixes] Phase 3: ${incompleteFilesScanned} incomplete pages found, ${incompleteFilesArchived} archived`);
       } else {
         console.debug('[QuickFixes] Phase 3: no incomplete pages found');
@@ -662,7 +669,7 @@ export class AutoMaintainManager {
       const existing = this.app.vault.getAbstractFileByPath(p);
       if (existing && existing instanceof TFile) {
         try {
-          await this.app.fileManager.trashFile(existing);
+          await this.vaultWriter.trash(existing);
         } catch (e) {
           console.error(`Failed to delete existing Welcome note at ${p}:`, e);
           new Notice(
@@ -704,12 +711,12 @@ export class AutoMaintainManager {
       getMarkdownFiles: async (): Promise<string[]> => {
         return this.app.vault.getMarkdownFiles().map(f => f.path);
       },
-      create: async (path: string, content: string): Promise<void> => {
+      createNote: async (path: string, content: string): Promise<void> => {
         const folder = path.includes('/') ? path.substring(0, path.lastIndexOf('/')) : '';
         if (folder && !this.app.vault.getAbstractFileByPath(folder)) {
-          await this.app.vault.createFolder(folder);
+          await this.vaultWriter.createFolder(folder);
         }
-        await this.app.vault.create(path, content);
+        await this.vaultWriter.create(path, content);
       },
     };
   }

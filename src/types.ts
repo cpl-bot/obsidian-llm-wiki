@@ -5,6 +5,7 @@ import type { z } from 'zod';
 import type { RejectionReason } from './core/source-requirements';
 import type { TaskPolicyMap } from './core/task-policy';
 import type { OutputMode } from './llm-sdk/output-mode-prober';
+import type { VaultWriter } from './core/vault-writer';
 
 /**
  * Issue #244 — Programmatic Mentions writes (v1.23.3 / v1.24.0).
@@ -211,6 +212,16 @@ export interface LLMWikiSettings {
   openAICodexModelsFetchedAt?: number;
   openAICodexUnavailableModels?: string[];
   baseUrl: string;
+  /**
+   * Phase 4.4 (F-04) — network egress control. `true` (the default, and
+   * the value every pre-existing `data.json` inherits from
+   * DEFAULT_SETTINGS) restricts outbound requests to the compile-time
+   * provider allowlist, the hostnames of the URLs configured above, and
+   * loopback. `false` skips the allowlist so a corporate proxy or
+   * gateway can be used without a code change — cleartext `http:` to a
+   * remote host and URLs embedding credentials stay blocked either way.
+   */
+  strictEgress?: boolean;
   model: string;
   wikiFolder: string;
   language: 'en' | 'zh' | 'zh-Hant' | 'ja' | 'ko' | 'de' | 'fr' | 'es' | 'pt' | 'it';
@@ -961,6 +972,12 @@ export interface EngineContext {
   app: App;
   settings: LLMWikiSettings;
   getClient: () => LLMClient | null;
+  /**
+   * Phase 5 (F-08): the vault write-gate. Sub-modules that write directly
+   * (contradiction records, merge-page folders) go through this instead of
+   * `ctx.app.vault.*` — an ESLint rule rejects the direct call.
+   */
+  vaultWriter: VaultWriter;
   createOrUpdateFile: (path: string, content: string) => Promise<void>;
   tryReadFile: (path: string) => Promise<string | null>;
   deleteFile: (path: string) => Promise<void>;
@@ -1187,6 +1204,8 @@ export const DEFAULT_SETTINGS: LLMWikiSettings = {
   openAICodexModels: [],
   openAICodexModelsFetchedAt: 0,
   baseUrl: '',
+  // Phase 4.4 (F-04): egress allowlist enforced unless the user opts out.
+  strictEgress: true,
   model: '',  // No hardcoded default — user must fetch models or enter manually
   wikiFolder: 'wiki',
   language: 'en',

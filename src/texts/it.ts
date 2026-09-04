@@ -76,6 +76,17 @@ export const IT_TEXTS = {
     baseUrlName: 'URL di base API',
     baseUrlDescCustom: 'Obbligatorio: endpoint personalizzato compatibile con OpenAI',
     baseUrlDescOverride: "Facoltativo: sovrascrivi l'URL di base predefinito",
+    // Phase 4 (F-04) — network egress policy
+    strictEgressName: 'Uscita di rete rigorosa (consigliato)',
+    strictEgressDesc: 'Consente richieste in uscita solo verso gli host dei provider integrati, la Base URL configurata e localhost. Disattivala solo per un proxy o gateway aziendale.',
+    strictEgressWarning: 'L\'uscita di rete rigorosa è DISATTIVATA. Il plugin può inviare la tua chiave API a qualsiasi host HTTPS indicato da una Base URL.',
+    egressDeniedNotice: 'Richiesta verso "{host}" bloccata dalla policy di uscita: {reason}',
+    egressBaseUrlRejected: 'Base URL rifiutata: {reason}',
+    egressReasonInvalidUrl: 'non è stato possibile analizzare l\'indirizzo',
+    egressReasonScheme: 'è consentito solo https:// (http:// solo per localhost)',
+    egressReasonUserinfo: 'l\'indirizzo contiene credenziali (user:pass@host)',
+    egressReasonPrivateAddress: 'l’indirizzo punta a una rete privata o link-local',
+    egressReasonHostNotAllowed: 'l\'host non è nella allowlist di uscita',
 
     // Suggerimento Ollama
     ollamaHint: 'Ollama gira in locale, nessuna chiave API richiesta',

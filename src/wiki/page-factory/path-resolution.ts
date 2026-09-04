@@ -35,6 +35,7 @@ import { appendAliases, aliasClaimsFromPages, type AliasesContext } from './alia
 import { parseFrontmatter } from '../../core/frontmatter';
 import { PathResolutionLLMSchema } from '../../llm-sdk/output-schemas';
 import { callLlm } from '../../core/llm-dispatch';
+import type { VaultWriter } from '../../core/vault-writer';
 
 /** Page shape consumed by the dedup candidate pre-filter. */
 export interface DedupCandidatePage {
@@ -84,6 +85,12 @@ export interface ResolvedPathResult {
 export interface PathResolutionContext extends AliasesContext {
   app: unknown;
   settings: import('../../types').LLMWikiSettings;
+  /**
+   * Phase 5 (F-08): the vault write-gate. `applyClassificationDecision`
+   * moves a page between the entity and concept folders through it, so both
+   * ends of the rename are asserted to be inside a configured folder.
+   */
+  vaultWriter: VaultWriter;
   getClient(): {
     createMessage: (...args: unknown[]) => Promise<string>;
     // v1.26.3 PATCH Issue #443 expanded scope: typed-output path. Optional
@@ -356,8 +363,10 @@ export async function resolvePagePath(
  * between the folders on later draws. A page already confirmed keeps its
  * address unconditionally.
  *
- * The move goes through `app.fileManager.renameFile`, which rewrites inbound
- * links (Obsidian in production; a CLI host must provide the same contract).
+ * The move goes through `VaultWriter.rename` — Obsidian's
+ * `fileManager.renameFile`, which rewrites inbound links (a CLI host must
+ * provide the same contract), with both the source and the destination path
+ * asserted against the write scope first (Phase 5, F-08).
  * Deliberately NOT moved — and marked instead: when the decided folder
  * differs but the target address is occupied (an existing twin: healing that
  * is a merge, not a move) or the host offers no link-safe rename, the page
@@ -401,11 +410,9 @@ async function applyClassificationDecision(
 
   const app = ctx.app as {
     vault?: { getAbstractFileByPath?: (p: string) => unknown };
-    fileManager?: { renameFile?: (file: unknown, newPath: string) => Promise<void> };
   };
-  const file = app.vault?.getAbstractFileByPath?.(pagePath);
-  const rename = app.fileManager?.renameFile;
-  if (!file || !rename) {
+  const file = app.vault?.getAbstractFileByPath?.(pagePath) as { path: string } | null | undefined;
+  if (!file || !ctx.vaultWriter?.canRename) {
     console.debug(
       `Entity resolution: "${pagePath}" is classified as ${classification} but the host offers no link-safe rename — marking the conflict, leaving the page in place`,
     );
@@ -413,7 +420,7 @@ async function applyClassificationDecision(
     return pagePath;
   }
 
-  await rename.call(app.fileManager, file, newPath);
+  await ctx.vaultWriter.rename(file, newPath);
   const moved = await ctx.tryReadFile(newPath);
   if (moved === null) {
     console.error(

@@ -41,7 +41,17 @@ export interface VaultAdapter {
   exists(path: string): Promise<boolean>;
   /** Returns vault-relative paths of all .md files. Used for tier probe. */
   getMarkdownFiles(): Promise<string[]>;
-  create(path: string, content: string): Promise<void>;
+  /**
+   * Write the Welcome note, creating its folder if needed.
+   *
+   * Phase 5 (F-08): named `createNote`, not `create`, because this is a
+   * PORT — not Obsidian's `Vault`. The production implementation
+   * (`auto-maintain.ts#makeVaultAdapter`) writes through `VaultWriter`, so
+   * the path is scope-checked like every other write; the distinct name
+   * keeps that indirection visible at the call site and keeps the port out
+   * of the write-gate lint rule's line of fire.
+   */
+  createNote(path: string, content: string): Promise<void>;
 }
 
 export interface EnsureWelcomeNoteArgs {
@@ -157,8 +167,9 @@ export async function ensureWelcomeNote(args: EnsureWelcomeNoteArgs): Promise<En
       error: llmConfig.ok ? undefined : (llmConfig.error ?? 'LLM not configured'),
     };
   }
-  // Step 9: write to vault.
-  await vault.create(welcomePath, bodyToWrite);
+  // Step 9: write to the vault, through the caller's port (production:
+  // the `VaultWriter`-backed adapter — Phase 5, F-08).
+  await vault.createNote(welcomePath, bodyToWrite);
   return {
     tier: action.tier,
     action,

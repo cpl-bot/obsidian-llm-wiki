@@ -26,6 +26,7 @@ import { slugify } from '../core/slug';
 import { resolveSourceSlug } from '../core/source-slug';
 import { parseFrontmatter, upsertFrontmatterField, mergeFrontmatterArrayField, extractBody } from '../core/frontmatter';
 import { setGenerationComplete } from '../core/incomplete-page-cleaner';
+import { createVaultWriter, type VaultWriter } from '../core/vault-writer';
 import { convertPdfToMarkdown, UnsupportedProviderError, EncryptedPdfError } from '../core/pdf-converter';
 import { hashBody, checkContentRequirements } from '../core/source-requirements';
 import { resolveModelForTask } from '../core/model-resolver';
@@ -180,6 +181,11 @@ export class WikiEngine {
   private ctx: EngineContext;
   /** SubtleCrypto from `activeWindow.crypto.subtle`. Used by PDF cache. */
   private subtle: SubtleCrypto | undefined;
+  /**
+   * Phase 5 (F-08): the vault write-gate. Public because the lint pipeline
+   * builds its own `LintContext` from the engine and needs the same gate.
+   */
+  readonly vaultWriter: VaultWriter;
 
   constructor(
     app: App,
@@ -189,7 +195,8 @@ export class WikiEngine {
     onFileWrite?: (path: string) => void,
     onProgress?: (message: string) => void,
     onDone?: (report: IngestReport) => void,
-    subtle?: SubtleCrypto
+    subtle?: SubtleCrypto,
+    vaultWriter?: VaultWriter
   ) {
     this.app = app;
     this.settings = settings;
@@ -200,11 +207,13 @@ export class WikiEngine {
     this.onProgress = onProgress || null;
     this.onDone = onDone || null;
     this.subtle = subtle;
+    this.vaultWriter = vaultWriter ?? createVaultWriter(app, settings);
 
     const ctx: EngineContext = {
       app: this.app,
       settings: this.settings,
       getClient: () => this.getLLMClient(),
+      vaultWriter: this.vaultWriter,
       createOrUpdateFile: (p, c) => this.createOrUpdateFile(p, c),
       deleteFile: p => this.deleteFile(p),
       tryReadFile: p => this.tryReadFile(p),
@@ -326,7 +335,7 @@ export class WikiEngine {
         if (flipped === current) return;
         const file = this.app.vault.getAbstractFileByPath(path);
         if (file instanceof TFile) {
-          await this.app.vault.process(file, () => flipped);
+          await this.vaultWriter.process(file, () => flipped);
         }
       } catch (e) {
         console.warn(`[wiki-engine] markPageComplete failed for ${path}:`, e);
@@ -647,7 +656,7 @@ export class WikiEngine {
    * re-enters `ingestSource` with the converted markdown threaded via
    * `IngestOptions.contentOverride`.
    *
-   * Artifact policy: the cache (`.obsidian/plugins/karpathywiki/pdf-cache/`) is
+   * Artifact policy: the cache (`.obsidian/plugins/<plugin-id>/pdf-cache/`) is
    * always the source of truth. When the user opts in via `writePdfMarkdownToVault`,
    * the converted markdown is also written to `<dir>/<basename>.pdf.md` next to
    * the source PDF. Otherwise (default, cache-only) no sidecar is written — the
@@ -797,10 +806,15 @@ export class WikiEngine {
       // the user has opted in via writePdfMarkdownToVault. ADD-only
       // emission — the vault write itself is unchanged.
       setPdfStage('pdfStageSidecar');
+      // F-08: the sidecar is the one write that legitimately lands outside
+      // the wiki folder — next to the source document the user chose to
+      // ingest. The gate is widened by exactly this one path (a folder scope
+      // also matches the folder itself), never by the source's whole folder.
+      const sidecarWriter = this.vaultWriter.scoped(sidecarPath);
       if (existing instanceof TFile) {
-        await this.app.vault.modify(existing, conversionResult.markdown);
+        await sidecarWriter.modify(existing, conversionResult.markdown);
       } else {
-        await this.app.vault.create(sidecarPath, conversionResult.markdown);
+        await sidecarWriter.create(sidecarPath, conversionResult.markdown);
       }
     }
 
@@ -1372,7 +1386,7 @@ export class WikiEngine {
     ];
     for (const folder of folders) {
       try {
-        await this.app.vault.createFolder(folder);
+        await this.vaultWriter.createFolder(folder);
         console.debug('Creating folder:', folder);
       } catch {
         // Folder already exists
@@ -1562,7 +1576,7 @@ export class WikiEngine {
         const file = this.app.vault.getAbstractFileByPath(path);
         if (file instanceof TFile) {
           console.debug(`Attempt ${attempt + 1}: File exists, updating:`, path);
-          await this.app.vault.process(file, () => content);
+          await this.vaultWriter.process(file, () => content);
           console.debug('Update success:', path);
           if (this.isInWikiContentFolder(path, this.settings.wikiFolder)) {
             this.markPageComplete(path);
@@ -1580,7 +1594,7 @@ export class WikiEngine {
           const resolved = this.resolveFileInVault(path);
           if (resolved instanceof TFile) {
             console.debug('createOrUpdateFile: resolved via directory scan:', path);
-            await this.app.vault.process(resolved, () => content);
+            await this.vaultWriter.process(resolved, () => content);
             console.debug('Update success (resolved path):', path);
             if (this.isInWikiContentFolder(path, this.settings.wikiFolder)) {
               this.markPageComplete(path);
@@ -1593,7 +1607,7 @@ export class WikiEngine {
 
         // File genuinely does not appear to exist — attempt to create it.
         console.debug(`Attempt ${attempt + 1}: File not found, creating:`, path);
-        await this.app.vault.create(path, content);
+        await this.vaultWriter.create(path, content);
         console.debug('Create success:', path);
         if (this.isInWikiContentFolder(path, this.settings.wikiFolder)) {
           this.markPageComplete(path);
@@ -1617,7 +1631,7 @@ export class WikiEngine {
             if (resolved) console.debug('Retry found file via full scan:', path);
           }
           if (resolved instanceof TFile) {
-            await this.app.vault.process(resolved, () => content);
+            await this.vaultWriter.process(resolved, () => content);
             console.debug('Update succeeded after file resolution:', path);
             this.onFileWrite?.(path);
             this.invalidatePageCaches();
@@ -1644,7 +1658,7 @@ export class WikiEngine {
       if (file) console.debug('createOrUpdateFile: resolved via full scan:', path);
     }
     if (file) {
-      await this.app.vault.process(file, () => content);
+      await this.vaultWriter.process(file, () => content);
       console.debug('Final update succeeded:', path);
       this.onFileWrite?.(path);
       this.invalidatePageCaches();
@@ -1659,7 +1673,7 @@ export class WikiEngine {
   async deleteFile(path: string): Promise<void> {
     const file = this.app.vault.getAbstractFileByPath(path);
     if (file instanceof TFile) {
-      await this.app.fileManager.trashFile(file);
+      await this.vaultWriter.trash(file);
       this.invalidatePageCaches();
       console.debug('deleteFile:', path);
     }

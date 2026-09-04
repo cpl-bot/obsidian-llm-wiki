@@ -76,6 +76,17 @@ export const DE_TEXTS = {
     baseUrlName: 'API-Basis-URL',
     baseUrlDescCustom: 'Erforderlich: Benutzerdefinierte OpenAI-kompatible Endpunkt',
     baseUrlDescOverride: 'Optional: Voreingestellte Basis-URL überschreiben',
+    // Phase 4 (F-04) — network egress policy
+    strictEgressName: 'Strikte Ausgangskontrolle (empfohlen)',
+    strictEgressDesc: 'Erlaubt ausgehende Anfragen nur an die eingebauten Anbieter-Hosts, die von Ihnen konfigurierte Base URL und localhost. Nur für einen Unternehmens-Proxy oder ein Gateway deaktivieren.',
+    strictEgressWarning: 'Strikte Ausgangskontrolle ist AUS. Das Plugin kann Ihren API-Schlüssel an jeden HTTPS-Host senden, auf den eine Base URL zeigt.',
+    egressDeniedNotice: 'Anfrage an "{host}" von der Ausgangsrichtlinie blockiert: {reason}',
+    egressBaseUrlRejected: 'Base URL abgelehnt: {reason}',
+    egressReasonInvalidUrl: 'die Adresse konnte nicht geparst werden',
+    egressReasonScheme: 'nur https:// ist erlaubt (http:// nur für localhost)',
+    egressReasonUserinfo: 'die Adresse enthält Zugangsdaten (user:pass@host)',
+    egressReasonPrivateAddress: 'die Adresse zeigt auf ein privates oder Link-Local-Netz',
+    egressReasonHostNotAllowed: 'der Host steht nicht auf der Ausgangs-Allowlist',
 
     // Ollama Hint
     ollamaHint: 'Ollama läuft lokal, kein API-Schlüssel erforderlich',

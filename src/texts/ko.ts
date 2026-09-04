@@ -76,6 +76,17 @@ export const KO_TEXTS = {
     baseUrlName: 'API Base URL',
     baseUrlDescCustom: '필수: 사용자 정의 OpenAI 호환 엔드포인트',
     baseUrlDescOverride: '선택: preset Base URL 재정의',
+    // Phase 4 (F-04) — network egress policy
+    strictEgressName: '엄격한 아웃바운드 제한(권장)',
+    strictEgressDesc: '내장 공급자 호스트, 설정한 Base URL, localhost로의 요청만 허용합니다. 회사 프록시나 게이트웨이를 쓸 때만 끄세요.',
+    strictEgressWarning: '엄격한 아웃바운드 제한이 꺼져 있습니다. Base URL이 가리키는 어떤 HTTPS 호스트로도 API 키가 전송될 수 있습니다.',
+    egressDeniedNotice: '아웃바운드 정책에 따라 "{host}" 요청을 차단했습니다: {reason}',
+    egressBaseUrlRejected: 'Base URL이 거부되었습니다: {reason}',
+    egressReasonInvalidUrl: '주소를 해석할 수 없습니다',
+    egressReasonScheme: 'https://만 허용됩니다(http://는 localhost에만)',
+    egressReasonUserinfo: '주소에 자격 증명이 포함되어 있습니다(user:pass@host)',
+    egressReasonPrivateAddress: '주소가 사설망 또는 링크 로컬 네트워크를 가리킵니다',
+    egressReasonHostNotAllowed: '이 호스트는 아웃바운드 허용 목록에 없습니다',
 
     // Ollama Hint
     ollamaHint: 'Ollama는 로컬에서 실행되며 API 키가 필요하지 않습니다',

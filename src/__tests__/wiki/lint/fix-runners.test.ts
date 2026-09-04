@@ -3,6 +3,7 @@ import { Notice, TFile } from 'obsidian';
 import { runAliasCompletion, runDeadLinkFixes, runEmptyPageFixes, runOrphanFixes, runDuplicateMerges, runRetagViolations } from '../../../wiki/lint/fix-runners';
 import type { LintContext } from '../../../wiki/lint/types';
 import { AliasGenerationLLMSchema, TagFixLLMSchema } from '../../../llm-sdk/output-schemas';
+import { VaultWriter } from '../../../core/vault-writer';
 
 // NoticeMock in setup.ts adds a static `instances` array. Cast the imported
 // Notice to access the mock-side field for test introspection.
@@ -31,7 +32,18 @@ const makeCtx = (overrides: Partial<LintContext> = {}): LintContext => {
     } as unknown as LintContext['wikiEngine'],
     onAnalyzeSchema: vi.fn(),
   };
-  return { ...base, ...overrides } as unknown as LintContext;
+  const merged = { ...base, ...overrides } as unknown as LintContext;
+  if (merged.vaultWriter) return merged;
+  // Phase 5 (F-08): the fix runners write through `ctx.vaultWriter`, not
+  // `ctx.app.vault.adapter` directly. Build a REAL gate over this ctx's own
+  // adapter so the existing `adapter.write` spies still observe the
+  // underlying call — and so an out-of-scope path is genuinely refused.
+  const adapter = (merged.app as unknown as { vault: { adapter: never } }).vault.adapter;
+  const wikiFolder = (merged.settings as unknown as { wikiFolder?: string })?.wikiFolder ?? 'wiki';
+  return {
+    ...merged,
+    vaultWriter: new VaultWriter({ adapter, scope: { wikiFolder } }),
+  } as unknown as LintContext;
 };
 
 // ── Cancellation propagation (Issue #94) ──────────────────────────
@@ -697,14 +709,15 @@ describe('P0-1 second pass — Empty / Orphan / Duplicate runner concurrency', (
 // falls back to createMessage on legacy clients.
 describe('runAliasCompletion — typed-output migration (#443 expanded scope)', () => {
   function makeAliasCtx(client: unknown) {
+    const adapter = { write: vi.fn().mockResolvedValue(undefined) };
     return {
       app: {
-        vault: {
-          adapter: { write: vi.fn().mockResolvedValue(undefined) },
-        },
+        vault: { adapter },
       } as unknown as LintContext['app'],
       llmClient: client,
       settings: { wikiFolder: 'wiki', language: 'en' } as LintContext['settings'],
+      // Phase 5 (F-08): the runner writes through the gate.
+      vaultWriter: new VaultWriter({ adapter, scope: { wikiFolder: 'wiki' } }),
     } as unknown as LintContext;
   }
 
@@ -825,5 +838,54 @@ describe('runRetagViolations — typed-output migration (#443 expanded scope)', 
     const ctx = makeTagMigrationCtx({ createMessage });
     await runRetagViolations(ctx, undefined, [tagMigrationViolation]);
     expect(createMessage).toHaveBeenCalled();
+  });
+});
+
+// ── Phase 5 (F-08): the fix runners write through the vault write-gate ──
+//
+// `runAliasCompletion` and `runRetagViolations` take the page path from the
+// lint scan and write it back. Both now go through `ctx.vaultWriter`, so a
+// page path outside the configured wiki folder is refused rather than written.
+
+describe('fix-runners write-gate (Phase 5, F-08)', () => {
+  function makeGatedCtx(llmResponse: string) {
+    const adapter = { write: vi.fn().mockResolvedValue(undefined) };
+    return {
+      adapter,
+      ctx: {
+        app: { vault: { adapter } } as unknown as LintContext['app'],
+        llmClient: { createMessage: vi.fn().mockResolvedValue(llmResponse) },
+        settings: { wikiFolder: 'wiki', language: 'en' } as LintContext['settings'],
+        vaultWriter: new VaultWriter({ adapter, scope: { wikiFolder: 'wiki' } }),
+      } as unknown as LintContext,
+    };
+  }
+
+  it('writes a page inside the wiki folder', async () => {
+    const { ctx, adapter } = makeGatedCtx('{"aliases":["Foo"]}');
+    const result = await runAliasCompletion(ctx, undefined, [
+      { path: 'wiki/entities/In.md', content: '---\ntype: entity\n---\n\n# Body', basename: 'In' },
+    ]);
+    expect(result.filled).toBe(1);
+    expect(adapter.write).toHaveBeenCalledTimes(1);
+    expect(adapter.write.mock.calls[0][0]).toBe('wiki/entities/In.md');
+  });
+
+  it('refuses a page in a sibling folder that merely shares the name prefix', async () => {
+    const { ctx, adapter } = makeGatedCtx('{"aliases":["Foo"]}');
+    const result = await runAliasCompletion(ctx, undefined, [
+      { path: 'wiki-backup/entities/Out.md', content: '---\ntype: entity\n---\n\n# Body', basename: 'Out' },
+    ]);
+    expect(result.filled).toBe(0);
+    expect(adapter.write).not.toHaveBeenCalled();
+  });
+
+  it('refuses a traversal path', async () => {
+    const { ctx, adapter } = makeGatedCtx('{"aliases":["Foo"]}');
+    const result = await runAliasCompletion(ctx, undefined, [
+      { path: 'wiki/../secrets.md', content: '---\ntype: entity\n---\n\n# Body', basename: 'secrets' },
+    ]);
+    expect(result.filled).toBe(0);
+    expect(adapter.write).not.toHaveBeenCalled();
   });
 });

@@ -39,6 +39,25 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs):
 
 [Official Site](https://llmwiki.greenerai.top/) | [Obsidian Marketplace](https://community.obsidian.md/plugins/karpathywiki) | [Blog](https://llmwiki.greenerai.top/blog/) | [Discussions](https://github.com/green-dalii/obsidian-llm-wiki/discussions)
 
+> ## 🔒 This is a hardened fork
+>
+> This tree is a private, security-hardened fork of the upstream plugin, built
+> from source and installed manually with community-plugin auto-update
+> disabled (plugin id `karpathywiki-hardened`, distinct from upstream's
+> `karpathywiki`) — closing the supply-chain exposure of a background auto-
+> update silently replacing a reviewed build. It also removes the optional
+> MinerU third-party upload path, makes API-key storage OS-keychain-only
+> (macOS Keychain / Linux Secret Service, Windows unsupported), and adds a
+> network egress allowlist and a vault write-gate.
+>
+> - **[`UPSTREAM-MERGE.md`](./UPSTREAM-MERGE.md)** — runbook for pulling
+>   upstream releases into this fork, the install procedure, operational
+>   controls (spend caps, egress firewall), and the quarterly checklist.
+> - **[`SECURITY-BASELINE.md`](./SECURITY-BASELINE.md)** — pre-hardening
+>   baseline (hashes, hostnames, test counts, dependency audit) to diff
+>   every future build against.
+> - **[`docs/security/HARDENING-PLAN.md`](./docs/security/HARDENING-PLAN.md)**
+>   — the full findings and work plan this fork implements.
 🤔 [Why this plugin?](#-why-this-plugin) | 🚀 [Quick Start](#-quick-start) | ✨ [Features](#-features) | 🌐 [Ecosystem](#-ecosystem) | 🛠️ [Headless CLI](#-headless-cli) | 🔍 [How Retrieval Works](#-how-retrieval-works) | 🤖 [Models](#-models) | ❓ [FAQ](#-faq) | 🔑 [Secret storage](#-secret-storage-prerequisites)
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/H7V1228WMD) ← If this plugin has helped you, feel free to buy me a coffee♥️ or drop a star🌟↗

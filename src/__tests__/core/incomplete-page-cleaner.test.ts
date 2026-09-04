@@ -10,6 +10,7 @@ import {
   isIncomplete,
   cleanIncompletePages,
 } from '../../core/incomplete-page-cleaner';
+import { VaultWriter, VaultWriteScopeError } from '../../core/vault-writer';
 
 interface FakeFile {
   path: string;
@@ -43,6 +44,12 @@ function buildFakeVault(files: FakeFile[]) {
     trashed,
     deleted: [] as string[],
   };
+}
+
+/** Phase 5 (F-08): the cleaner trashes through the write-gate, so the tests
+ *  drive it through a real `VaultWriter` scoped to the wiki folder. */
+function writerFor(vault: ReturnType<typeof buildFakeVault>, wikiFolder = 'wiki'): VaultWriter {
+  return new VaultWriter({ fileManager: vault.fileManager, scope: { wikiFolder } });
 }
 
 describe('isIncomplete (#170)', () => {
@@ -111,7 +118,7 @@ describe('cleanIncompletePages (#170)', () => {
     ]);
     const files = [{ path: 'wiki/entities/a.md', basename: 'a' } as never];
 
-    const cleaned = await cleanIncompletePages(vault as never, files);
+    const cleaned = await cleanIncompletePages(writerFor(vault), files);
     expect(cleaned).toBe(1);
     expect(vault.trashed).toContain('wiki/entities/a.md');
     expect(vault.deleted).toEqual([]);
@@ -119,8 +126,26 @@ describe('cleanIncompletePages (#170)', () => {
 
   it('returns 0 when given an empty list', async () => {
     const vault = buildFakeVault([]);
-    const cleaned = await cleanIncompletePages(vault as never, []);
+    const cleaned = await cleanIncompletePages(writerFor(vault), []);
     expect(cleaned).toBe(0);
+  });
+
+  it('Phase 5 (F-08): refuses to trash a page outside the wiki folder', async () => {
+    // The scan is prefix-filtered, so this can only arise from a caller
+    // handing over a file it did not scan for — exactly what the gate is for.
+    const vault = buildFakeVault([{ path: 'Inbox/note.md', content: '' }]);
+    const cleaned = await cleanIncompletePages(writerFor(vault), [
+      { path: 'Inbox/note.md', basename: 'note' } as never,
+    ]);
+    expect(cleaned).toBe(0);
+    expect(vault.trashed).toEqual([]);
+  });
+
+  it('Phase 5 (F-08): the gate rejects a traversal path with a typed error', async () => {
+    const vault = buildFakeVault([]);
+    await expect(writerFor(vault).trash({ path: 'wiki/../secrets.md' }))
+      .rejects.toBeInstanceOf(VaultWriteScopeError);
+    expect(vault.trashed).toEqual([]);
   });
 
   it('continues past individual failures and reports successful count', async () => {
@@ -136,7 +161,7 @@ describe('cleanIncompletePages (#170)', () => {
       vault.trashed.push(f.path);
     };
 
-    const cleaned = await cleanIncompletePages(vault as never, [
+    const cleaned = await cleanIncompletePages(writerFor(vault), [
       { path: 'wiki/entities/a.md', basename: 'a' } as never,
       { path: 'wiki/entities/b.md', basename: 'b' } as never,
     ]);

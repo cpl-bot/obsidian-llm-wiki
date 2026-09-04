@@ -203,10 +203,12 @@ describe('computeVerifyBatch', () => {
 // ── runDedupPhase integration tests ────────────────────────────
 
 import type { LLMClient } from '../../../../types';
+import { createTestVaultWriter, recordStore, testScopeFor } from '../../../__support__/vault-writer';
 
 function makeLintPhaseContext(overrides: Partial<LintPhaseContext> = {}): LintPhaseContext {
   return {
     app: {} as LintPhaseContext['app'],
+    vaultWriter: createTestVaultWriter(recordStore({}), testScopeFor('wiki')).writer,
     settings: {
       wikiFolder: 'wiki',
       language: 'en',

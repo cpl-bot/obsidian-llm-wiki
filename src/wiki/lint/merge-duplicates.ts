@@ -186,7 +186,22 @@ export async function mergeDuplicatePages(
   const wikiFolder = ctx.settings.wikiFolder;
   const sourceRel = sourcePath.replace(wikiFolder + '/', '').replace('.md', '');
   const targetRel = targetPath.replace(wikiFolder + '/', '').replace('.md', '');
-  const retargeted = await retargetLinksToPage(ctx.app, sourcePath, targetPath);
+  // Phase 5 (F-08): the retarget stays vault-wide (that is the whole of
+  // #386 — the links being repaired live in the user's own notes), so the
+  // gate is widened to exactly the file being rewritten. That path comes from
+  // the vault index, never from a model, and the widening is per file: the
+  // syntactic rules still apply and no *other* path becomes writable.
+  const retargeted = await retargetLinksToPage(
+    {
+      vault: {
+        getMarkdownFiles: () => ctx.app.vault.getMarkdownFiles(),
+        processFile: (file, fn) => ctx.vaultWriter.scoped(file.path).process(file, fn),
+      },
+      metadataCache: ctx.app.metadataCache,
+    },
+    sourcePath,
+    targetPath
+  );
   if (retargeted.stale > 0) {
     console.warn(
       `mergeDuplicatePages: ${retargeted.stale} link(s) to ${sourceRel} could not be retargeted ` +

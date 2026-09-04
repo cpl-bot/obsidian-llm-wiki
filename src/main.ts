@@ -17,7 +17,9 @@ import { BedrockAuthManager } from './llm-sdk/bedrock-sso/credential-manager';
 import { BEDROCK_SSO_SECRET_ID, BEDROCK_IAM_SECRET_ID } from './llm-sdk/bedrock-sso/constants';
 import { CodexCredentialStore } from './llm-sdk/openai-codex/credential-store';
 import { obsidianFetchBridge } from './core/obsidian-fetch-bridge';
+import { registerEgressSettings } from './core/egress-policy';
 import type { FetchLike } from './llm-sdk/openai-codex/types';
+import { setActivePluginId } from './core/plugin-runtime-id';
 
 // v1.23.0 P1-7: AI-SDK migration. Eagerly preload SDK modules on plugin
 // load so sync `createLLMClient` works without blocking. Failure is
@@ -49,6 +51,7 @@ import { QueryView, VIEW_TYPE_QUERY } from './wiki/query-engine';
 import { IngestReportModal, ConfirmModal } from './ui/modals';
 import { SchemaManager } from './schema/schema-manager';
 import { AutoMaintainManager } from './schema/auto-maintain';
+import { createVaultWriter, type VaultWriter } from './core/vault-writer';
 
 // v1.25.1 Phase C-PR3: Mixin method implementations.
 import { pdfCacheCommands } from './main-commands/pdf-cache-commands';
@@ -69,6 +72,12 @@ import type { CodexAuthCommandsMethods } from './main-commands/codex-auth-comman
 export class LLMWikiPlugin extends Plugin {
   settings: LLMWikiSettings;
   llmClient: LLMClient | null = null;
+  /**
+   * Phase 5 (F-08): the one vault write-gate, built once after settings load
+   * and handed to every module that writes. Scope is read from `this.settings`
+   * on each call, so changing `wikiFolder` re-scopes it immediately.
+   */
+  vaultWriter: VaultWriter;
   wikiEngine: WikiEngine;
   schemaManager: SchemaManager;
   autoMaintainManager: AutoMaintainManager;
@@ -103,7 +112,19 @@ export class LLMWikiPlugin extends Plugin {
       new Notice(getText('en', 'unsupportedPlatform'), NOTICE_ERROR);
       return;
     }
+
+    // Hardened-fork Phase 7: record this install's actual manifest.id
+    // before anything touches the plugin's own folder (e.g. the PDF cache
+    // in core/pdf-cache.ts). Must run before any such access — see
+    // core/plugin-runtime-id.ts for why this exists.
+    setActivePluginId(this.manifest.id);
     await this.loadSettings();
+    // Phase 4.2 (F-04): publish the live settings to the egress policy
+    // before ANY component that can make a request is constructed. The
+    // fetch chokepoints are free functions shared by every SDK client, so
+    // there is no constructor to thread settings through; until this runs
+    // the policy sees `{}` and is therefore strict (fail closed).
+    registerEgressSettings(() => this.settings);
     this.codexCredentialStore = new CodexCredentialStore(this.app.secretStorage, this.settings.openAICodexSecretId);
     this.codexAuthManager = new CodexAuthManager({
       store: this.codexCredentialStore,
@@ -122,10 +143,16 @@ export class LLMWikiPlugin extends Plugin {
     this.cleanupVocabularyTags();
     await initializeLLMClientAfterModules(aiSdkModulesLoaded, () => this.initializeLLMClient());
 
+    // The config-dir root follows `manifest.id`, not a literal: Phase 7
+    // renames the plugin to `karpathywiki-hardened`, and a pinned literal
+    // would then scope the gate at a directory the plugin does not use.
+    this.vaultWriter = createVaultWriter(this.app, this.settings, this.manifest.id);
+
     this.schemaManager = new SchemaManager(
       this.app,
       this.settings,
-      () => this.llmClient
+      () => this.llmClient,
+      this.vaultWriter
     );
 
     this.wikiEngine = new WikiEngine(
@@ -146,7 +173,8 @@ export class LLMWikiPlugin extends Plugin {
         this.showProgressFor(ProgressScope.IngestAutoWatch, msg);
       },
       (report: IngestReport) => this.onIngestDoneDispatch(report),
-      (typeof activeWindow !== 'undefined' ? activeWindow.crypto : undefined)?.subtle
+      (typeof activeWindow !== 'undefined' ? activeWindow.crypto : undefined)?.subtle,
+      this.vaultWriter
     );
 
     // #164: when an interactive ingest hits a duplicate, ask the user whether to
@@ -167,7 +195,8 @@ export class LLMWikiPlugin extends Plugin {
       this.settings,
       this.wikiEngine,
       this,
-      () => this.lintWiki('auto')
+      () => this.lintWiki('auto'),
+      this.vaultWriter
     );
 
     void this.performPdfCacheHousekeeping();
@@ -201,6 +230,9 @@ export class LLMWikiPlugin extends Plugin {
   }
 
   onunload() {
+    // Drop the settings getter so a stale plugin instance can never
+    // authorize egress for the next one.
+    registerEgressSettings(null);
     this.codexAuthManager?.dispose();
     // #425: drop in-memory temp credentials ONLY — the persisted SSO
     // token survives so the user stays signed in across restarts.
