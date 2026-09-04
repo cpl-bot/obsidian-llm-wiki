@@ -5,7 +5,7 @@ import {
   LLMClient,
   IngestReport,
 } from './types';
-import { NOTICE_NORMAL, NOTICE_ABORT, MINERU_API_TOKEN_SECRET_ID } from './constants';
+import { NOTICE_NORMAL, NOTICE_ABORT } from './constants';
 import { preloadLLMClientModules } from './llm-sdk/create-llm-client';
 import { isProviderConfigured } from './core/provider-auth';
 import { resolveProviderApiKey } from './llm-sdk/provider-api-key-resolver';
@@ -36,7 +36,7 @@ export async function initializeLLMClientAfterModules(modulesLoaded: Promise<voi
 export { createLLMClient };
 import { TEXTS } from './texts';
 import { getText } from './core/i18n';
-import { applySettingsMigrations, commitSettingsMigrationV1_25_3 } from './core/settings-migrations';
+import { applySettingsMigrations, commitSettingsMigrationV1_25_3, scrubRemovedConversionBackendSecret } from './core/settings-migrations';
 import { normalizeVocabularyCsv } from './core/tag-vocab';
 import { detectStaleWikiFolders } from './core/query-history-migration-check';
 import { BatchProgress } from './core/status-bar';
@@ -245,23 +245,26 @@ export class LLMWikiPlugin extends Plugin {
 
     this.settings = settings;
 
-    const legacyMineru = this.settings as LLMWikiSettings & {
-      mineruApiToken?: string;
-      mineruTaskTimeoutMinutes?: number;
-    };
-    if ('mineruApiToken' in legacyMineru || 'mineruTaskTimeoutMinutes' in legacyMineru) {
+    // Hardening Phase 2.A (F-06): the third-party document-conversion backend
+    // is gone. `applySettingsMigrations` has already deleted its keys from the
+    // settings object; the paired keychain slot is blanked here because the
+    // migration helper is pure. No saveData() call: the shared
+    // `applied.length > 0` write below persists the whole pass, so an upgrade
+    // still serializes data.json exactly once.
+    if (applied.includes('harden-conversion-backend-removed')) {
       try {
-        const token = legacyMineru.mineruApiToken?.trim();
-        if (token && !this.app.secretStorage.getSecret(MINERU_API_TOKEN_SECRET_ID)) {
-          this.app.secretStorage.setSecret(MINERU_API_TOKEN_SECRET_ID, token);
+        if (scrubRemovedConversionBackendSecret(this.app.secretStorage)) {
+          console.debug('[main.loadSettings] Cleared the removed conversion backend token from SecretStorage');
         }
-        delete legacyMineru.mineruApiToken;
-        delete legacyMineru.mineruTaskTimeoutMinutes;
-        // No saveData() here: the line below (`applied.length > 0 && !migrationWriteFailed`)
-        // handles persistence for the whole loadSettings pass. Adding a second write would
-        // serialize data.json twice on every upgrade that triggers the MinerU migration.
       } catch (error) {
-        console.error('[main.loadSettings] Failed to migrate MinerU token to SecretStorage:', error);
+        // Best-effort: a keychain failure must not block startup. The
+        // settings keys are already gone, so the backend cannot be used
+        // either way. Drop the marker again before the shared saveData()
+        // below persists it, so the next load retries the slot — otherwise
+        // the marker records a scrub that never happened and the stale
+        // token would sit in the keychain forever.
+        delete this.settings._migrated_harden_conversion_backend_removed;
+        console.error('[main.loadSettings] Failed to clear the removed conversion backend token; retrying on next load:', error);
       }
     }
 

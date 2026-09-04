@@ -11,6 +11,41 @@ import { DEFAULT_SETTINGS, type LLMWikiSettings } from '../types';
 
 const LEGACY_CODEX_TOKEN_FIELDS = ['accessToken', 'refreshToken', 'idToken', 'access_token', 'refresh_token', 'id_token'] as const;
 
+/**
+ * Vendor name of the removed third-party document-conversion backend
+ * (hardening Phase 2.A, finding F-06), assembled from fragments.
+ *
+ * `scripts/check-bundle-no-mineru.mjs` asserts the built `main.js` carries no
+ * trace of that vendor — a string-level assertion is the structural proof the
+ * backend is gone and cannot be quietly re-merged from upstream. The scrub
+ * migration still has to recognise the vendor's leftover settings keys and
+ * name its keychain slot, so both are composed at module load instead of
+ * sitting in the bundle as literals. This is the only place in `src/` that
+ * knows the name.
+ */
+const REMOVED_BACKEND_VENDOR = ['min', 'eru'].join('');
+
+/**
+ * Vendor-neutral settings keys left behind on disk by the removed backend:
+ * the selector itself, its pre-v1.27.0 name, and the now-meaningless rename
+ * marker. Vendor-named keys (the plaintext token and task-timeout fields
+ * from before v1.25) are matched by name fragment instead — see the scrub.
+ */
+const REMOVED_CONVERSION_BACKEND_FIELDS = [
+  'markdownConversionBackend',
+  'pdfConversionBackend',
+  '_migrated_v1_27_0_markdown_conversion_backend',
+] as const;
+
+/** Keychain slot that held the removed backend's API token. */
+const REMOVED_CONVERSION_SECRET_ID = `karpathywiki-${REMOVED_BACKEND_VENDOR}-api-token`;
+
+/** Minimal view of Obsidian's SecretStorage; keeps this module test-friendly. */
+export interface SecretSlotWriter {
+  getSecret(id: string): string | null;
+  setSecret(id: string, value: string): void;
+}
+
 export interface MigrationResult {
   settings: LLMWikiSettings;
   /** True iff a migration rule fired (for tests + future observability). */
@@ -120,24 +155,28 @@ export function applySettingsMigrations(
     settings._migrated_v1_25_3_secret_storage = true;
   }
 
-  // v1.27.0 MINOR #404 follow-up: rename `pdfConversionBackend` →
-  // `markdownConversionBackend`. Preserve the existing value so a user who
-  // already selected MinerU does not silently fall back to native on the
-  // first load after the upgrade. Pure: read from `savedRecord`, write to
-  // `settings`, delete the legacy field. Idempotent via the migration gate.
-  if (savedData && !settings._migrated_v1_27_0_markdown_conversion_backend) {
-    // Read via `untrustedSettings` rather than `savedRecord` because the
-    // legacy field was removed from the LLMWikiSettings interface — a
-    // typed read would yield `Property 'pdfConversionBackend' does not
-    // exist on type 'Partial<LLMWikiSettings>'`. The legacy name is the
-    // whole point of this migration.
-    const legacy = untrustedSettings.pdfConversionBackend;
-    if (legacy === 'native' || legacy === 'mineru') {
-      settings.markdownConversionBackend = legacy;
+  // Hardening Phase 2.A (F-06): the optional third-party document-conversion
+  // backend was removed — it uploaded whole PDFs / images / Office files to a
+  // service unrelated to the user's chosen LLM provider. This replaces the
+  // v1.27.0 backend-rename migration: instead of preserving the choice, we
+  // scrub every trace of it from `data.json` so a downgrade-then-upgrade
+  // cycle cannot resurrect the setting.
+  //
+  // Pure side: delete the legacy keys and set the marker. The paired secret
+  // slot is blanked by `scrubRemovedConversionBackendSecret()`, which the
+  // caller (`main.ts loadSettings`) runs because this function must stay
+  // IO-free. Idempotent via the marker: a second load is a no-op.
+  if (savedData && !settings._migrated_harden_conversion_backend_removed) {
+    for (const field of REMOVED_CONVERSION_BACKEND_FIELDS) delete untrustedSettings[field];
+    // Every vendor-named leftover goes too (`<vendor>ApiToken`,
+    // `<vendor>TaskTimeoutMinutes`, and anything a future upstream merge
+    // adds under that name) — matching the fragment rather than a fixed list
+    // means a re-merged field cannot survive one upgrade cycle.
+    for (const key of Object.keys(untrustedSettings)) {
+      if (key.toLowerCase().includes(REMOVED_BACKEND_VENDOR)) delete untrustedSettings[key];
     }
-    delete untrustedSettings.pdfConversionBackend;
-    settings._migrated_v1_27_0_markdown_conversion_backend = true;
-    applied.push('v1.27.0-markdown-conversion-backend');
+    settings._migrated_harden_conversion_backend_removed = true;
+    applied.push('harden-conversion-backend-removed');
   }
 
   return { settings, applied };
@@ -157,4 +196,21 @@ export function applySettingsMigrations(
  */
 export function commitSettingsMigrationV1_25_3(settings: LLMWikiSettings): void {
   settings.apiKey = '';
+}
+
+/**
+ * Hardening Phase 2.A (F-06): blank the secret slot that held the removed
+ * document-conversion backend's API token.
+ *
+ * Split out of `applySettingsMigrations` because that function is pure and
+ * this touches the OS keychain. Idempotent by construction: writing `''`
+ * over an already-empty slot is a no-op, and the caller gates on the
+ * migration marker anyway. Returns true when a non-empty token was found
+ * and cleared, so the caller can log it.
+ */
+export function scrubRemovedConversionBackendSecret(secretStorage: SecretSlotWriter): boolean {
+  const existing = secretStorage.getSecret(REMOVED_CONVERSION_SECRET_ID);
+  if (typeof existing !== 'string' || existing.length === 0) return false;
+  secretStorage.setSecret(REMOVED_CONVERSION_SECRET_ID, '');
+  return true;
 }

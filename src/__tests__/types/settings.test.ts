@@ -29,10 +29,15 @@ describe('v1.25.0 PR3 PDF settings — defaults', () => {
     expect(DEFAULT_SETTINGS).toHaveProperty('forcePdfSupport');
     expect(DEFAULT_SETTINGS).toHaveProperty('writePdfMarkdownToVault');
   });
-  it('does not persist MinerU secret details or timeout controls', () => {
-    expect(DEFAULT_SETTINGS).not.toHaveProperty('mineruApiTokenSecretId');
-    expect(DEFAULT_SETTINGS).not.toHaveProperty('mineruApiToken');
-    expect(DEFAULT_SETTINGS).not.toHaveProperty('mineruTaskTimeoutMinutes');
+  // Hardening Phase 2.A (F-06): the third-party document-conversion backend
+  // is gone. No selector, no token slot, no timeout control may reappear in
+  // the shipped defaults — a reintroduced field is a reintroduced upload path.
+  it('does not persist the removed conversion backend selector or its credentials', () => {
+    for (const key of Object.keys(DEFAULT_SETTINGS)) {
+      expect(key.toLowerCase(), `removed-backend settings key: ${key}`).not.toMatch(/min.?eru/);
+    }
+    expect(DEFAULT_SETTINGS).not.toHaveProperty('markdownConversionBackend');
+    expect(DEFAULT_SETTINGS).not.toHaveProperty('pdfConversionBackend');
   });
 });
 

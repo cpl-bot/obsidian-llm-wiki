@@ -10,13 +10,13 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs) — 简体中文本�
 - obsidian-marketplace: https://community.obsidian.md/plugins/karpathywiki
 - repo: https://github.com/green-dalii/obsidian-llm-wiki
 - sister-cli-repo: https://github.com/green-dalii/obsidian-llm-wiki-cli
-- docs: README.md + docs/README_<locale>.md（11 种语言）+ docs/MODEL-GUIDE.md + docs/PDF-OCR-GUIDE.md
+- docs: README.md + docs/README_<locale>.md（11 种语言）+ docs/MODEL-GUIDE.md
 - first-published: 2025-09 (v0.1.0)
-- latest: v1.27.0（MINOR — Bedrock SSO/IAM、MinerU 多格式、源页原句引用、候选门、taskPolicies UI、Fix Dead Links leave-it；36 commits, 3677 tests）
+- latest: v1.27.0（MINOR — Bedrock SSO/IAM、源页原句引用、候选门、taskPolicies UI、Fix Dead Links leave-it；36 commits, 3677 tests）
 - last-updated: 2026-08-27
 - alternate-names: Karpathy LLM Wiki、LLM Wiki Obsidian、Obsidian wiki 插件、基于图谱的 RAG、无嵌入 RAG、Personalized PageRank 检索、Obsidian 第二大脑
-- search-intents: "Obsidian 无嵌入 RAG", "Obsidian wiki 插件", "Personalized PageRank Obsidian", "基于图谱的笔记检索", "Karpathy LLM Wiki 实现", "Obsidian 知识库自动生成", "Obsidian 图谱视图 + AI", "Obsidian 第二大脑插件", "Obsidian 笔记链接图 AI", "Obsidian 11 语言插件", "Obsidian 16+ LLM 提供商插件", "无向量数据库 RAG", "Obsidian PDF 摄入 AI", "Obsidian Codex OAuth", "Obsidian Bedrock 插件", "Obsidian Bedrock SSO", "Obsidian MinerU", "Obsidian Word PPT Excel 导入", "Obsidian IAM 凭据"
-- features: 基于图谱的检索, Personalized PageRank (Haveliwala 2002), Monte Carlo PPR (Fogaras 2005), 5 级种子选择级联, Tier 1/Tier 2 重复检测, 11 语言界面 + 11 语言 Wiki 输出（独立设置）, 16+ LLM 提供商（Anthropic, OpenAI, Bedrock [API key + SSO/IAM], Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-兼容, Codex OAuth）,MinerU 多格式导入（PDF + 图像 + Office）, PDF 摄入（仅缓存、OCR 路径）, Lint 健康扫描, 一键智能修复, 源页原句引用, 摄入候选门, 按步骤任务策略 UI, Obsidian 图谱视图集成, 零嵌入零向量数据库架构, 本地优先模式
+- search-intents: "Obsidian 无嵌入 RAG", "Obsidian wiki 插件", "Personalized PageRank Obsidian", "基于图谱的笔记检索", "Karpathy LLM Wiki 实现", "Obsidian 知识库自动生成", "Obsidian 图谱视图 + AI", "Obsidian 第二大脑插件", "Obsidian 笔记链接图 AI", "Obsidian 11 语言插件", "Obsidian 16+ LLM 提供商插件", "无向量数据库 RAG", "Obsidian PDF 摄入 AI", "Obsidian Codex OAuth", "Obsidian Bedrock 插件", "Obsidian Bedrock SSO", "Obsidian IAM 凭据"
+- features: 基于图谱的检索, Personalized PageRank (Haveliwala 2002), Monte Carlo PPR (Fogaras 2005), 5 级种子选择级联, Tier 1/Tier 2 重复检测, 11 语言界面 + 11 语言 Wiki 输出（独立设置）, 16+ LLM 提供商（Anthropic, OpenAI, Bedrock [API key + SSO/IAM], Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-兼容, Codex OAuth）, PDF 摄入（仅缓存、OCR 路径）, Lint 健康扫描, 一键智能修复, 源页原句引用, 摄入候选门, 按步骤任务策略 UI, Obsidian 图谱视图集成, 零嵌入零向量数据库架构, 本地优先模式
 - direct-competitors: nashsu/llm_wiki（Tauri 桌面应用）, SamurAIGPT/llm-wiki-agent（Claude Code 技能）, sdyckjq/llm-wiki-skill（Codex 技能）, atomicstrata/llm-wiki-compiler（Python 管线）
 - retrieval-benchmark: PPR @5 = 27.1% vs 纯 kNN 24.1%（项目自有语料，开源 LLM-wiki 领域唯一已发布数字）
 - author: green-dalii / Greener-Dalii (https://github.com/green-dalii)
@@ -29,7 +29,7 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs) — 简体中文本�
 
 > 一个 Obsidian 插件，把你的笔记变成互联可查的知识库——[Karpathy LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) 概念，直接集成在你已有的编辑器中。
 
-**Obsidian 官方市场满分评分 • 零嵌入图谱检索 • 原生 11 种语言 • 原生 PDF + 图片 + Office 摄入 • 兼容所有 LLM 提供商 • 本地优先 • 无后端 • GDPR 友好**
+**Obsidian 官方市场满分评分 • 零嵌入图谱检索 • 原生 11 种语言 • 原生 PDF 摄入 • 兼容所有 LLM 提供商 • 本地优先 • 无后端 • GDPR 友好**
 
 ![Version](https://img.shields.io/github/v/release/green-dalii/obsidian-llm-wiki?style=flat-square) ![License](https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square) ![Obsidian](https://img.shields.io/badge/obsidian-1.11.4%2B-purple?style=flat-square) ![Languages](https://img.shields.io/badge/languages-11-informational?style=flat-square) ![Providers](https://img.shields.io/badge/providers-16%2B-cyan?style=flat-square) <br>
 ![Maintenance](https://img.shields.io/badge/maintenance-actively%20maintained-brightgreen?style=flat-square) ![Build Status](https://img.shields.io/github/actions/workflow/status/green-dalii/obsidian-llm-wiki/release.yml?style=flat-square) ![Author](https://img.shields.io/badge/author-Greener--Dalii-blue?style=flat-square) <br>
@@ -42,7 +42,6 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs) — 简体中文本�
 🤔 [为什么使用此插件？](#-为什么使用此插件) | 🚀 [快速开始](#-快速开始) | ✨ [核心特性](#-核心特性) | 🌐 [生态](#-生态) | 🔍 [检索工作原理](#-检索工作原理) | 🤖 [模型推荐](#-模型推荐) | ❓ [常见问题](#-常见问题)
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/H7V1228WMD) ← 如果你觉得项目帮到了你，欢迎请我杯咖啡♥️或为项目点亮🌟↗
-
 
 ---
 
@@ -92,7 +91,7 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs) — 简体中文本�
 **❌ 不适合，如果你：**
 
 - **想要一个通用 ChatGPT 替代品**——本插件只从 vault 中回答，不连互联网。
-- **需要对大型外部语料库（Confluence、Notion、arXiv、抓取的网页）做 RAG**——插件摄入你的 vault 加独立的 PDF / Office 文件；批量外部语料库 RAG 超出设计范围。
+- **需要对大型外部语料库（Confluence、Notion、arXiv、抓取的网页）做 RAG**——插件摄入你的 vault 加独立的 PDF 文件；批量外部语料库 RAG 超出设计范围。
 - **在寻找带团队协作的托管 SaaS**——没有后端、没有服务器、没有共享状态；一切都在你的 Obsidian 本地运行。
 
 ---
@@ -154,15 +153,11 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs) — 简体中文本�
 
 ### 📄 文档 / PDF / 图片 摄入
 
-五种导入入口，每次摄入可选其一：
+三种导入入口，每次摄入可选其一：
 
-1. **🆕 内置 MinerU 后端 (v1.27.0, #404)** — 设置 → Wiki 配置 → Markdown 转换后端 → *MinerU*。经 [MinerU 的 Precise 解析器](https://mineru.net/apiManage/docs) 处理 PDF、图片（PNG/JPG/JPEG/JP2/WebP/GIF/BMP）与 Office 文档（DOC/DOCX/PPT/PPTX/XLS/XLSX）。API token 存于 Obsidian SecretStorage。是科学论文、扫描文档、需要保留版式的 Office 文件的最佳路径。服务器限制：每个 PDF 200 MB / 200 页，每个压缩包 256 MB / 10,000 文件。
-2. **☁️ 云端 Provider 原生 PDF** — Anthropic、OpenAI、Google Gemini 与 AWS Bedrock（Anthropic + OpenAI 变体）开箱即用地将 PDF 作为文件部分读取。选定 Provider 即可，无需额外设置。
-3. **🖥️ Apple Silicon 本地 OCR** — [oMLX](https://github.com/jundot/omlx) 内置 Microsoft Markitdown 作为 PDF→Markdown 后端。在 oMLX 中启用 Markitdown，加载 [百度 Unlimited-OCR](https://huggingface.co/baidu/Unlimited-OCR)（3B / 570M 活跃参数，2026-06 开源）作为视觉模型，将插件指向 oMLX 作为自定义 OpenAI 兼容 Provider，开启 **Force PDF Support**，选择 oMLX 服务的多模态模型。PDF 全程不离开你的机器。
-4. **🛠️ 第三方提取器（MinerU 在线 UI）** — 不想接入 API token 时，用 [MinerU Extractor 在线服务](https://mineru.net/OpenSourceTools/Extractor) 做快速手动转换。下载转换好的 `.md`，放到 wiki 文件夹之外的 vault 任意位置，再作为普通 Markdown 笔记摄入。
-5. **🔌 Force PDF Support** — 对任何其他接受文件部分的 OpenAI/Anthropic 兼容端点，插件都会尝试调用（设置 → LLM 配置 → 高级）。端点决定成败，失败会显示本地化的 Notice。
-
-**Office 格式的注意事项：** Obsidian 不原生渲染 `.docx` / `.xlsx` / `.pptx`（[file-formats](https://obsidian.md/help/file-formats)），因此 Office 文件的实用工作流是：MinerU 转成 `.md` → 插件把 `.md` 摄取为 wiki 页面，原始 Office 文件留作参考。如需内联预览 Office 文件，使用社区插件 **Pandoc Plugin**、**Docxer**、**Md Importer** 或 **Office Reader**。
+1. **☁️ 云端 Provider 原生 PDF** — Anthropic、OpenAI、Google Gemini 与 AWS Bedrock（Anthropic + OpenAI 变体）开箱即用地将 PDF 作为文件部分读取。选定 Provider 即可，无需额外设置。
+2. **🖥️ Apple Silicon 本地 OCR** — [oMLX](https://github.com/jundot/omlx) 内置 Microsoft Markitdown 作为 PDF→Markdown 后端。在 oMLX 中启用 Markitdown，加载 [百度 Unlimited-OCR](https://huggingface.co/baidu/Unlimited-OCR)（3B / 570M 活跃参数，2026-06 开源）作为视觉模型，将插件指向 oMLX 作为自定义 OpenAI 兼容 Provider，开启 **Force PDF Support**，选择 oMLX 服务的多模态模型。PDF 全程不离开你的机器。
+3. **🔌 Force PDF Support** — 对任何其他接受文件部分的 OpenAI/Anthropic 兼容端点，插件都会尝试调用（设置 → LLM 配置 → 高级）。端点决定成败，失败会显示本地化的 Notice。
 
 **所有路径共享的底层机制：**
 
@@ -170,8 +165,6 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs) — 简体中文本�
 - **📝 可选 vault sidecar** — 设置 → Wiki 配置 → Wiki 文件夹 → *将 PDF Markdown 写入 Vault* 在源 PDF 旁写入 `<basename>.pdf.md`（默认关闭——仅缓存模式）。
 - **🛡️ 逐字转录提示** — 带 `[illegible]` / `[figure: ...]` 反幻觉标记的 OCR 风格转换；小型本地模型的 markdown 围栏包裹在写入缓存前自动清洗。
 - **🔁 源页原句引用 (v1.27.0, #496)** — 每个生成的 `sources/<slug>.md` 页面现在携带一个 `Mentions in Source` 段，由提取阶段在每个实体/概念上抓取的原句引用直接拼接（模型已证明自己能看到的原文），因此源文档成了唯一一个能真实回溯到原始文本的 Wiki 页面。
-
-📖 **所有路径的完整设置教程**（云端 Provider、oMLX 硬件等级、MinerU 安装、缓存管理）→ [docs/PDF-OCR-GUIDE_CN.md](https://github.com/green-dalii/obsidian-llm-wiki/blob/main/docs/PDF-OCR-GUIDE_CN.md)
 
 ### 💬 查询与维护
 
@@ -210,7 +203,6 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs) — 简体中文本�
 
 本插件与你的其他 Obsidian 工具无缝协作——以下工具皆可直接对接 `[[wiki-link]]` 图谱，无需任何代码改动。
 
-- **📄 [MinerU 多格式后端](https://mineru.net/apiManage/docs)（v1.27.0 起内置）** —— 原本独立的 CLI/UI 步骤现在只需一个插件开关即可完成；完整路径表见 [文档 / PDF / 图片 摄入](#-文档--pdf--图片-摄入)。[MinerU 在线服务](https://mineru.net/OpenSourceTools/Extractor) 仍为偏好图形界面而非 API token 的用户提供备选；[自部署 MinerU](https://github.com/opendatalab/mineru) 也是可选方案。
 - **🕸️ Obsidian 原生关系图谱** —— 在任意 Wiki 页面上打开原生图谱视图；每个 `[[wiki-link]]` 成为节点，每条反向链接成为边。内置功能，零额外体积。
 - **✂️ [Obsidian Web Clipper](https://obsidian.md/clipper)** —— 官方浏览器扩展。将网页（文章、博客、Reddit 帖子、Hacker News、食谱、研究论文、YouTube 字幕（通过 Interpreter 提取））保存到 vault 内任意文件夹，然后运行插件的「从文件夹摄入」命令批量提取实体与概念。
 - **📊 [Dataview](https://github.com/blacksmithgu/obsidian-dataview)** —— 用 DQL（`LIST FROM "wiki/entities" WHERE contains(tags, "person")`）或 JS API 像查询数据库一样检索 Wiki。插件在每个页面写入标准 frontmatter（`tags:`、`type:`、`aliases:`），Dataview 查询开箱即用。
@@ -289,7 +281,7 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs) — 简体中文本�
 - **🔌 嵌入端点无关紧要**——我们不使用嵌入。缺乏 `/v1/embeddings` 的 Provider 完全没问题（我们 16+ 个 Provider 中大部分都不提供）。
 - **🦙 本地用于查询，云端用于摄入**——2000 页 vault 的摄入通常需要长上下文云端模型；262K 的本地模型覆盖大部分查询。
 
-关于 PDF / 图片 / Office 摄入，参见特性章节 [文档 / PDF / 图片 摄入](#-文档--pdf--图片-摄入) —— Anthropic、OpenAI、Bedrock、Gemini 原生将 PDF 作为文件部分读取；内置 MinerU 后端（v1.27.0+）与 **Force PDF Support** 覆盖其余全部场景。
+关于 PDF 摄入，参见特性章节 [文档 / PDF / 图片 摄入](#-文档--pdf--图片-摄入) —— Anthropic、OpenAI、Bedrock、Gemini 原生将 PDF 作为文件部分读取；其余接受 file part 的端点由 **Force PDF Support** 覆盖。
 
 ### Anthropic vs OpenAI vs Codex OAuth —— 它们是不同的 Provider
 
@@ -323,11 +315,11 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs) — 简体中文本�
 
 ### 能摄入 PDF、图片和 Office 文档吗？
 
-✅ 可以。Anthropic、OpenAI、Bedrock、Gemini 原生支持 PDF；内置 MinerU 后端（v1.27.0）覆盖其余全部场景（PDF + 图片 + Office）。完整教程——云端 Provider、Apple Silicon OCR、Force PDF Support、缓存管理——见 [docs/PDF-OCR-GUIDE_CN.md](https://github.com/green-dalii/obsidian-llm-wiki/blob/main/docs/PDF-OCR-GUIDE_CN.md)。
+✅ 可以。Anthropic、OpenAI、Bedrock、Gemini 原生支持 PDF；其余端点由 **Force PDF Support** 覆盖，Apple Silicon 用户还可完全在本地完成转换。三条路径见 [文档 / PDF / 图片 摄入](#-文档--pdf--图片-摄入)。图片与 Office 文档不再直接摄入——请先转换为 Markdown 或 PDF。
 
 ### 我现有的 Wiki 安全吗？
 
-✅ 自 v1.0.0 向后兼容。在任何页面设置 `reviewed: true` 以保护不被覆盖。从 v1.24.x 升级不会重写你的 vault；v1.25.0 的 PDF 摄入默认仅缓存，v1.27.0 新增的 PDF + 图片 + Office 摄入也不会改变磁盘上的 Wiki 布局。
+✅ 自 v1.0.0 向后兼容。在任何页面设置 `reviewed: true` 以保护不被覆盖。从 v1.24.x 升级不会重写你的 vault；v1.25.0 的 PDF 摄入默认仅缓存。
 
 ### 我的数据会被发送给第三方吗？
 

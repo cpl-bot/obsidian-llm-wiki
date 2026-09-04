@@ -4,7 +4,7 @@
 
 > KI-gestützte strukturierte Wissensbasis — wandelt Notizen automatisch in ein Wiki um. Basierend auf [Andrej Karpathys LLM Wiki-Konzept](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f).
 
-**Obsidian-Review Perfekte Bewertung • Null-Embedding-Graph-Suche • Native Unterstützung für 11 Sprachen • Nativer PDF-, Bild- und Office-Ingest • Kompatibel mit jedem LLM-Anbieter • Lokal zuerst • Kein Backend • DSGVO-freundlich**
+**Obsidian-Review Perfekte Bewertung • Null-Embedding-Graph-Suche • Native Unterstützung für 11 Sprachen • Nativer PDF-Ingest • Kompatibel mit jedem LLM-Anbieter • Lokal zuerst • Kein Backend • DSGVO-freundlich**
 
 ![Version](https://img.shields.io/github/v/release/green-dalii/obsidian-llm-wiki?style=flat-square) ![License](https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square) ![Obsidian](https://img.shields.io/badge/obsidian-1.11.4%2B-purple?style=flat-square) ![Languages](https://img.shields.io/badge/languages-11-informational?style=flat-square) ![Providers](https://img.shields.io/badge/providers-16%2B-cyan?style=flat-square) <br>
 ![Maintenance](https://img.shields.io/badge/maintenance-actively%20maintained-brightgreen?style=flat-square) ![Build Status](https://img.shields.io/github/actions/workflow/status/green-dalii/obsidian-llm-wiki/release.yml?style=flat-square) ![Author](https://img.shields.io/badge/author-Greener--Dalii-blue?style=flat-square) <br>
@@ -64,7 +64,7 @@ Du schreibst Notizen. Sie liegen in Ordnern. Zusammenhänge zu finden bedeutet, 
 **❌ Nein, wenn du:**
 
 - **Einen universellen ChatGPT-Ersatz willst** — Antworten kommen nur aus deinem Vault, nicht aus dem Internet.
-- **RAG über große externe Korpora brauchst** (Confluence, Notion, arXiv, gescrapte Webseiten) — das Plugin ingestiert deinen Vault plus eigenständige PDF-/Office-Dateien; Massen-RAG über externe Korpora ist bewusst out of scope.
+- **RAG über große externe Korpora brauchst** (Confluence, Notion, arXiv, gescrapte Webseiten) — das Plugin ingestiert deinen Vault plus eigenständige PDF-Dateien; Massen-RAG über externe Korpora ist bewusst out of scope.
 - **Ein gehostetes SaaS mit Team-Zusammenarbeit suchst** — es gibt kein Backend, keinen Server, keinen geteilten Zustand; alles läuft lokal in deinem Obsidian.
 
 ---
@@ -123,15 +123,11 @@ Das war's. Das Plugin ändert nichts an deinen ursprünglichen Notizen — es er
 
 ### 📄 Dokument- / PDF- / Bild-Ingest
 
-Fünf On-Ramps, pro Ingest umschaltbar:
+Drei On-Ramps, pro Ingest umschaltbar:
 
-1. **🆕 Integriertes MinerU-Backend (v1.27.0, #404)** — Einstellungen → Wiki Configuration → Markdown Conversion Backend → *MinerU*. PDF + Bilder (PNG/JPG/JPEG/JP2/WebP/GIF/BMP) + Office (DOC/DOCX/PPT/PPTX/XLS/XLSX) über [MinerUs Precise-Parser](https://mineru.net/apiManage/docs). Token in Obsidian SecretStorage. Bester Pfad für wissenschaftliche Arbeiten, gescannte Dokumente und Office-Dateien, bei denen Layouterhalt wichtig ist. Server-Limits: 200 MB / 200 Seiten pro PDF, 256 MB / 10.000 Dateien pro Archiv.
-2. **☁️ Cloud-Provider mit nativem PDF** — Anthropic, OpenAI, Google Gemini und AWS Bedrock (Anthropic + OpenAI-Varianten) lesen PDFs ohne weitere Einrichtung als Datei-Parts.
-3. **🖥️ Lokale OCR auf Apple Silicon** — [oMLX](https://github.com/jundot/omlx) integriert Microsoft Markitdown als eingebautes PDF→Markdown-Backend. Aktiviere Markitdown in oMLX, lade [Baidu Unlimited-OCR](https://huggingface.co/baidu/Unlimited-OCR) (3B / 570M-aktiv, Open-Source seit 2026-06) als Vision-Modell, richte das Plugin auf oMLX als benutzerdefinierten OpenAI-kompatiblen Provider aus, aktiviere **Force PDF Support** und wähle das multimodale Modell, das oMLX bereitstellt. Die PDF verlässt niemals deinen Rechner.
-4. **🛠️ Drittanbieter-Extraktor (MinerU Online-UI)** — nutze den [MinerU-Extractor-Onlinedienst](https://mineru.net/OpenSourceTools/Extractor) für eine schnelle manuelle UI, wenn du kein API-Token einrichten willst. Lade die konvertierte `.md`-Datei herunter, lege sie in deinem Vault außerhalb des Wiki-Ordners ab und ingestiere sie als reguläre Markdown-Notiz.
-5. **🔌 Force PDF Support** — für jeden anderen OpenAI/Anthropic-kompatiblen Endpunkt, der Datei-Parts akzeptiert, versucht das Plugin den Aufruf (Einstellungen → LLM Configuration → Advanced). Der Endpunkt entscheidet; Fehler erscheinen als lokalisierter Hinweis.
-
-**Hinweis zu Office-Formaten:** Obsidian rendert `.docx` / `.xlsx` / `.pptx` nicht nativ ([file-formats](https://obsidian.md/help/file-formats)). Der praxistaugliche Workflow für Office-Dateien ist daher: MinerU konvertiert nach `.md`, das Plugin nimmt diese `.md` in Wiki-Seiten auf, und die ursprüngliche Office-Datei bleibt nur als Referenz erhalten. Für Inline-Vorschau von Office-Dateien nutze Community-Plugins wie Pandoc Plugin / Docxer / Md Importer / Office Reader.
+1. **☁️ Cloud-Provider mit nativem PDF** — Anthropic, OpenAI, Google Gemini und AWS Bedrock (Anthropic + OpenAI-Varianten) lesen PDFs ohne weitere Einrichtung als Datei-Parts.
+2. **🖥️ Lokale OCR auf Apple Silicon** — [oMLX](https://github.com/jundot/omlx) integriert Microsoft Markitdown als eingebautes PDF→Markdown-Backend. Aktiviere Markitdown in oMLX, lade [Baidu Unlimited-OCR](https://huggingface.co/baidu/Unlimited-OCR) (3B / 570M-aktiv, Open-Source seit 2026-06) als Vision-Modell, richte das Plugin auf oMLX als benutzerdefinierten OpenAI-kompatiblen Provider aus, aktiviere **Force PDF Support** und wähle das multimodale Modell, das oMLX bereitstellt. Die PDF verlässt niemals deinen Rechner.
+3. **🔌 Force PDF Support** — für jeden anderen OpenAI/Anthropic-kompatiblen Endpunkt, der Datei-Parts akzeptiert, versucht das Plugin den Aufruf (Einstellungen → LLM Configuration → Advanced). Der Endpunkt entscheidet; Fehler erscheinen als lokalisierter Hinweis.
 
 **Übergreifende Infrastruktur:**
 
@@ -139,8 +135,6 @@ Fünf On-Ramps, pro Ingest umschaltbar:
 - **📝 Optionaler Vault-Sidecar** — Einstellungen → Wiki Configuration → Wiki Folder → *Write PDF Markdown to Vault* schreibt `<basename>.pdf.md` neben die Quell-PDF (standardmäßig aus — Nur-Cache ist der Standard).
 - **🛡️ Verbatim-Transcriber-Prompt** — OCR-artige Konvertierung mit `[illegible]` / `[figure: ...]`-Anti-Halluzinations-Markern; Markdown-Fence-Einschluss von kleinen lokalen Modellen wird vor dem Cache-Schreiben automatisch bereinigt.
 - **🔁 Source-Page-Verbatim-Zitate (v1.27.0, #496)** — jede generierte `sources/<slug>.md`-Seite trägt jetzt einen `Mentions in Source`-Abschnitt, der aus denselben wortgetreuen Zitaten aufgebaut ist, die die Extraktion pro Entity/Concept erfasst hat (jener Prosatext, den das Modell bereits bewiesenermaßen sehen konnte), sodass das zugrundeliegende Dokument die einzige Wiki-Seite mit einer echten, geerdeten Spur zurück zum Quelltext ist.
-
-📖 **Vollständige Einrichtungsanleitungen** für alle Pfade (Cloud-Provider, oMLX-Hardware-Stufen, MinerU-Installation, Cache-Housekeeping) → [docs/PDF-OCR-GUIDE.md](https://github.com/green-dalii/obsidian-llm-wiki/blob/main/docs/PDF-OCR-GUIDE.md)
 
 ### 💬 Abfrage & Wartung
 
@@ -179,7 +173,6 @@ Fünf On-Ramps, pro Ingest umschaltbar:
 
 Das Plugin ergänzt sich mit dem Rest Ihres Obsidian-Stacks — jedes der folgenden Tools bindet sich ohne Code-Änderungen in den `[[wiki-link]]`-Graphen ein.
 
-- **📄 [MinerU Multi-Format-Backend](https://mineru.net/apiManage/docs) (integriert seit v1.27.0)** — was früher ein separater CLI-/UI-Schritt war, ist jetzt ein Plugin-Schalter; die vollständige Pfadtabelle findest du unter [Dokument- / PDF- / Bild-Ingest](#-dokument---pdf---bild-ingest). Der [MinerU-Onlinedienst](https://mineru.net/OpenSourceTools/Extractor) bleibt für Nutzer verfügbar, die eine schnelle UI einem API-Token vorziehen; [MinerU selbst hosten](https://github.com/opendatalab/mineru) ist ebenfalls eine Option.
 - **🕸️ Obsidian Graph View** — öffnen Sie die native Graphenansicht auf jeder Wiki-Seite; jeder `[[wiki-link]]` wird zu einem Knoten, jeder Backlink zu einer Kante. Bereits eingebaut, null zusätzliche Bundle-Größe.
 - **✂️ [Obsidian Web Clipper](https://obsidian.md/clipper)** — offizielle Browser-Erweiterung. Speichern Sie Webseiten (Artikel, Blogbeiträge, Reddit-Threads, Hacker News, Rezepte, Forschungsarbeiten, YouTube-Transkripte via Interpreter) in einem beliebigen Ordner Ihres Vaults und führen Sie anschließend den Plugin-Befehl „Aus Ordner aufnehmen" aus, um Entitäten und Konzepte stapelweise zu extrahieren.
 - **📊 [Dataview](https://github.com/blacksmithgu/obsidian-dataview)** — durchsuchen Sie das Wiki wie eine Datenbank mit DQL (`LIST FROM "wiki/entities" WHERE contains(tags, "person")`) oder der JS-API. Das Plugin schreibt standardmäßige Frontmatter (`tags:`, `type:`, `aliases:`) auf jede Seite, sodass Dataview-Abfragen sofort funktionieren.
@@ -290,11 +283,11 @@ Aus Obsidian Community-Plugins installieren → Provider wählen → **Test Conn
 
 ### Ist mein bestehendes Wiki sicher?
 
-✅ Rückwärtskompatibel seit v1.0.0. Setze `reviewed: true` auf einer Seite, um sie vor Überschreiben zu schützen. Das Upgrade von v1.24.x überschreibt deinen Vault nicht; der PDF-Ingest von v1.25.0 ist standardmäßig Nur-Cache, und v1.27.0 ergänzt nativen PDF- + Bild- + Office-Ingest, ohne das Wiki-Layout auf der Festplatte zu verändern.
+✅ Rückwärtskompatibel seit v1.0.0. Setze `reviewed: true` auf einer Seite, um sie vor Überschreiben zu schützen. Das Upgrade von v1.24.x überschreibt deinen Vault nicht; der PDF-Ingest von v1.25.0 ist standardmäßig Nur-Cache.
 
 ### Kann ich PDFs, Bilder und Office-Dokumente ingestieren?
 
-✅ Ja. Anthropic, OpenAI, Bedrock und Gemini lesen PDFs nativ; das integrierte MinerU-Backend (v1.27.0) deckt alles andere ab (PDF + Bilder + Office). Vollständige Anleitung — Cloud-Provider, Apple-Silicon-OCR, Force PDF Support, Cache-Housekeeping — in [docs/PDF-OCR-GUIDE.md](https://github.com/green-dalii/obsidian-llm-wiki/blob/main/docs/PDF-OCR-GUIDE.md).
+✅ Ja. Anthropic, OpenAI, Bedrock und Gemini lesen PDFs nativ; **Force PDF Support** deckt jeden anderen Endpunkt ab, der File-Parts akzeptiert, und auf Apple Silicon läuft die Konvertierung vollständig lokal. Die drei Pfade stehen unter [Dokument- / PDF- / Bild-Ingest](#-dokument---pdf---bild-ingest). Bilder und Office-Dokumente werden nicht direkt ingestiert — konvertiere sie vorher nach Markdown oder PDF.
 
 ### Werden meine Daten an Dritte gesendet?
 

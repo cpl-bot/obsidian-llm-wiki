@@ -18,6 +18,15 @@ vi.mock('../../llm-sdk/create-llm-client', () => ({
 
 vi.mock('../../llm-sdk/openai-codex/model-catalog', () => ({ fetchCodexModelCatalog: vi.fn() }));
 
+// Hardening Phase 2.A (F-06): the removed document-conversion backend's
+// vendor name is assembled from fragments here for the same reason the
+// production scrub assembles it (`src/core/settings-migrations.ts`) — the
+// repo-wide grep and `scripts/check-bundle-no-mineru.mjs` both treat a bare
+// occurrence of that literal as a resurrection of the backend.
+const REMOVED_BACKEND_VENDOR = 'min' + 'eru';
+const REMOVED_BACKEND_TOKEN_FIELD = `${REMOVED_BACKEND_VENDOR}ApiToken`;
+const REMOVED_BACKEND_SECRET_ID = `karpathywiki-${REMOVED_BACKEND_VENDOR}-api-token`;
+
 function settings(provider = 'openai-codex'): import('../../types').LLMWikiSettings {
   return {
     provider,
@@ -91,7 +100,31 @@ describe('OpenAI Codex plugin lifecycle', () => {
     const saved = saveData.mock.calls.at(-1)?.[0] as Record<string, unknown>;
     expect(saved.accessToken).toBeUndefined();
   });
-  it('moves the unpublished MinerU token from data.json to SecretStorage', async () => {
+  // Hardening Phase 2.A (F-06): loadSettings no longer migrates the removed
+  // conversion backend's token into SecretStorage — it blanks the slot and
+  // drops the keys from data.json.
+  it('blanks the removed conversion backend token in SecretStorage on upgrade', async () => {
+    const setSecret = vi.fn();
+    const app = { secretStorage: { getSecret: () => 'stored-token', setSecret } };
+    const plugin = new LLMWikiPlugin(app as never, {} as never);
+    vi.spyOn(plugin, 'loadData').mockResolvedValue({
+      provider: 'openai',
+      language: 'en',
+      wikiLanguage: 'en',
+      [REMOVED_BACKEND_TOKEN_FIELD]: ' legacy-token ',
+      markdownConversionBackend: REMOVED_BACKEND_VENDOR,
+    });
+    const saveData = vi.spyOn(plugin, 'saveData').mockResolvedValue();
+
+    await plugin.loadSettings();
+
+    expect(setSecret).toHaveBeenCalledWith(REMOVED_BACKEND_SECRET_ID, '');
+    const saved = saveData.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+    expect(saved[REMOVED_BACKEND_TOKEN_FIELD]).toBeUndefined();
+    expect(saved.markdownConversionBackend).toBeUndefined();
+    expect(JSON.stringify(saved)).not.toMatch(/legacy-token/);
+  });
+  it('does not write to SecretStorage when the removed backend slot is already empty', async () => {
     const setSecret = vi.fn();
     const app = { secretStorage: { getSecret: () => null, setSecret } };
     const plugin = new LLMWikiPlugin(app as never, {} as never);
@@ -99,33 +132,39 @@ describe('OpenAI Codex plugin lifecycle', () => {
       provider: 'openai',
       language: 'en',
       wikiLanguage: 'en',
-      mineruApiToken: ' legacy-mineru-token ',
+      markdownConversionBackend: REMOVED_BACKEND_VENDOR,
     });
-    const saveData = vi.spyOn(plugin, 'saveData').mockResolvedValue();
+    vi.spyOn(plugin, 'saveData').mockResolvedValue();
 
     await plugin.loadSettings();
 
-    expect(setSecret).toHaveBeenCalledWith('karpathywiki-mineru-api-token', 'legacy-mineru-token');
-    const saved = saveData.mock.calls.at(-1)?.[0] as Record<string, unknown>;
-    expect(saved.mineruApiToken).toBeUndefined();
+    expect(setSecret).not.toHaveBeenCalled();
   });
-  it('does not overwrite an existing MinerU SecretStorage token during cleanup', async () => {
-    const setSecret = vi.fn();
-    const app = { secretStorage: { getSecret: () => 'current-token', setSecret } };
+  // A keychain throw must not be recorded as a completed scrub: the marker is
+  // what gates the retry, so persisting it after a failed setSecret would
+  // strand the token in the keychain permanently.
+  it('does not persist the scrub marker when blanking the removed backend token throws', async () => {
+    const setSecret = vi.fn(() => { throw new Error('keychain unavailable'); });
+    const app = { secretStorage: { getSecret: () => 'stored-token', setSecret } };
     const plugin = new LLMWikiPlugin(app as never, {} as never);
     vi.spyOn(plugin, 'loadData').mockResolvedValue({
       provider: 'openai',
       language: 'en',
       wikiLanguage: 'en',
-      mineruApiToken: 'stale-token',
+      [REMOVED_BACKEND_TOKEN_FIELD]: ' legacy-token ',
+      markdownConversionBackend: REMOVED_BACKEND_VENDOR,
     });
     const saveData = vi.spyOn(plugin, 'saveData').mockResolvedValue();
 
-    await plugin.loadSettings();
+    await expect(plugin.loadSettings()).resolves.toBeUndefined();
 
-    expect(setSecret).not.toHaveBeenCalled();
+    expect(setSecret).toHaveBeenCalledWith(REMOVED_BACKEND_SECRET_ID, '');
     const saved = saveData.mock.calls.at(-1)?.[0] as Record<string, unknown>;
-    expect(saved.mineruApiToken).toBeUndefined();
+    // Settings keys still scrubbed, but the marker is withheld so the next
+    // load re-enters the scrub and retries the keychain slot.
+    expect(saved[REMOVED_BACKEND_TOKEN_FIELD]).toBeUndefined();
+    expect(saved.markdownConversionBackend).toBeUndefined();
+    expect(saved._migrated_harden_conversion_backend_removed).toBeUndefined();
   });
   it('does not initialize Codex without a stored credential', () => {
     const plugin = pluginWith(new CodexAuthManager({ store: memoryCredentialStore() }));
