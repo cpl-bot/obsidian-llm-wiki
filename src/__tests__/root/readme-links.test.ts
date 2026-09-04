@@ -95,6 +95,15 @@ function normaliseTarget(raw: string): string {
 const RELATIVE_FILE_BASENAME_ALLOWLIST = new Set([
   'LICENSE',
   'NOTICE',
+  // Hardened-fork-only docs (docs/security/HARDENING-PLAN.md §Phase 7):
+  // these files do not exist upstream and this fork is never distributed
+  // through the Obsidian community-plugin marketplace under its own id
+  // (`karpathywiki-hardened`), so the marketplace relative-link breakage
+  // this guard otherwise protects against does not apply to them; GitHub
+  // still resolves them correctly as relative repo links either way.
+  'UPSTREAM-MERGE.md',
+  'SECURITY-BASELINE.md',
+  'docs/security/HARDENING-PLAN.md',
 ]);
 
 describe('v1.25.11 PATCH #375 — README links are absolute https:// or known-safe', () => {
