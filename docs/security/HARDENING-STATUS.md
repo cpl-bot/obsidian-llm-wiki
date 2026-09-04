@@ -1,6 +1,6 @@
 # Hardening work — status & resume guide
 
-**Last updated:** 2026-09-04 (session 1 wrap-up)
+**Last updated:** 2026-09-04 (checkpoint 2 — all phases merged; integration head `75d72b0`)
 **Plan:** [`HARDENING-PLAN.md`](./HARDENING-PLAN.md) · **Baseline:** [`../../SECURITY-BASELINE.md`](../../SECURITY-BASELINE.md)
 **Repo:** `cpl-bot/obsidian-llm-wiki` · **Integration branch:** `claude/multi-agent-plan-orchestration-uvvzcn`
 (this is the fork's `harden/main`; upstream `main` is untouched at `2bd4a6d` = v1.27.0)
@@ -14,8 +14,12 @@
 - Commit messages: conventional `type(scope): subject`, body, mandatory
   `## Gate 4: Performance` table (see `AGENTS.md`), then the `Co-Authored-By` /
   `Claude-Session` trailers.
-- Gate before every PR: `pnpm lint && pnpm typecheck && pnpm build && pnpm test && pnpm css-lint`
-  (build **before** test). Baseline 267 files / 3792 tests.
+- Gate before every PR: `pnpm gate:1` (lint, typecheck, build, test, css-lint, `check:lockfile`,
+  `check:bundle-mineru`, `check:bundle-hosts`; build **before** test) plus `pnpm check:reproducible`.
+  Pre-hardening baseline 267 files / 3792 tests; post-hardening 281 / 4135.
+- Every PR was reviewed by a second sub-agent (review-and-fix pattern: findings fixed on the
+  branch as one `fix(harden/phase-N): address review findings` commit, summary posted as a PR
+  review comment, then squash-merged into the integration branch).
 
 ## Phase status — ALL SEVEN PHASES MERGED (2026-09-04)
 
@@ -53,32 +57,51 @@ second agent that fixed its findings on the branch before merge (review notes ar
 - Merging this integration branch into `main` (or making it the fork's default branch) is the
   owner's decision; nothing here touches `main`.
 
-## Resume procedure (if more work is needed)
-1. `git fetch origin && git checkout claude/multi-agent-plan-orchestration-uvvzcn && git pull`.
-   `pnpm install --frozen-lockfile && pnpm build` (test suite reads `main.js`).
-2. **Review + merge in this order:** PR #2 (MinerU) → PR #1 (deps) → PR #3 (egress).
-   Use squash or merge into the integration branch. Suggested review: a Sonnet/Opus
-   sub-agent running the `code-review` skill on each PR diff; fix findings on the PR branch.
-   After merging PR #1 + #2 + #3, on the integration branch:
-   - append `&& pnpm check:bundle-mineru && pnpm check:bundle-hosts` to the `gate:1` script
-     (PR #1 already appends `check:lockfile`), run the gate, confirm `check:bundle-hosts` is
-     green now that `mineru.net` is gone.
-3. **Finish PR #4 (Phase 5):** in a worktree on `harden/phase-5-vault-write-gate`,
-   `git merge origin/claude/multi-agent-plan-orchestration-uvvzcn` (expect a small conflict in
-   `src/wiki/wiki-engine.ts` with the MinerU removal), then do the "Remaining work" list in the
-   PR body, gate, push, mark ready, review, merge.
-4. **Wave 2 (parallel worktrees):**
-   - Phase 3 `harden/phase-3-secrets` — plan §Phase 3 tasks 3.1–3.8 (delete
-     `secret-storage-commands.ts`, remove `settings.apiKey`, fail-closed `ProviderSecretStore.load()`,
-     startup scrub, `src/core/redact.ts`, `Platform.isWin` gate, Linux Secret Service docs, tests).
-   - Phase 7 `harden/phase-7-governance` — `UPSTREAM-MERGE.md`, manifest id
-     `karpathywiki-hardened` (check tests that assert the id), install + ops runbook.
-5. **Wave 3:** Phase 6 `harden/phase-6-ci` — SHA-pin actions, `dependabot.yml`, tightened
-   `permissions:`, CI runs `check:lockfile` / `check:bundle-hosts` / `check:bundle-mineru` /
-   `npm audit`, CodeQL + gitleaks workflows, reproducible build (`SOURCE_DATE_EPOCH`, double-build
-   hash compare), `main.js.sha256` + SBOM on release, `scripts/verify-release.mjs`, `SECURITY.md`,
-   branch protection on the integration branch (GitHub settings, manual).
-6. Update this file and `SECURITY-BASELINE.md` (post-hardening hashes / test count) at the end.
+## What is left and how to pick it up
+
+The plan itself is finished; the code is fully merged. What remains falls into three groups.
+
+### A. Operator actions (no code; do these before installing the build)
+1. In every vault: Settings → Community plugins → disable **Automatic updates**; uninstall the
+   store build (`karpathywiki`). Install the hardened build per `UPSTREAM-MERGE.md` §Install
+   (`<vault>/.obsidian/plugins/karpathywiki-hardened/`).
+2. Rotate every provider API key ever entered into the store build; the hardened build will
+   itself scrub and flag any plaintext key it finds in `data.json` on first load.
+3. Set per-provider spend caps + billing alerts; configure a host egress firewall
+   (Little Snitch / LuLu / OpenSnitch) alerting on new destinations for the Obsidian process.
+4. GitHub → Settings → Branches: protect the integration branch (required checks Gate 1,
+   CodeQL, gitleaks; no force-push; signed commits) — details in `SECURITY.md`.
+5. Decide whether the integration branch becomes the fork's default branch / is merged to `main`.
+
+### B. Optional follow-up PRs (each is one worktree + one Opus sub-agent + one review agent)
+1. **Phase 2.B discretionary removals** — pick per deployment: OpenAI Codex OAuth
+   (`src/llm-sdk/openai-codex/`, `codex-auth-commands.ts`, `openai-codex-auth-controls.ts`),
+   AWS Bedrock SSO/IAM (`src/llm-sdk/bedrock-sso/`, `bedrock-auth-controls.ts`), unused
+   providers, `AGENTS.md`/`CLAUDE.md`/`MEMORY.md`. After each removal shrink
+   `src/core/egress-hosts.json` so `check:bundle-hosts` keeps the allowlist minimal.
+2. **Release workflow tightening** — restrict `release.yml` to `v*` tags and run `pnpm gate:1`
+   before building (pre-existing gaps noted in the PR #6 review).
+3. **Dependency major upgrades** (`ai` 6→7, `@ai-sdk/*` 3→4, `zod` 3→4) — deliberately excluded
+   from Phase 1; do as a separate PR now that the hardening controls are in place.
+4. **First upstream merge** — follow `UPSTREAM-MERGE.md` when upstream ships > v1.27.0.
+
+### C. Session bootstrap (for any of the above)
+```bash
+git fetch origin && git checkout claude/multi-agent-plan-orchestration-uvvzcn && git pull
+pnpm install --frozen-lockfile && pnpm build      # tests read main.js
+pnpm gate:1 && pnpm check:reproducible           # expect 281 files / 4135 tests, byte-identical
+git worktree add /home/user/wt/<topic> -b harden/<topic> claude/multi-agent-plan-orchestration-uvvzcn
+```
+Then launch a sub-agent with the prompt skeleton below, review with a second agent, push the
+branch, open a PR against the integration branch, post the review summary, squash-merge.
+
+## Session history
+- **Session 1 (checkpoint 1):** Phase 0 baseline; PRs #1–#4 opened (Phase 5 as draft).
+- **Session 1 (checkpoint 2, this update):** all reviews done, PRs #1–#7 merged in order
+  #2 → #3 → #5 → #1 → #4 → #6 → #7; post-hardening baseline recorded in `SECURITY-BASELINE.md`.
+  Notable review catches: ungated `vault.process` at 12 sites, a `*.awsapps.com` wildcard in the
+  egress allowlist, NAT64/IPv4-translated IPv6 bypasses, a plaintext key surviving the scrub when
+  its marker was already set, two CI workflows that would have failed on first run.
 
 ## Sub-agent prompt skeleton (reuse)
 
@@ -94,4 +117,9 @@ table and the two trailers; report commits, files, test delta, and anything inco
   write access, or reconnect GitHub under claude.ai Settings → Connectors.
 - `pnpm audit` times out through the proxy; use `npm audit --registry=https://registry.npmjs.org/`.
 - Worktrees live outside the repo at `/home/user/wt/*`; they are ephemeral to the container —
-  everything of value is on the pushed branches.
+  everything of value is on the pushed branches. All phase worktrees were removed after merge;
+  the `harden/phase-*` remote branches remain as history and can be deleted.
+- The registry audit endpoint occasionally returns 5xx; retry `npm audit` once before treating
+  a failure as real.
+- Sub-agent models: Opus for code phases and adversarial reviews, Sonnet for docs-heavy work;
+  the orchestrator only merges, gates, and pushes.
