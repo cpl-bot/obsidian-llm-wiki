@@ -31,19 +31,6 @@ export const WIKI_SUBFOLDERS = {
  */
 export const COMPATIBLE_SOURCE_EXTENSIONS = ['md', 'markdown', 'txt', 'text', 'pdf'] as const;
 
-/**
- * File extensions (lowercase, no dot) that route through the markdown
- * conversion path when `markdownConversionBackend === 'mineru'`. Per the
- * MinerU API (https://mineru.net/apiManage/docs), the Precise parser
- * accepts PDF + images (png/jpg/jpeg/jp2/webp/gif/bmp) + Office docs
- * (doc/docx/ppt/pptx/xls/xlsx). The native backend still only accepts
- * PDF — see `wiki-engine.ts:888` for the routing decision.
- */
-export const MINERU_CONVERSION_EXTENSIONS = [
-  'pdf', 'png', 'jpg', 'jpeg', 'jp2', 'webp', 'gif', 'bmp',
-  'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx',
-] as const;
-
 // ============================================================================
 // Lint & Performance Thresholds
 // ============================================================================
@@ -118,20 +105,6 @@ export const NATIVE_PDF_PROVIDER_IDS = [
   'bedrock-anthropic',
   'bedrock-openai',
 ] as const;
-
-/** MinerU online API endpoints and bounded conversion resources. */
-export const MINERU_API_BASE_URL = 'https://mineru.net/api/v4';
-export const MINERU_API_TOKEN_SECRET_ID = 'karpathywiki-mineru-api-token';
-export const MINERU_MAX_PDF_MB = 200;
-export const MINERU_MAX_PDF_BYTES = MINERU_MAX_PDF_MB * 1024 * 1024;
-/** Server-enforced page cap (err_msg "number of pages exceeds limit"). No
- *  client-side pre-check possible without a PDF parser — surfaced via the
- *  coded-rejection skip pipeline in wiki-engine.ts. */
-export const MINERU_MAX_PDF_PAGES = 200;
-export const MINERU_MAX_ZIP_BYTES = 256 * 1024 * 1024;
-export const MINERU_MAX_ARCHIVE_FILES = 10_000;
-export const MINERU_POLL_INTERVAL_MS = 3000;
-export const MINERU_TIMEOUT_MS = 30 * 60 * 1000;
 
 /** Minimum custom entity/concept limit per type. */
 export const CUSTOM_LIMIT_MIN = 1;
