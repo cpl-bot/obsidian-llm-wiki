@@ -14,11 +14,14 @@ import {
 } from '../../../wiki/page-factory/merge-page';
 import { createMockEntity } from '../../__support__/factories';
 import type { LLMWikiSettings, LLMClient } from '../../../types';
+import { VaultWriter } from '../../../core/vault-writer';
 
 function makeCtx(client: LLMClient | null = null): MergeContext & { written: Map<string, string> } {
   const written = new Map<string, string>();
   return {
     written,
+    // Phase 5 (F-08): the contradiction-record folder is created through the gate.
+    vaultWriter: new VaultWriter({ vault: { createFolder: async () => undefined }, scope: { wikiFolder: 'wiki' } }),
     app: {
       vault: {
         getMarkdownFiles: () => [],

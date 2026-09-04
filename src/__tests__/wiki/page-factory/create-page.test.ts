@@ -26,6 +26,8 @@ function makeCtx(opts: {
   const files = new Map<string, string>(Object.entries(opts.files ?? {}));
   return {
     written: files,
+    // Phase 5 (F-08): the contradiction-record folder is created through the gate.
+    vaultWriter: new VaultWriter({ vault: { createFolder: async () => undefined }, scope: { wikiFolder: 'wiki' } }),
     app: {
       vault: {
         getMarkdownFiles: opts.mockVault?.getMarkdownFiles ?? (() => []),
@@ -195,6 +197,8 @@ describe('createNewPage — wraps errors with entity context', () => {
     };
     const ctx: CreatePageContext & { written: Map<string, string> } = {
       written: new Map(),
+    // Phase 5 (F-08): the contradiction-record folder is created through the gate.
+    vaultWriter: new VaultWriter({ vault: { createFolder: async () => undefined }, scope: { wikiFolder: 'wiki' } }),
       app: { vault: { getMarkdownFiles: () => [], read: async () => '' } },
       settings: { wikiFolder: 'wiki', wikiLanguage: 'en', slugCase: 'preserve', disableThinking: false } as LLMWikiSettings,
       async tryReadFile() { return null; },

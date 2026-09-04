@@ -83,6 +83,8 @@ export const queryLintCommands = {
         settings: this.settings,
         llmClient: this.llmClient,
         wikiEngine: this.wikiEngine,
+        // Phase 5 (F-08): the fix runners write through the engine's gate.
+        vaultWriter: this.wikiEngine.vaultWriter,
         // #328 Phase 1 follow-up: wire the shared system-prompt composer
         // so fix-runners can mirror the Phase 1 "system layer is the
         // sole tag-vocab injection point" pattern (e.g. retag).

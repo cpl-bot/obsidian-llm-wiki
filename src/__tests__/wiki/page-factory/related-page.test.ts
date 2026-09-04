@@ -34,6 +34,8 @@ function makeCtx(opts: {
   }
   return {
     written,
+    // Phase 5 (F-08): the contradiction-record folder is created through the gate.
+    vaultWriter: new VaultWriter({ vault: { createFolder: async () => undefined }, scope: { wikiFolder: 'wiki' } }),
     app: {
       vault: {
         getMarkdownFiles: () => pages,

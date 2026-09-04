@@ -28,6 +28,7 @@
  */
 
 import type { DataAdapter } from 'obsidian';
+import { VaultWriter } from './vault-writer';
 
 export interface DiskCacheMaintenanceResult {
   removed: number;
@@ -52,6 +53,15 @@ export interface DiskCacheOptions<T> {
   serialize?: (value: T) => string;
   /** Custom deserialize function (defaults to JSON.parse). Throws on invalid input. */
   deserialize?: (raw: string) => T;
+  /**
+   * Phase 5 (F-08) vault write-gate. Defaults to a writer scoped to
+   * `cacheDir` itself — every write, remove and mkdir this cache performs is
+   * inside its own directory, so that is the tightest correct scope. It also
+   * closes the one path that takes caller-supplied data: `entryPath(key)`
+   * interpolates `key` straight into the path, and a key containing `..`
+   * would otherwise escape the cache.
+   */
+  writer?: VaultWriter;
 }
 
 export class DiskCache<T> {
@@ -63,6 +73,7 @@ export class DiskCache<T> {
   private readonly maxSingleEntryBytes: number;
   private readonly serialize: (value: T) => string;
   private readonly deserialize: (raw: string) => T;
+  private readonly writer: VaultWriter;
   /**
    * In-memory ledger of total bytes written and entry count. Maintained
    * optimistically by `set()` and `invalidate()` — used to skip the O(N)
@@ -88,6 +99,8 @@ export class DiskCache<T> {
     this.maxSingleEntryBytes = opts.maxSingleEntryBytes;
     this.serialize = opts.serialize ?? ((v: T) => JSON.stringify(v));
     this.deserialize = opts.deserialize ?? ((raw: string) => JSON.parse(raw) as T);
+    this.writer = opts.writer
+      ?? new VaultWriter({ adapter: opts.adapter, scope: { extraFolders: [opts.cacheDir] } });
   }
 
   /** Returns the entry for `key`, or null on miss / corrupt / expired. */
@@ -105,7 +118,7 @@ export class DiskCache<T> {
       parsed = this.deserialize(raw);
     } catch {
       // Corrupt file — remove so future set() can write fresh
-      await this.adapter.remove(path).catch(() => undefined);
+      await this.writer.adapterRemove(path).catch(() => undefined);
       return null;
     }
 
@@ -152,7 +165,7 @@ export class DiskCache<T> {
     await this.invalidate(key).catch(() => undefined);
 
     try {
-      await this.adapter.write(path, data);
+      await this.writer.adapterWrite(path, data);
     } catch (error) {
       console.warn(`[disk-cache] write failed for ${key}, continuing without cache:`, error);
       return;
@@ -212,7 +225,7 @@ export class DiskCache<T> {
       // best-effort ledger sync; remove proceeds regardless
     }
     try {
-      await this.adapter.remove(path);
+      await this.writer.adapterRemove(path);
       if (existed) {
         this.bytesWritten = Math.max(0, this.bytesWritten - prevSize);
         this.entryCount = Math.max(0, this.entryCount - 1);
@@ -228,7 +241,7 @@ export class DiskCache<T> {
     const totalBytes = stats.reduce((sum, s) => sum + s.size, 0);
 
     await Promise.all(
-      stats.map((s) => this.adapter.remove(s.path).catch(() => undefined))
+      stats.map((s) => this.writer.adapterRemove(s.path).catch(() => undefined))
     );
     this.bytesWritten = 0;
     this.entryCount = 0;
@@ -247,7 +260,7 @@ export class DiskCache<T> {
 
     const totalFreed = expired.reduce((sum, s) => sum + s.size, 0);
     await Promise.all(
-      expired.map((s) => this.adapter.remove(s.path).catch(() => undefined))
+      expired.map((s) => this.writer.adapterRemove(s.path).catch(() => undefined))
     );
     // Reconcile ledger: subtract evicted entries; resync total from remaining stats.
     this.bytesWritten = Math.max(0, this.bytesWritten - totalFreed);
@@ -301,7 +314,7 @@ export class DiskCache<T> {
     const freedBytes = evictSet.reduce((sum, e) => sum + e.size, 0);
     await Promise.all(
       evictSet.map((e) =>
-        this.adapter.remove(e.path)
+        this.writer.adapterRemove(e.path)
           .then(() => console.debug(`[disk-cache] evicted ${e.name} (mtime=${e.mtime}, size=${e.size})`))
           .catch(() => undefined)
       )
@@ -328,7 +341,10 @@ export class DiskCache<T> {
     }
     for (const path of segments) {
       try {
-        await this.adapter.mkdir(path);
+        // Each segment is an ancestor of `cacheDir`, so it sits above the
+        // cache's own scope. The widening value is derived from `cacheDir`
+        // alone — never from a cache key — so it cannot be steered.
+        await this.writer.scoped(path).adapterMkdir(path);
       } catch (error) {
         if (!isMissingDirError(error)) {
           console.warn(`[disk-cache] mkdir(${path}) returned non-ENOENT error:`, error);

@@ -17,11 +17,16 @@
 
 import { App, TFile } from 'obsidian';
 import { backupFilename, rotateBackups } from '../core/backup-rotation';
+import { createVaultWriter, type VaultWriter } from '../core/vault-writer';
 
 export interface ApplySchemaSuggestionParams {
   app: App;
   currentPath: string;
   newBody: string;
+  /** Phase 5 (F-08) vault write-gate. Defaults to a writer scoped to
+   *  `settings.wikiFolder`, which is where the schema file and its backups
+   *  live; pass one explicitly to reuse the caller's writer. */
+  vaultWriter?: VaultWriter;
   /** Override Date.now() for deterministic tests. */
   now?: () => Date;
   /** Called once after a successful write so the SchemaManager can drop
@@ -38,6 +43,15 @@ export async function applySchemaSuggestion(
 ): Promise<ApplySchemaResult> {
   const { app, currentPath, newBody, onCacheInvalidate } = params;
   const now = params.now ?? (() => new Date());
+  // Every write here — the backup, the pruned older backups, the rewrite —
+  // is a sibling of `currentPath`. With no writer supplied, scope the gate to
+  // exactly that folder, which is tighter than the whole wiki folder.
+  const writer = params.vaultWriter
+    ?? createVaultWriter(app, {
+      wikiFolder: currentPath.includes('/')
+        ? currentPath.slice(0, currentPath.lastIndexOf('/'))
+        : '',
+    });
   const file = app.vault.getAbstractFileByPath(currentPath);
   if (!(file instanceof TFile)) {
     return { success: false, reason: 'source-missing' };
@@ -51,7 +65,7 @@ export async function applySchemaSuggestion(
   //    rename that fires FileManager events for both sides).
   const iso = now().toISOString();
   const bakPath = backupFilename(currentPath, iso);
-  await app.vault.create(bakPath, originalContent);
+  await writer.create(bakPath, originalContent);
 
   // 3. Prune old backups to enforce MAX_BACKUPS
   const dir = currentPath.substring(0, currentPath.lastIndexOf('/'));
@@ -76,12 +90,12 @@ export async function applySchemaSuggestion(
   const toDelete = rotateBackups(allBackups);
   for (const p of toDelete) {
     const f = app.vault.getAbstractFileByPath(p);
-    if (f instanceof TFile) await app.fileManager.trashFile(f);
+    if (f instanceof TFile) await writer.trash(f);
   }
 
   // 4. Write the new body, preserving the existing frontmatter
   const newContent = spliceBody(originalContent, newBody);
-  await app.vault.modify(file, newContent);
+  await writer.modify(file, newContent);
 
   // 5. Notify the cache to drop
   onCacheInvalidate?.();
