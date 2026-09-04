@@ -1,0 +1,44 @@
+{
+  "_comment": "Phase 4 (F-04) single source of truth for network egress. Consumed by src/core/egress-policy.ts (runtime enforcement) AND scripts/check-bundle-hosts.mjs (post-build tripwire). Keep both readers in sync by editing ONLY this file.",
+  "_allowlist": "Hosts the shipped code actually FETCHES. Exact, lowercase, no scheme, no port.",
+  "allowlist": [
+    "api.anthropic.com",
+    "api.deepseek.com",
+    "api.minimaxi.com",
+    "api.moonshot.cn",
+    "api.openai.com",
+    "auth.openai.com",
+    "chatgpt.com",
+    "generativelanguage.googleapis.com",
+    "open.bigmodel.cn",
+    "openrouter.ai"
+  ],
+  "_hostPatterns": "Regional hosts whose middle label is concatenated at runtime. A hostname matches when it starts with `prefix`, ends with `suffix`, and the single label in between matches [a-z0-9-]+ (so `oidc.evil.example.amazonaws.com` does NOT match). Every suffix here must be a namespace AWS itself controls: a suffix under which anyone can self-register a subdomain (`.awsapps.com`) would hand a hostile build a ready-made allowlisted destination.",
+  "hostPatterns": [
+    { "id": "aws-sso-oidc", "prefix": "oidc.", "suffix": ".amazonaws.com" },
+    { "id": "aws-sso-portal", "prefix": "portal.sso.", "suffix": ".amazonaws.com" },
+    { "id": "aws-bedrock-runtime", "prefix": "bedrock-runtime.", "suffix": ".amazonaws.com" },
+    { "id": "aws-bedrock-mantle", "prefix": "bedrock-mantle.", "suffix": ".api.aws" }
+  ],
+  "_loopbackHosts": "http: is permitted only for these (Ollama / LM Studio / OAuth loopback listener).",
+  "loopbackHosts": ["localhost", "127.0.0.1", "::1"],
+  "_knownDocHosts": "Hosts that appear as literals in the bundle but are NEVER fetched: documentation links, links opened in the user's browser, and placeholder examples. `ai-gateway.vercel.sh` is the `ai` SDK's built-in default gateway — it is deliberately listed HERE and NOT in `allowlist`, so the tripwire passes while the policy blocks any request to it. `d-xxxxxxxxx.awsapps.com` is the SSO-start-URL placeholder shown in the settings description; the SSO start URL is only ever sent as a field in the body of a request to oidc.<region>.amazonaws.com, never fetched.",
+  "knownDocHosts": [
+    "ai-gateway.vercel.sh",
+    "ai-sdk.dev",
+    "api.example.com",
+    "cookbook.openai.com",
+    "d-xxxxxxxxx.awsapps.com",
+    "developer.mozilla.org",
+    "developers.openai.com",
+    "docs.anthropic.com",
+    "example.com",
+    "github.com",
+    "json-schema.org",
+    "platform.claude.com",
+    "platform.openai.com",
+    "vercel.com"
+  ],
+  "_knownRuntimePrefixes": "Truncated literals the bundle contains because the region is concatenated at runtime (`https://oidc.` + region + `.amazonaws.com`). The bundle scanner sees the prefix only, so it is accepted verbatim.",
+  "knownRuntimePrefixes": ["bedrock-mantle.", "oidc.", "portal.sso."]
+}
