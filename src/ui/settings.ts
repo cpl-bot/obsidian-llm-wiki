@@ -40,6 +40,18 @@ export class LLMWikiSettingTab extends PluginSettingTab {
   // (flushed to SecretStorage once on tab close, mirroring flushApiKey).
   public bedrockAuthBusy = false;
   public bedrockDevicePrompt: BedrockDevicePrompt | null = null;
+  /**
+   * Hardening Phase 3 (F-03): in-memory buffer for the API-key textbox.
+   *
+   * This used to be `tempSettings.apiKey`, i.e. a field of the settings
+   * object — which meant the typed key was one stray `saveData(tempSettings)`
+   * away from landing in `data.json` as plaintext. `LLMWikiSettings` has no
+   * `apiKey` field any more, so the buffer lives here instead, alongside the
+   * Bedrock IAM buffers that already followed this discipline: typed value
+   * held in memory, flushed to the OS keychain once on tab close, zeroed
+   * immediately after the write succeeds. It is never serialized.
+   */
+  public pendingApiKey = '';
   public bedrockIamKeyBuffer = '';
   public bedrockIamSecretBuffer = '';
   public bedrockIamSessionTokenBuffer = '';
@@ -81,10 +93,10 @@ export class LLMWikiSettingTab extends PluginSettingTab {
     // Flush before wipe — see flushApiKey for failure semantics.
     const flushSucceeded = this.flushApiKey();
     if (!flushSucceeded) return false;
-    // Defensive: flushApiKey already clears tempSettings.apiKey on
-    // success. Belt-and-suspenders so a future caller bypassing
-    // flushApiKey can't reintroduce the v1.25.3 #182 plaintext leak.
-    this.tempSettings.apiKey = '';
+    // Defensive: flushApiKey already zeroes pendingApiKey on success.
+    // Belt-and-suspenders so a future caller bypassing flushApiKey can't
+    // carry a typed key into the object that gets serialized.
+    this.pendingApiKey = '';
     // Pure write-through: commit MUST NOT cascade. Per-task model
     // ownership lives in setFieldValue → cascadeUnifiedModelChange.
     this.plugin.settings = {
@@ -104,7 +116,12 @@ export class LLMWikiSettingTab extends PluginSettingTab {
     if ((this.tempSettings.bedrockAuthMethod ?? 'api-key') === 'iam') {
       this.flushBedrockIamKeys();
     }
-    const hasChanges = JSON.stringify(this.tempSettings) !== JSON.stringify(this.plugin.settings);
+    // Hardening Phase 3 (F-03): the typed key is no longer a field of
+    // tempSettings, so a session whose ONLY change is a freshly-typed key
+    // would compare equal and never reach flushApiKey. Check the buffer
+    // explicitly — same reason the IAM buffers flush above.
+    const hasChanges = this.pendingApiKey.trim().length > 0
+      || JSON.stringify(this.tempSettings) !== JSON.stringify(this.plugin.settings);
     if (hasChanges) {
       // commitTempSettings owns the flush; skip saveSettings on failure
       // so the typed apiKey survives for retry (v1.25.4 #339 invariant).
@@ -149,7 +166,7 @@ export class LLMWikiSettingTab extends PluginSettingTab {
 
   /**
    * v1.25.3 #182: flush the pending apiKey textbox value into Obsidian
-   * SecretStorage and clear the in-memory pending value. ONLY writes
+   * SecretStorage and zero the in-memory buffer. ONLY writes
    * when the user actually typed a new value — never overwrites an
    * existing SecretStorage entry with an empty string on a no-op close
    * (would silently destroy the user's key).
@@ -160,24 +177,23 @@ export class LLMWikiSettingTab extends PluginSettingTab {
    * have aborted the user-visible save flow (no Notice, no progress),
    * which was worse UX. Now we surface a recoverable Notice AND return
    * `false` so `hide()` skips commitTempSettings entirely; otherwise the
-   * unconditional `tempSettings.apiKey = ''` in commitTempSettings
-   * would wipe the freshly-typed plaintext and persist `''` to
-   * data.json — re-creating the original #339 failure mode.
+   * unconditional buffer wipe in commitTempSettings would drop the
+   * freshly-typed key on the floor — the original #339 failure mode.
    *
    * Returns true when the SecretStorage write succeeded (or there was
    * nothing to write). Returns false when SecretStorage IO failed and
    * the caller must NOT commit.
    */
   public flushApiKey(): boolean {
-    const pending = this.tempSettings.apiKey;
+    const pending = this.pendingApiKey;
     if (pending.trim().length === 0) return true;  // nothing to flush
     const store = new ProviderSecretStore(this.app.secretStorage, this.tempSettings.providerApiKeySecretId);
     try {
       store.save(pending);
-      this.tempSettings.apiKey = '';
+      this.pendingApiKey = '';
       return true;
     } catch (error: unknown) {
-      // Keep tempSettings.apiKey populated so the user can retry on next save.
+      // Keep pendingApiKey populated so the user can retry on next save.
       // Surface a recoverable Notice (error.message only — no PII).
       const detail = error instanceof Error ? error.message : 'Unknown error';
       new Notice(this.getText('apiKeyMigrationFailedNotice').replace('{}', detail), NOTICE_ERROR);

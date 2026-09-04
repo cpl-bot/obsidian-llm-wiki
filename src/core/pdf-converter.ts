@@ -53,7 +53,6 @@ export interface PdfConversionContext {
   app: App;
   settings: {
     provider: string;
-    apiKey: string;
     baseUrl?: string;
     model: string;
     forcePdfSupport?: boolean;

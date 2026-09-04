@@ -46,10 +46,11 @@ export const ZH_TEXTS = {
     apiKeyName: 'API Key',
     apiKeyDesc: 'API 密钥。存储在操作系统凭据管理器中，不写入 data.json。',
     apiKeyPlaceholder: '输入 API Key',
-    // v1.25.4 #339: SecretStorage migration repair + failure Notice
-    apiKeyMigrateToSecretStorageButton: '迁移 SecretStorage',
-    apiKeyMigratedToSecretStorageSuccess: 'API Key 已从 SecretStorage 还原到设置。',
+    // v1.25.4 #339: SecretStorage write-failure Notice (Settings tab flush)
     apiKeyMigrationFailedNotice: '无法将 API Key 保存到 SecretStorage：{}',
+    // Hardening Phase 3 (F-03): fail-closed keychain contract.
+    keychainUnavailableNotice: '无法访问系统钥匙串 —— 在其恢复可读之前，LLM 功能已停用：{}',
+    plaintextApiKeyScrubbedNotice: '已从 data.json 中删除明文 API Key —— 请轮换该密钥。',
     codexAuthName: '登录 ChatGPT 套餐',
     codexAuthDesc: '通过实验性的 Codex OAuth 使用 ChatGPT 套餐额度。OpenAI Platform API 仍单独计费。',
     codexAuthSignedOut: '未登录',

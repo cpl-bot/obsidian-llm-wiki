@@ -50,10 +50,11 @@ export const RU_TEXTS = {
     apiKeyName: 'API Key',
     apiKeyDesc: 'API-ключ. Хранится в системном менеджере учётных данных — не в data.json.',
     apiKeyPlaceholder: 'Введите API Key',
-    // v1.25.4 #339: SecretStorage migration repair + failure Notice
-    apiKeyMigrateToSecretStorageButton: 'Мигрировать в Secret Storage',
-    apiKeyMigratedToSecretStorageSuccess: 'API-ключ восстановлен из SecretStorage в настройки.',
+    // v1.25.4 #339: SecretStorage write-failure Notice (Settings tab flush)
     apiKeyMigrationFailedNotice: 'Не удалось сохранить API-ключ в SecretStorage: {}',
+    // Hardening Phase 3 (F-03): fail-closed keychain contract.
+    keychainUnavailableNotice: 'Связка ключей недоступна — функции LLM отключены, пока её не удастся прочитать: {}',
+    plaintextApiKeyScrubbedNotice: 'Открытый API-ключ удалён из data.json — смените этот ключ.',
     codexAuthName: 'Вход через ChatGPT Plan',
     codexAuthDesc: 'Экспериментальный доступ через Codex OAuth с использованием лимита вашего тарифа ChatGPT. Биллинг OpenAI Platform API ведётся отдельно.',
     codexAuthSignedOut: 'Не выполнен вход',

@@ -16,28 +16,51 @@ describe('applySettingsMigrations — historical (#199 regression guard)', () =>
     expect(applySettingsMigrations(null).settings.openAICodexSecretId).toBe('karpathywiki-openai-codex');
   });
 
-  it('preserves the old provider while clearing the legacy plaintext API key (v1.25.3 #182 migration, v1.25.4 #339 phase-1-only)', async () => {
-    // v1.25.3 #182: legacy plaintext apiKey in data.json is moved into
-    // Obsidian SecretStorage (the actual write happens in main.ts; this
-    // helper just stashes the legacy value on a transient field).
-    //
-    // v1.25.4 #339: Phase 1 (stash) does NOT clear settings.apiKey any
-    // more — the wipe is deferred to commitSettingsMigrationV1_25_3()
-    // which main.ts calls ONLY after the SecretStorage write succeeds.
-    // This prevents the "both stores empty" failure mode on IO failure.
-    const { settings, applied } = applySettingsMigrations({ provider: 'openai', apiKey: 'existing-key' });
+  // Hardening Phase 3 (F-03). The v1.25.3 #182 / v1.25.4 #339 pair used to
+  // live here: it stashed the plaintext key for main.ts and deliberately
+  // LEFT `settings.apiKey` populated so the resolver could fall back to it
+  // when the keychain write failed. That fallback is what kept a live key
+  // mirrored inside `data.json` — a file that rides the vault into git,
+  // iCloud and every backup. The scrub below replaces it: the field is
+  // deleted unconditionally, and adoption into the keychain is the
+  // caller's (main.ts) job.
+  it('scrubs the plaintext API key out of savedData and stashes it for the caller', () => {
+    const { settings, applied } = applySettingsMigrations({ provider: 'openai', apiKey: 'sk-live-existing-key' } as never);
     expect(settings.provider).toBe('openai');
-    expect(settings.apiKey).toBe('existing-key');                     // v1.25.4 #339: NOT cleared in phase 1
-    expect(settings.openAICodexSecretId).toBe('karpathywiki-openai-codex');
-    expect(settings._migrated_v1_25_3_secret_storage).toBe(true);     // marker set (phase 1 complete)
-    expect(applied).toContain('v1.25.3-secret-storage');
-    // Legacy value stashed for main.ts to consume (NOT a real settings field).
-    const stashed = (settings as unknown as { _legacyApiKeyForSecretStorage?: string })._legacyApiKeyForSecretStorage;
-    expect(stashed).toBe('existing-key');
-    // Phase 2: simulate what main.ts does after SecretStorage IO succeeds
-    const { commitSettingsMigrationV1_25_3 } = await import('../../core/settings-migrations');
-    commitSettingsMigrationV1_25_3(settings);
-    expect(settings.apiKey).toBe('');                                  // cleared by phase 2
+    expect((settings as unknown as Record<string, unknown>).apiKey).toBeUndefined();
+    expect(settings._migrated_harden_plaintext_api_key_removed).toBe(true);
+    expect(applied).toContain('harden-plaintext-api-key-removed');
+    // Stashed for main.ts to adopt into the keychain (NOT a settings field).
+    const stashed = (settings as unknown as { _legacyPlaintextApiKey?: string })._legacyPlaintextApiKey;
+    expect(stashed).toBe('sk-live-existing-key');
+  });
+
+  it('deletes an empty apiKey field too, so no slot survives the load', () => {
+    const { settings, applied } = applySettingsMigrations({ provider: 'openai', apiKey: '' } as never);
+    expect('apiKey' in (settings as unknown as Record<string, unknown>)).toBe(false);
+    expect((settings as unknown as { _legacyPlaintextApiKey?: string })._legacyPlaintextApiKey).toBeUndefined();
+    expect(applied).toContain('harden-plaintext-api-key-removed');
+  });
+
+  it('drops the superseded v1.25.3 marker so the field cannot be reasoned about again', () => {
+    const { settings } = applySettingsMigrations({ provider: 'openai', apiKey: 'sk-live-x', _migrated_v1_25_3_secret_storage: true } as never);
+    expect((settings as unknown as Record<string, unknown>)._migrated_v1_25_3_secret_storage).toBeUndefined();
+  });
+
+  // The v1.25.3 migration was gated on its own marker, which every install
+  // since v1.25.3 already carries — gating the scrub on it too would have
+  // made it a no-op for exactly the population that has the leak.
+  it('runs even when the superseded v1.25.3 marker is already set', () => {
+    const { applied } = applySettingsMigrations({ apiKey: 'sk-live-x', _migrated_v1_25_3_secret_storage: true } as never);
+    expect(applied).toContain('harden-plaintext-api-key-removed');
+  });
+
+  it('is idempotent: a second load neither re-applies nor re-stashes', () => {
+    const first = applySettingsMigrations({ provider: 'openai', apiKey: 'sk-live-x' } as never);
+    delete (first.settings as unknown as { _legacyPlaintextApiKey?: string })._legacyPlaintextApiKey;
+    const second = applySettingsMigrations(first.settings);
+    expect(second.applied).not.toContain('harden-plaintext-api-key-removed');
+    expect((second.settings as unknown as { _legacyPlaintextApiKey?: string })._legacyPlaintextApiKey).toBeUndefined();
   });
 
   it('repairs a blank legacy Codex secret ID', () => {

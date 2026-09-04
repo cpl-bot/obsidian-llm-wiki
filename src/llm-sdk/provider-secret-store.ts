@@ -43,11 +43,15 @@ export interface ProviderSecretStoreLike {
 }
 
 /**
- * v1.25.4 #339: typed error for SecretStorage platform failures
- * (Windows 10 Credential Manager locked / service unavailable / macOS
- * Keychain access denied / Linux Secret Service timeout). Surfaces as
- * a constructor so callers can `instanceof` without coupling to the
- * underlying OS error message, which varies by platform.
+ * v1.25.4 #339: typed error for SecretStorage platform failures (macOS
+ * Keychain access denied / Linux Secret Service unavailable or timed
+ * out). Surfaces as a constructor so callers can `instanceof` without
+ * coupling to the underlying OS error message, which varies by platform.
+ *
+ * Hardening Phase 3 (F-03): this is now thrown on the READ path too —
+ * see `ProviderSecretStore.load()`. `isProviderSecretStorageError` is
+ * the boundary-friendly predicate for callers that only want to turn it
+ * into a Notice.
  */
 export class ProviderSecretStorageError extends Error {
   constructor(public readonly cause: unknown, message = 'SecretStorage IO failed') {
@@ -67,17 +71,29 @@ export class ProviderSecretStore implements ProviderSecretStoreLike {
    * is configured (null / empty / whitespace-only). Callers receive a
    * normalized value they can pass directly to the LLM SDK.
    *
-   * v1.25.4 #339: swallows getSecret platform throws and returns null
-   * so the resolver's existing "fall through to settings.apiKey" path
-   * kicks in. We never want a transient Credential Manager error to
-   * brick LLM initialization on the read path.
+   * Hardening Phase 3 (F-03): the read path is now **fail-closed**. The
+   * two outcomes are distinct and neither of them is "use a value from
+   * disk":
+   *
+   *   - `null`  → the slot is empty. No key is configured; the user has
+   *     to type one. This is a normal, recoverable state.
+   *   - throw `ProviderSecretStorageError` → the keychain itself could
+   *     not be read (locked, denied, no Secret Service daemon). LLM
+   *     features stay disabled until it works again.
+   *
+   * v1.25.4 #339 swallowed the throw and returned null so the resolver
+   * fell through to the plaintext key mirrored in `data.json`. That mirror
+   * is gone (it synced the key into every vault backup), so swallowing the
+   * throw would now silently read as "no key configured" and invite the
+   * user to paste the key again — into a keychain that cannot store it.
+   * Surfacing the failure is the only honest answer.
    */
   load(): string | null {
     let raw: string | null;
     try {
       raw = this.storage.getSecret(this.secretId);
-    } catch {
-      return null;
+    } catch (error: unknown) {
+      throw wrapStorageError(error);
     }
     if (raw === null || raw === undefined) return null;
     const trimmed = raw.trim();
@@ -120,6 +136,11 @@ export class ProviderSecretStore implements ProviderSecretStoreLike {
     }
   }
 
+  /**
+   * Cheap "is a key configured" probe. Inherits `load()`'s fail-closed
+   * contract: a keychain that cannot be read throws rather than
+   * reporting a confident `false`.
+   */
   hasKey(): boolean {
     return this.load() !== null;
   }
@@ -127,4 +148,14 @@ export class ProviderSecretStore implements ProviderSecretStoreLike {
 
 function wrapStorageError(cause: unknown): ProviderSecretStorageError {
   return new ProviderSecretStorageError(cause, cause instanceof Error ? cause.message : undefined);
+}
+/**
+ * Hardening Phase 3 (F-03): narrow an unknown catch value to the typed
+ * keychain failure. Exists so UI boundaries can tell "keychain is
+ * unavailable" (show the keychain Notice, keep LLM features disabled)
+ * apart from every other error, without importing the class only to
+ * write `instanceof` at eight call sites.
+ */
+export function isProviderSecretStorageError(error: unknown): error is ProviderSecretStorageError {
+  return error instanceof ProviderSecretStorageError;
 }

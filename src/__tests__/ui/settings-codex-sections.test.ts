@@ -143,7 +143,7 @@ describe('Codex settings section integration', () => {
     fetchModelsMock.mockResolvedValue(models);
     const tab = createTab();
     tab.tempSettings.provider = provider;
-    tab.tempSettings.apiKey = 'test-key';
+    tab.pendingApiKey = 'test-key';
 
     renderModelSection(tab, {} as HTMLElement);
     await buttonClicks[0]();
@@ -155,7 +155,7 @@ describe('Codex settings section integration', () => {
     fetchModelsMock.mockResolvedValue(['openai/gpt-4o-mini', null] as unknown as string[]);
     const tab = createTab();
     tab.tempSettings.provider = 'openrouter';
-    tab.tempSettings.apiKey = 'test-key';
+    tab.pendingApiKey = 'test-key';
 
     renderModelSection(tab, {} as HTMLElement);
     await buttonClicks[0]();

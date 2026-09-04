@@ -46,10 +46,11 @@ export const DE_TEXTS = {
     apiKeyName: 'API-Schlüssel',
     apiKeyDesc: 'API-Schlüssel. Wird im OS-Schlüsselbund gespeichert, nicht in data.json.',
     apiKeyPlaceholder: 'API-Schlüssel eingeben',
-    // v1.25.4 #339: SecretStorage migration repair + failure Notice
-    apiKeyMigrateToSecretStorageButton: 'SecretStorage-Migration',
-    apiKeyMigratedToSecretStorageSuccess: 'API-Schlüssel aus SecretStorage in die Einstellungen wiederhergestellt.',
+    // v1.25.4 #339: SecretStorage write-failure Notice (Settings tab flush)
     apiKeyMigrationFailedNotice: 'API-Schlüssel konnte nicht in SecretStorage gespeichert werden: {}',
+    // Hardening Phase 3 (F-03): fail-closed keychain contract.
+    keychainUnavailableNotice: 'Schlüsselbund nicht verfügbar — LLM-Funktionen sind deaktiviert, bis er gelesen werden kann: {}',
+    plaintextApiKeyScrubbedNotice: 'Klartext-API-Schlüssel aus data.json entfernt — bitte diesen Schlüssel rotieren.',
     codexAuthName: 'Bei ChatGPT Plan anmelden',
     codexAuthDesc: 'Experimenteller Codex-OAuth-Zugriff über das Kontingent Ihres ChatGPT-Plans. Die Abrechnung der OpenAI Platform API erfolgt weiterhin separat.',
     codexAuthSignedOut: 'Nicht angemeldet',

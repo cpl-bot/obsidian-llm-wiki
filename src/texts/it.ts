@@ -46,10 +46,11 @@ export const IT_TEXTS = {
     apiKeyName: 'Chiave API',
     apiKeyDesc: 'Chiave API. Salvata nel gestore credenziali del sistema, non in data.json.',
     apiKeyPlaceholder: 'Inserisci la chiave API',
-    // v1.25.4 #339: SecretStorage migration repair + failure Notice
-    apiKeyMigrateToSecretStorageButton: 'Migra SecretStorage',
-    apiKeyMigratedToSecretStorageSuccess: 'Chiave API ripristinata da SecretStorage nelle impostazioni.',
+    // v1.25.4 #339: SecretStorage write-failure Notice (Settings tab flush)
     apiKeyMigrationFailedNotice: 'Salvataggio chiave API in SecretStorage fallito: {}',
+    // Hardening Phase 3 (F-03): fail-closed keychain contract.
+    keychainUnavailableNotice: 'Portachiavi non disponibile — le funzioni LLM restano disattivate finché non è leggibile: {}',
+    plaintextApiKeyScrubbedNotice: 'Chiave API in chiaro rimossa da data.json — ruota questa chiave.',
     codexAuthName: 'Accesso al piano ChatGPT',
     codexAuthDesc: 'Accesso sperimentale a Codex tramite OAuth usando la disponibilità del tuo piano ChatGPT. La fatturazione dell’API OpenAI Platform rimane separata.',
     codexAuthSignedOut: 'Accesso non effettuato',

@@ -46,10 +46,11 @@ export const ZH_HANT_TEXTS = {
     apiKeyName: 'API Key',
     apiKeyDesc: 'API 金鑰。儲存在作業系統憑證管理員中,不寫入 data.json。',
     apiKeyPlaceholder: '輸入 API Key',
-    // v1.25.4 #339: SecretStorage migration repair + failure Notice
-    apiKeyMigrateToSecretStorageButton: '遷移 SecretStorage',
-    apiKeyMigratedToSecretStorageSuccess: 'API Key 已從 SecretStorage 還原到設定。',
+    // v1.25.4 #339: SecretStorage write-failure Notice (Settings tab flush)
     apiKeyMigrationFailedNotice: '無法將 API Key 保存到 SecretStorage：{}',
+    // Hardening Phase 3 (F-03): fail-closed keychain contract.
+    keychainUnavailableNotice: '無法存取系統鑰匙圈 —— 在其恢復可讀之前，LLM 功能已停用：{}',
+    plaintextApiKeyScrubbedNotice: '已從 data.json 中刪除明文 API Key —— 請輪換該金鑰。',
     codexAuthName: '登入 ChatGPT 方案',
     codexAuthDesc: '透過實驗性的 Codex OAuth 使用 ChatGPT 方案額度。OpenAI Platform API 仍會另外計費。',
     codexAuthSignedOut: '未登入',

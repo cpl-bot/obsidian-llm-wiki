@@ -25,6 +25,7 @@ import { getText } from '../core/i18n';
 import { createLLMClient } from '../core/create-plugin-llm-client';
 import { providerRequiresApiKey, usesBedrockAwsCredentials } from '../core/provider-auth';
 import { resolveProviderApiKey } from '../llm-sdk/provider-api-key-resolver';
+import { isProviderSecretStorageError } from '../llm-sdk/provider-secret-store';
 import type { CodexAuthManager } from '../llm-sdk/openai-codex/auth-manager';
 import { applyCodexModelPolicy } from '../core/openai-codex-model-policy';
 import { resolveModelForTask } from '../core/model-resolver';
@@ -82,14 +83,28 @@ export const connectionCommands = {
     }
     // v1.25.7 PATCH: accept an optional pendingApiKey so the Test
     // Connection button can forward the in-memory typed key from
-    // tab.tempSettings.apiKey, bypassing the stale SecretStorage value.
+    // tab.pendingApiKey, bypassing the stale SecretStorage value.
     // Production callers (initializeLLMClient etc.) pass undefined.
-    if (!awsCredMode && providerRequiresApiKey(this.settings.provider) && !resolveProviderApiKey(
-      { apiKey: this.settings.apiKey, providerApiKeySecretId: this.settings.providerApiKeySecretId },
-      this.app.secretStorage,
-      pendingApiKey,
-    )) {
-      return { success: false, message: t.errorNoApiKey || 'API Key is not configured' };
+    //
+    // Hardening Phase 3 (F-03): this is the UI boundary where a
+    // missing key is already reported, so it is also where an unreadable
+    // keychain gets its own message. Failing closed here keeps the probe
+    // from reporting a provider-side auth error for a local problem.
+    if (!awsCredMode && providerRequiresApiKey(this.settings.provider)) {
+      let resolvedKey: string;
+      try {
+        resolvedKey = resolveProviderApiKey(
+          { providerApiKeySecretId: this.settings.providerApiKeySecretId },
+          this.app.secretStorage,
+          pendingApiKey,
+        );
+      } catch (error: unknown) {
+        if (!isProviderSecretStorageError(error)) throw error;
+        return { success: false, message: t.keychainUnavailableNotice.replace('{}', error.message) };
+      }
+      if (!resolvedKey) {
+        return { success: false, message: t.errorNoApiKey || 'API Key is not configured' };
+      }
     }
 
     const tasksToProbe: LLMTask[] = this.settings.usePerTaskModels === true

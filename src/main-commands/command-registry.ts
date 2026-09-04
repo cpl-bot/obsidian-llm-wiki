@@ -40,7 +40,6 @@ export interface CommandRegistryHost extends Plugin {
   queryWiki(): void;
   lintWiki(trigger?: 'auto' | 'manual'): void;
   clearPdfCache(): Promise<void>;
-  migrateApiKeyToSettings(): Promise<void>;
 }
 
 export function registerWikiCommands(plugin: CommandRegistryHost): void {
@@ -133,12 +132,6 @@ export function registerWikiCommands(plugin: CommandRegistryHost): void {
     name: getText(plugin.settings.language, 'clearPdfCacheCommand'),
     icon: 'trash-2',
     callback: () => void plugin.clearPdfCache(),
-  });
-
-  plugin.addCommand({
-    id: 'migrate-api-key-to-settings',
-    name: getText(plugin.settings.language, 'apiKeyMigrateToSecretStorageButton'),
-    callback: () => { void plugin.migrateApiKeyToSettings(); },
   });
 
   plugin.addRibbonIcon('sticker', t.cmdIngestActiveFile, () => {

@@ -35,18 +35,18 @@ import type { BedrockAuthManager } from './bedrock-sso/credential-manager';
 
 export interface ProviderSettings {
   provider: string;
-  apiKey: string;
   /**
    * v1.25.3 #182: stable ID for the provider API key in Obsidian
-   * SecretStorage. When the migration has run, the live key lives in
-   * SecretStorage under this ID; `apiKey` is the empty-string fallback
-   * for tests and un-migrated installs.
+   * SecretStorage — the only place the key lives. Hardening Phase 3
+   * (F-03) removed the `apiKey` plaintext mirror that used to sit
+   * alongside this field as a fallback.
    */
   providerApiKeySecretId: string;
   /**
    * v1.25.3 #182: optional SecretStorage surface. When provided, the
-   * factory reads the live key from it; when null, falls back to the
-   * legacy `apiKey` field.
+   * factory reads the live key from it; when null there is no source,
+   * so the resolved key is '' ("no key configured"). Callers that hold
+   * a freshly-typed key pass it as `pendingApiKey` instead.
    */
   secretStorage?: ProviderSecretStorage | null;
   baseUrl?: string;
@@ -171,16 +171,19 @@ export async function createLLMClientFromSettings(
   const { OpenAICodexSdkClient } = await import('./openai-codex-sdk-client');
 
   const provider = settings.provider;
-  // v1.25.3 #182: read the key through the resolver so SecretStorage is
-  // preferred over the (now-empty) settings.apiKey. Falls back to the
-  // legacy plaintext for un-migrated installs and tests.
-  // v1.25.7 PATCH: forward the optional pendingApiKey (tab.tempSettings.apiKey
+  // v1.25.3 #182: read the key through the resolver — SecretStorage is
+  // the only source. Hardening Phase 3 (F-03): a keychain that cannot be
+  // read throws ProviderSecretStorageError out of this factory rather
+  // than degrading to a plaintext value from disk; the callers that own a
+  // UI surface (initializeLLMClient, testLLMConnection) turn it into the
+  // "keychain unavailable" Notice.
+  // v1.25.7 PATCH: forward the optional pendingApiKey (tab.pendingApiKey
   // in the Test Connection flow) so the freshly-typed key wins over the
   // stale SecretStorage value. Production callers pass undefined.
   // #425 Stage 2: in bedrock sso/iam modes AWS credentials sign every
   // request, so no bearer key is resolved at all.
   const apiKey = usesBedrockAwsCredentials(provider, settings.bedrockAuthMethod) ? '' : resolveProviderApiKey(
-    { apiKey: settings.apiKey, providerApiKeySecretId: settings.providerApiKeySecretId },
+    { providerApiKeySecretId: settings.providerApiKeySecretId },
     settings.secretStorage ?? null,
     pendingApiKey,
   );
@@ -290,16 +293,19 @@ export function createLLMClientFromSettingsSync(
   const { OpenAISdkClient, AnthropicSdkClient, OpenAICompatSdkClient, OpenAICodexSdkClient } = preloadedModules;
 
   const provider = settings.provider;
-  // v1.25.3 #182: read the key through the resolver so SecretStorage is
-  // preferred over the (now-empty) settings.apiKey. Falls back to the
-  // legacy plaintext for un-migrated installs and tests.
-  // v1.25.7 PATCH: forward the optional pendingApiKey (tab.tempSettings.apiKey
+  // v1.25.3 #182: read the key through the resolver — SecretStorage is
+  // the only source. Hardening Phase 3 (F-03): a keychain that cannot be
+  // read throws ProviderSecretStorageError out of this factory rather
+  // than degrading to a plaintext value from disk; the callers that own a
+  // UI surface (initializeLLMClient, testLLMConnection) turn it into the
+  // "keychain unavailable" Notice.
+  // v1.25.7 PATCH: forward the optional pendingApiKey (tab.pendingApiKey
   // in the Test Connection flow) so the freshly-typed key wins over the
   // stale SecretStorage value. Production callers pass undefined.
   // #425 Stage 2: in bedrock sso/iam modes AWS credentials sign every
   // request, so no bearer key is resolved at all.
   const apiKey = usesBedrockAwsCredentials(provider, settings.bedrockAuthMethod) ? '' : resolveProviderApiKey(
-    { apiKey: settings.apiKey, providerApiKeySecretId: settings.providerApiKeySecretId },
+    { providerApiKeySecretId: settings.providerApiKeySecretId },
     settings.secretStorage ?? null,
     pendingApiKey,
   );

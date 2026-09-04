@@ -30,8 +30,8 @@ const REMOVED_BACKEND_SECRET_ID = `karpathywiki-${REMOVED_BACKEND_VENDOR}-api-to
 function settings(provider = 'openai-codex'): import('../../types').LLMWikiSettings {
   return {
     provider,
-    apiKey: provider === 'openai' ? 'api-key' : '',
     openAICodexSecretId: 'karpathywiki-openai-codex',
+    providerApiKeySecretId: PROVIDER_SECRET_ID,
     baseUrl: '',
     model: provider === 'openai-codex' ? 'gpt-5.5' : 'model',
     language: 'en',
@@ -42,8 +42,18 @@ function settings(provider = 'openai-codex'): import('../../types').LLMWikiSetti
   } as import('../../types').LLMWikiSettings;
 }
 
+// Hardening Phase 3 (F-03): a provider key reaches the readiness gate only
+// through the OS keychain now, so the api-key fixtures seed a stub one.
+const PROVIDER_SECRET_ID = 'karpathywiki-provider-api-key';
+
 function pluginWith(manager: CodexAuthManager, provider = 'openai-codex'): LLMWikiPlugin {
-  const app = { vault: { getAbstractFileByPath: vi.fn().mockReturnValue(null) } };
+  const app = {
+    vault: { getAbstractFileByPath: vi.fn().mockReturnValue(null) },
+    secretStorage: {
+      getSecret: (id: string) => (id === PROVIDER_SECRET_ID && provider === 'openai' ? 'api-key' : null),
+      setSecret: () => {},
+    },
+  };
   const plugin = new LLMWikiPlugin(app as never, {} as never);
   plugin.settings = settings(provider);
   plugin.codexAuthManager = manager;

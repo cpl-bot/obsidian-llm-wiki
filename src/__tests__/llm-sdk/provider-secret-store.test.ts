@@ -77,12 +77,17 @@ describe('ProviderSecretStore (#182)', () => {
   });
 });
 
-// v1.25.4 #339: throw-on-demand contracts. On a Windows 10 / Obsidian
-// 1.12.7 Credential Manager failure, setSecret/getSecret throw
-// synchronously. The wrapper must surface writes as ProviderSecretStorageError
-// (so the user-typed key is NEVER silently dropped) and degrade reads to
-// null (matching the existing "no key" contract the resolver already
-// interprets as "fall back to settings.apiKey").
+// v1.25.4 #339: throw-on-demand contracts. When the OS credential store
+// is locked or unavailable, setSecret/getSecret throw synchronously. The
+// wrapper surfaces writes as ProviderSecretStorageError so a user-typed key
+// is NEVER silently dropped.
+//
+// Hardening Phase 3 (F-03) extends that to the READ path. It used to
+// degrade a getSecret throw to null, which the resolver read as "no key
+// here" and answered with the plaintext `settings.apiKey` from data.json.
+// With that mirror deleted, degrading to null would report a locked
+// keychain as "no key configured" — so the read throws too, and `null` is
+// reserved for the one thing it should ever have meant: an empty slot.
 describe('ProviderSecretStore (#339 throw-on-demand)', () => {
   const SECRET_ID = 'karpathywiki-provider-api-key';
 
@@ -100,9 +105,22 @@ describe('ProviderSecretStore (#339 throw-on-demand)', () => {
     expect(() => store.save('sk-user-key-12345')).toThrow(ProviderSecretStorageError);
   });
 
-  it('load() returns null when getSecret throws (resolver falls through to settings.apiKey)', () => {
-    const backend = throwingBackend('locked');
+  it('load() throws ProviderSecretStorageError when getSecret throws (fail closed, no on-disk fallback)', async () => {
+    const { ProviderSecretStorageError } = await import('../../llm-sdk/provider-secret-store');
+    const backend = throwingBackend('Secret Service is not running');
     const store = new ProviderSecretStore(backend, SECRET_ID);
+    expect(() => store.load()).toThrow(ProviderSecretStorageError);
+    expect(() => store.load()).toThrow('Secret Service is not running');
+  });
+
+  it('hasKey() inherits the fail-closed read: an unreadable keychain is not a confident false', async () => {
+    const { ProviderSecretStorageError } = await import('../../llm-sdk/provider-secret-store');
+    const store = new ProviderSecretStore(throwingBackend('locked'), SECRET_ID);
+    expect(() => store.hasKey()).toThrow(ProviderSecretStorageError);
+  });
+
+  it('load() still returns null for a genuinely empty slot (null means "no key configured")', () => {
+    const store = new ProviderSecretStore({ getSecret: () => null, setSecret: () => {} }, SECRET_ID);
     expect(store.load()).toBeNull();
     expect(store.hasKey()).toBe(false);
   });

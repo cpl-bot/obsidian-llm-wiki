@@ -53,7 +53,6 @@ describe('Bedrock Stage 1 factory (v1.24.1 PATCH)', () => {
     it('bedrock-anthropic dispatches to AnthropicSdkClient with region-scoped baseURL', async () => {
       const client = await createLLMClientFromSettings({
         provider: 'bedrock-anthropic',
-        apiKey: 'ABSK-test',
         providerApiKeySecretId: 'karpathywiki-provider-api-key',
         bedrockRegion: 'us-east-1',
       });
@@ -64,7 +63,6 @@ describe('Bedrock Stage 1 factory (v1.24.1 PATCH)', () => {
     it('bedrock-openai dispatches to OpenAICompatSdkClient with /v1 region-scoped baseURL', async () => {
       const client = await createLLMClientFromSettings({
         provider: 'bedrock-openai',
-        apiKey: 'ABSK-test',
         providerApiKeySecretId: 'karpathywiki-provider-api-key',
         bedrockRegion: 'eu-central-1',
       });
@@ -77,7 +75,6 @@ describe('Bedrock Stage 1 factory (v1.24.1 PATCH)', () => {
     it('bedrock-anthropic dispatches to AnthropicSdkClient with default region when unspecified', () => {
       const client = createLLMClientFromSettingsSync({
         provider: 'bedrock-anthropic',
-        apiKey: 'ABSK-test',
         providerApiKeySecretId: 'karpathywiki-provider-api-key',
       });
       expect(client).toBeInstanceOf(AnthropicSdkClient);
@@ -88,7 +85,6 @@ describe('Bedrock Stage 1 factory (v1.24.1 PATCH)', () => {
     it('bedrock-openai dispatches to OpenAICompatSdkClient honoring custom region', () => {
       const client = createLLMClientFromSettingsSync({
         provider: 'bedrock-openai',
-        apiKey: 'ABSK-test',
         providerApiKeySecretId: 'karpathywiki-provider-api-key',
         bedrockRegion: 'ap-northeast-2',
       });
@@ -101,7 +97,6 @@ describe('Bedrock Stage 1 factory (v1.24.1 PATCH)', () => {
     it('anthropic still routes to AnthropicSdkClient with empty baseURL', async () => {
       const client = await createLLMClientFromSettings({
         provider: 'anthropic',
-        apiKey: 'sk-ant-test',
         providerApiKeySecretId: 'karpathywiki-provider-api-key',
       });
       expect(client).toBeInstanceOf(AnthropicSdkClient);
@@ -112,7 +107,6 @@ describe('Bedrock Stage 1 factory (v1.24.1 PATCH)', () => {
     it('openai still routes to OpenAISdkClient', async () => {
       const client = await createLLMClientFromSettings({
         provider: 'openai',
-        apiKey: 'sk-test',
         providerApiKeySecretId: 'karpathywiki-provider-api-key',
       });
       // provider === 'openai' routes to OpenAISdkClient (official); the
@@ -127,7 +121,6 @@ describe('Bedrock Stage 1 factory (v1.24.1 PATCH)', () => {
     it('api-key mode (default) leaves both fetch seams untouched', async () => {
       const client = await createLLMClientFromSettings({
         provider: 'bedrock-anthropic',
-        apiKey: 'ABSK-test',
         providerApiKeySecretId: 'karpathywiki-provider-api-key',
         bedrockRegion: 'us-east-1',
       });
@@ -138,7 +131,6 @@ describe('Bedrock Stage 1 factory (v1.24.1 PATCH)', () => {
     it('sso mode injects a signing wrapper on BOTH seams and skips the key resolver', async () => {
       const client = await createLLMClientFromSettings({
         provider: 'bedrock-anthropic',
-        apiKey: '', // no bearer key — AWS credentials sign instead
         providerApiKeySecretId: 'karpathywiki-provider-api-key',
         bedrockRegion: 'eu-central-1',
         bedrockAuthMethod: 'sso',
@@ -153,7 +145,6 @@ describe('Bedrock Stage 1 factory (v1.24.1 PATCH)', () => {
     it('iam mode wires the same wrapper for the chat-completions protocol', async () => {
       const client = await createLLMClientFromSettings({
         provider: 'bedrock-openai',
-        apiKey: '',
         providerApiKeySecretId: 'karpathywiki-provider-api-key',
         bedrockRegion: 'us-east-1',
         bedrockAuthMethod: 'iam',
@@ -167,7 +158,6 @@ describe('Bedrock Stage 1 factory (v1.24.1 PATCH)', () => {
     it('rejects sso/iam modes without the plugin-managed auth manager', async () => {
       await expect(createLLMClientFromSettings({
         provider: 'bedrock-anthropic',
-        apiKey: '',
         providerApiKeySecretId: 'karpathywiki-provider-api-key',
         bedrockAuthMethod: 'sso',
       })).rejects.toThrow('BedrockAuthManager');
