@@ -1,0 +1,96 @@
+# Security Baseline — hardening fork of `karpathywiki` v1.27.0
+
+Recorded 2026-09-04 from a clean clone at commit `2bd4a6d`
+(upstream `main`, plugin version 1.27.0) **before** any hardening change.
+This file is the reference point for the hardening work plan
+(`docs/security/HARDENING-PLAN.md`) and for every later upstream merge:
+re-run the commands below and diff against these numbers.
+
+## Toolchain
+
+| Item | Value |
+|------|-------|
+| Node | v22.22.2 |
+| pnpm | 10.14.0 (`packageManager` pin) |
+| Install | `pnpm install --frozen-lockfile` |
+
+## Build artefacts (`pnpm build`, production)
+
+| Artefact | sha256 |
+|----------|--------|
+| `main.js` | `e888afa0de9c5438da4f354882c591cc6b6048e3ea63f20b3184503febc94264` |
+| `styles.css` | `23f9bdc6dbe57ccf92b4d96818e69086f6ede34657283248e7175a2d3350a47c` |
+
+`main.js`: 87,563 lines, not minified. `grep -c mineru main.js` → **120**.
+
+### Hostnames present in the bundle (`grep -oE 'https?://[a-zA-Z0-9.-]+' main.js | sort -u`)
+
+```
+http://json-schema.org
+http://localhost
+https://ai-gateway.vercel.sh
+https://ai-sdk.dev
+https://api.anthropic.com
+https://api.deepseek.com
+https://api.example.com
+https://api.minimaxi.com
+https://api.moonshot.cn
+https://api.openai.com
+https://auth.openai.com
+https://bedrock-mantle.          (prefix; region appended at runtime)
+https://chatgpt.com
+https://cookbook.openai.com
+https://d-xxxxxxxxx.awsapps.com  (placeholder)
+https://developer.mozilla.org
+https://developers.openai.com
+https://docs.anthropic.com
+https://example.com
+https://generativelanguage.googleapis.com
+https://github.com
+https://json-schema.org
+https://mineru.net
+https://oidc.                    (prefix; AWS SSO OIDC, region appended)
+https://open.bigmodel.cn
+https://openrouter.ai
+https://platform.claude.com
+https://platform.openai.com
+https://portal.sso.              (prefix; AWS SSO portal, region appended)
+https://vercel.com
+```
+
+## Quality gate (Gate 1)
+
+| Check | Result |
+|-------|--------|
+| `pnpm lint` | 0 errors / 0 warnings |
+| `pnpm typecheck` | clean |
+| `pnpm build` | clean |
+| `pnpm test` | **267 files / 3,792 tests** passed |
+| `pnpm css-lint` | 0 violations |
+
+## Dependency audit (`npm audit --json`, official registry)
+
+| Severity | Count |
+|----------|-------|
+| critical | 0 |
+| high | **1** (`fast-uri` 3.0.0 – 3.1.5: GHSA-5jgf-p345-68v8, GHSA-f65p-4m7j-42xc, GHSA-fph4-wmhf-6fwf, GHSA-jqff-g426-hqxp; fix 3.1.7) |
+| moderate | 0 |
+| low | 0 |
+
+Dependency tree: 434 packages (15 prod, 420 dev, 52 optional).
+
+### Lockfile registry hygiene
+
+| Lockfile | `registry.npmmirror.com` refs | `registry.npmjs.org` refs |
+|----------|-------------------------------|---------------------------|
+| `package-lock.json` | **358** | 76 |
+| `pnpm-lock.yaml` | 0 | n/a (pnpm stores no resolved URLs) |
+
+## Operational items outside the repository (Phase 0.3 / 0.4)
+
+These cannot be performed from the codebase and must be done by the operator:
+
+- [ ] In every Obsidian vault that will use this fork: Settings → Community
+      plugins → disable **Automatic updates**; uninstall the store version.
+- [ ] Rotate every provider API key that was ever entered into the store
+      version (removes doubt about `data.json` history).
