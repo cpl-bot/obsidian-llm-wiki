@@ -4,7 +4,7 @@
 
 > 基於 [Andrej Karpathy 的 LLM Wiki 概念](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) 實現的知識庫生成系統，自動從筆記中提取實體與概念，構建互聯的 Wiki 頁面。
 
-**Obsidian 官方市集滿分評分 • 零嵌入圖譜檢索 • 11 種語言原生支援 • 原生 PDF + 圖片 + Office 擷取 • 相容所有 LLM 供應商 • 本機優先 • 無後端 • GDPR 友善**
+**Obsidian 官方市集滿分評分 • 零嵌入圖譜檢索 • 11 種語言原生支援 • 原生 PDF 擷取 • 相容所有 LLM 供應商 • 本機優先 • 無後端 • GDPR 友善**
 
 ![Version](https://img.shields.io/github/v/release/green-dalii/obsidian-llm-wiki?style=flat-square) ![License](https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square) ![Obsidian](https://img.shields.io/badge/obsidian-1.11.4%2B-purple?style=flat-square) ![Languages](https://img.shields.io/badge/languages-11-informational?style=flat-square) ![Providers](https://img.shields.io/badge/providers-16%2B-cyan?style=flat-square) <br>
 ![Maintenance](https://img.shields.io/badge/maintenance-actively%20maintained-brightgreen?style=flat-square) ![Build Status](https://img.shields.io/github/actions/workflow/status/green-dalii/obsidian-llm-wiki/release.yml?style=flat-square) ![Author](https://img.shields.io/badge/author-Greener--Dalii-blue?style=flat-square) <br>
@@ -62,7 +62,7 @@
 **❌ 不適合，如果你：**
 
 - **想要一個通用 ChatGPT 替代品**——答案只來自你的 vault，無法連網。
-- **需要對大型外部語料庫（Confluence、Notion、arXiv、抓取的網頁）做 RAG**——此外掛攝入你的 vault 加獨立的 PDF/Office 檔案；批次外部語料庫 RAG 超出設計範圍。
+- **需要對大型外部語料庫（Confluence、Notion、arXiv、抓取的網頁）做 RAG**——此外掛攝入你的 vault 加獨立的 PDF 檔案；批次外部語料庫 RAG 超出設計範圍。
 - **正在尋找帶團隊協作的託管式 SaaS**——沒有後端、沒有伺服器、沒有共享狀態；一切都在你的 Obsidian 內本地執行。
 
 ---
@@ -122,15 +122,11 @@
 
 ### 📄 文件 / PDF / 圖片擷取
 
-五條入口，每次擷取都能切換：
+三條入口，每次擷取都能切換：
 
-1. **🆕 內建 MinerU 後端 (v1.27.0, #404)** — 設定 → Wiki Configuration → Markdown Conversion Backend → *MinerU*。PDF、圖片（PNG/JPG/JPEG/JP2/WebP/GIF/BMP）與 Office 文件（DOC/DOCX/PPT/PPTX/XLS/XLSX）皆交由 [MinerU 的 Precise 解析器](https://mineru.net/apiManage/docs) 處理。API token 存放於 Obsidian SecretStorage。對於科學論文、掃描文件，以及重視版面保留的 Office 檔案，這是最佳路徑。伺服器上限：每份 PDF 200 MB / 200 頁，每個壓縮檔 256 MB / 10,000 個檔案。
-2. **☁️ 原生支援 PDF 的雲端 Provider** — Anthropic、OpenAI、Google Gemini 與 AWS Bedrock（Anthropic + OpenAI 變體）可直接把 PDF 當作 file part 讀取。除了選定 Provider 之外不需任何設定。
-3. **🖥️ Apple Silicon 本機 OCR** — [oMLX](https://github.com/jundot/omlx) 內建 Microsoft Markitdown 作為 PDF→Markdown 後端。在 oMLX 中啟用 Markitdown，載入 [Baidu Unlimited-OCR](https://huggingface.co/baidu/Unlimited-OCR)（3B / 570M 活躍參數，2026-06 開源）作為視覺模型，把外掛指向 oMLX 作為 Custom OpenAI-Compatible Provider，開啟 **Force PDF Support**，再選擇 oMLX 正在服務的多模態模型。PDF 全程不離開你的機器。
-4. **🛠️ 第三方提取器（MinerU 線上 UI）** — 不想接 API token 時，用 [MinerU Extractor 線上服務](https://mineru.net/OpenSourceTools/Extractor) 做快速手動轉換。下載轉好的 `.md` 檔，放到 wiki 資料夾之外的 vault 任意位置，再作為一般 Markdown 筆記擷取。
-5. **🔌 Force PDF Support** — 對於其他任何接受 file part 的 OpenAI/Anthropic 相容端點，外掛會嘗試呼叫（設定 → LLM Configuration → Advanced）。成敗由端點決定；失敗會以本地化 Notice 呈現。
-
-**Office 格式注意事項：** Obsidian 並不原生算繪 `.docx` / `.xlsx` / `.pptx`（[file-formats](https://obsidian.md/help/file-formats)），因此 Office 檔案的實際工作流程是：MinerU 將其轉為 `.md`，外掛把這個 `.md` 擷取成 Wiki 頁面，原始 Office 檔案僅作為參考保留。若需要內嵌預覽 Office 檔案，可搭配社群外掛如 Pandoc Plugin / Docxer / Md Importer / Office Reader。
+1. **☁️ 原生支援 PDF 的雲端 Provider** — Anthropic、OpenAI、Google Gemini 與 AWS Bedrock（Anthropic + OpenAI 變體）可直接把 PDF 當作 file part 讀取。除了選定 Provider 之外不需任何設定。
+2. **🖥️ Apple Silicon 本機 OCR** — [oMLX](https://github.com/jundot/omlx) 內建 Microsoft Markitdown 作為 PDF→Markdown 後端。在 oMLX 中啟用 Markitdown，載入 [Baidu Unlimited-OCR](https://huggingface.co/baidu/Unlimited-OCR)（3B / 570M 活躍參數，2026-06 開源）作為視覺模型，把外掛指向 oMLX 作為 Custom OpenAI-Compatible Provider，開啟 **Force PDF Support**，再選擇 oMLX 正在服務的多模態模型。PDF 全程不離開你的機器。
+3. **🔌 Force PDF Support** — 對於其他任何接受 file part 的 OpenAI/Anthropic 相容端點，外掛會嘗試呼叫（設定 → LLM Configuration → Advanced）。成敗由端點決定；失敗會以本地化 Notice 呈現。
 
 **所有路徑共用的底層機制：**
 
@@ -138,8 +134,6 @@
 - **📝 可選 vault sidecar** — 設定 → Wiki Configuration → Wiki Folder → *Write PDF Markdown to Vault* 在來源 PDF 旁寫入 `<basename>.pdf.md`（預設關閉 — 僅快取是預設行為）。
 - **🛡️ 逐字轉錄 Prompt** — OCR 風格的轉換，搭配 `[illegible]` / `[figure: ...]` 反幻覺標記；來自小型本機模型的 markdown 圍欄包裹會在寫入快取前自動清洗。
 - **🔁 來源頁逐字引文 (v1.27.0, #496)** — 每個產生的 `sources/<slug>.md` 頁面現在都會帶有一個 `Mentions in Source` 區段，內容取自提取階段為各實體/概念所擷取的同一批逐字引文（也就是模型已證實自己確實看見的原文），讓底層文件成為唯一一個能真正回溯到來源文本、有實據可循的 Wiki 頁面。
-
-📖 **所有路徑的完整設定教學**（雲端 Provider、oMLX 硬體分級、MinerU 安裝、快取維護）→ [docs/PDF-OCR-GUIDE.md](https://github.com/green-dalii/obsidian-llm-wiki/blob/main/docs/PDF-OCR-GUIDE.md)
 
 ### 💬 查詢與維護
 
@@ -178,7 +172,6 @@
 
 本外掛與你的其他 Obsidian 工具無縫協作——以下工具皆可直接接入 `[[wiki-link]]` 圖譜，無需任何程式碼改動。
 
-- **📄 [MinerU 多格式後端](https://mineru.net/apiManage/docs)（v1.27.0 起內建）** —— 過去要另開 CLI／UI 的步驟，現在只是外掛裡的一個開關；完整路徑對照見 [文件 / PDF / 圖片擷取](#-文件--pdf--圖片擷取)。若你更偏好圖形介面而非 API token，[MinerU 線上服務](https://mineru.net/OpenSourceTools/Extractor) 仍可繼續使用；[自行部署 MinerU](https://github.com/opendatalab/mineru) 也是選項之一。
 - **🕸️ Obsidian 原生關係圖譜** —— 在任何 Wiki 頁面開啟原生圖譜視圖；每個 `[[wiki-link]]` 成為節點，每條反向連結成為邊。內建功能，零額外體積。
 - **✂️ [Obsidian Web Clipper](https://obsidian.md/clipper)** —— 官方瀏覽器擴充功能。將網頁（文章、部落格文章、Reddit 串文、Hacker News、食譜、研究論文、YouTube 字幕（透過 Interpreter 取得））儲存到 vault 內任一資料夾，然後執行外掛的「從資料夾攝入」指令以批次萃取實體與概念。
 - **📊 [Dataview](https://github.com/blacksmithgu/obsidian-dataview)** —— 使用 DQL（`LIST FROM "wiki/entities" WHERE contains(tags, "person")`）或 JS API 像查詢資料庫一樣檢索 Wiki。外掛會在每個頁面寫入標準 frontmatter（`tags:`、`type:`、`aliases:`），Dataview 查詢開箱即可使用。
@@ -253,7 +246,7 @@
 - **🔌 嵌入端點無關緊要**——我們不使用嵌入。沒有 `/v1/embeddings` 的 Provider 完全沒問題（我們支援的 16 種以上 Provider 大多都沒提供）。
 - **🦙 本機用於查詢，雲端用於擷取**——2000 頁 vault 的擷取通常需要長上下文雲端模型；262K 的本機模型可涵蓋大多數查詢。
 
-關於 PDF／圖片／Office 擷取，請見核心特性中的 [文件 / PDF / 圖片擷取](#-文件--pdf--圖片擷取)——Anthropic、OpenAI、Bedrock 與 Gemini 可原生把 PDF 當作 file part 讀取；其餘則由內建 MinerU 後端（v1.27.0+）與 **Force PDF Support** 涵蓋。
+關於 PDF 擷取，請見核心特性中的 [文件 / PDF / 圖片擷取](#-文件--pdf--圖片擷取)——Anthropic、OpenAI、Bedrock 與 Gemini 可原生把 PDF 當作 file part 讀取；其餘接受 file part 的端點則由 **Force PDF Support** 涵蓋。
 
 ### Anthropic vs OpenAI vs Codex OAuth——三者是不同的 Provider
 
@@ -287,11 +280,11 @@
 
 ### 我現有的 Wiki 安全嗎？
 
-✅ 自 v1.0.0 起向後相容。在任何頁面設定 `reviewed: true` 以保護不被覆蓋。從 v1.24.x 升級不會改寫你的 vault；v1.25.0 的 PDF 攝入預設為僅快取，v1.27.0 新增的 PDF + 圖片 + Office 攝入也不會改變磁碟上的 Wiki 佈局。
+✅ 自 v1.0.0 起向後相容。在任何頁面設定 `reviewed: true` 以保護不被覆蓋。從 v1.24.x 升級不會改寫你的 vault；v1.25.0 的 PDF 攝入預設為僅快取。
 
 ### 可以攝入 PDF、圖片和 Office 文件嗎？
 
-✅ 可以。Anthropic、OpenAI、Bedrock 與 Gemini 可原生讀取 PDF；其餘則由內建的 MinerU 後端（v1.27.0）涵蓋（PDF + 圖片 + Office）。完整教學——雲端 Provider、Apple Silicon OCR、Force PDF Support、快取維護——見 [docs/PDF-OCR-GUIDE.md](https://github.com/green-dalii/obsidian-llm-wiki/blob/main/docs/PDF-OCR-GUIDE.md)。
+✅ 可以。Anthropic、OpenAI、Bedrock 與 Gemini 可原生讀取 PDF；其餘端點由 **Force PDF Support** 涵蓋，Apple Silicon 使用者更可全程在本機完成轉換。三條路徑見 [文件 / PDF / 圖片擷取](#-文件--pdf--圖片擷取)。圖片與 Office 文件不會直接擷取——請先轉成 Markdown 或 PDF。
 
 ### 我的資料會被傳送到任何地方嗎？
 

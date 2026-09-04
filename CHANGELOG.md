@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] — Hardening
+
+### Removed
+
+- **Third-party document-conversion backend removed (security finding F-06, hardening Phase 2.A).** The optional backend uploaded whole PDFs, images and Office documents to an online service unrelated to the user's chosen LLM provider — a data-residency exposure with no equivalent in the rest of the plugin. Ingest is PDF-only again, through the provider's native document input (Anthropic / OpenAI / Bedrock / Gemini) or the **Force PDF Support** escape hatch; images and Office files must be converted to Markdown or PDF before ingest. Upgrading is automatic and one-time: the settings scrub deletes the backend selector and every leftover credential key from `data.json` and blanks the paired keychain slot, so a v1.27.0 vault loads without error and nothing recoverable is left behind. A post-build assertion (`pnpm check:bundle-mineru`) fails the build if any trace of the backend reappears in `main.js`.
+
 ## [1.27.0] - 2026-08-27
 
 36 merge commits (181 files, +11197/-3158 LOC, 3434 → 3677 tests). **MINOR** — Bedrock SSO/IAM, MinerU multi-format ingest, source-page verbatim quotes, Fix Dead Links leave-it, ingest candidate gate, per-step taskPolicies UI, plus a long tail of frontmatter / alias / dedup correctness fixes from the community wave (Issues #467/#468/#469/#485/#491/#496/#501/#506/#507/#510/#511/#513/#514/#515/#516/#517/#518/#519/#520/#521/#522/#523/#525/#527/#528/#530/#531/#532/#534/#535/#536/#537/#538/#540/#542/#544/#545/#546/#547/#549/#550/#551/#552/#553). Closed-by-PR totals include 21 community contributions.
