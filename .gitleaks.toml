@@ -1,0 +1,33 @@
+# gitleaks configuration (HARDENING-PLAN Phase 6.4).
+#
+# The default rule set is kept in full — this file only adds an allowlist, it
+# never disables a detector. `useDefault = true` means a future gitleaks
+# release that learns a new provider's key format starts catching it here with
+# no change to this file.
+#
+# The one exception is the unit-test tree. `src/__tests__/**` contains
+# key-shaped literals by design: the provider secret-store and settings tests
+# assert on values such as `sk-user-key-12345` and `sk-deepseek-old` precisely
+# because they exercise the code paths that move API keys around. They are
+# fixtures, not credentials, and no live key has ever had that shape.
+#
+# The allowlist is deliberately PATH-based rather than a set of regexes for
+# those specific strings. A regex allowlist would have to be extended every
+# time a test adds a fixture, and the natural response to a red CI run would
+# be to widen the pattern — which is how a real key eventually slips through a
+# rule someone loosened. Scoping by path keeps the exemption bounded to a
+# directory that ships no runtime code and is never installed into a vault.
+#
+# Everything else — `src/` runtime code, `scripts/`, `tools/`, `docs/`,
+# `.github/`, and all history — is scanned unmodified.
+
+title = "karpathywiki (hardened fork) gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Unit-test fixtures: key-shaped literals that are not credentials"
+paths = [
+  '''src/__tests__/.*''',
+]

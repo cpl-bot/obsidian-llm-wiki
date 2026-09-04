@@ -1,41 +1,113 @@
 name: Release Obsidian plugin
 
+# The release build is the artifact a user actually installs, so it is held to
+# a stricter standard than PR CI, not a looser one (HARDENING-PLAN F-01):
+#
+#   - identical install to CI and to local Gate 1: `pnpm install
+#     --frozen-lockfile`, install scripts disabled by `.npmrc`. It used to run
+#     `npm install --legacy-peer-deps`, which resolves a *different* tree from
+#     the pnpm lockfile the maintainer and CI build against — that alone can
+#     make the released `main.js` byte-differ from any local rebuild, which
+#     defeats the hash comparison below before it starts.
+#   - the same three supply-chain checks PR CI runs, re-run here because a tag
+#     can be pushed from a branch CI never saw.
+#   - `SHA256SUMS` published with the release so `scripts/verify-release.mjs`
+#     (and any user) can rebuild from the tag and diff.
+#   - build provenance attestation retained: it proves the artifact came from
+#     this repository's CI. It does NOT prove the source is benign — the hash
+#     comparison against a local rebuild is what closes that gap.
+#
+# Every `uses:` is pinned to a commit SHA (Phase 6.1 — F-07).
+
 on:
   push:
     tags:
       - "*"
 
+# Read-only by default. The single job below opts into exactly the write
+# scopes it needs, and nothing else in this workflow gets them (Phase 6.2).
 permissions:
-  contents: write
-  attestations: write
-  id-token: write
+  contents: read
 
 jobs:
-  build:
+  release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the draft release and upload assets
+      id-token: write # OIDC token for the provenance attestation
+      attestations: write # write the attestation itself
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - name: Use Node.js
-        uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+        with:
+          version: 10.14.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "24.x"
-          cache: 'npm'
+          cache: 'pnpm'
+
+      - name: Install (lockfile-pinned, install scripts disabled)
+        run: pnpm install --frozen-lockfile
+
+      - name: Lockfile registry check (F-02)
+        run: pnpm check:lockfile
 
       - name: Build plugin
+        run: pnpm build
+
+      - name: Bundle tripwire — MinerU removed (F-06)
+        run: pnpm check:bundle-mineru
+
+      - name: Bundle tripwire — no unaccounted hostname (F-04)
+        run: pnpm check:bundle-hosts
+
+      - name: Publish build hashes
+        # `SHA256SUMS` is the anchor for `scripts/verify-release.mjs`: check
+        # out the tag, rebuild, and the two hashes must match. esbuild output
+        # is byte-stable for this config (no minification, no embedded date),
+        # so a mismatch means the released artifact was not built from the
+        # tagged source.
         run: |
-          npm install --legacy-peer-deps
-          npm run build
+          sha256sum main.js styles.css > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Generate SBOM
+        # NOTE: `npx` downloads @cyclonedx/cyclonedx-npm from the registry at
+        # release time — a network fetch inside the release job. It is pinned
+        # to an exact version (never a range) so the downloaded code is fixed,
+        # and it runs AFTER the build so it cannot influence `main.js`. The
+        # residual risk is a compromised release of that exact version being
+        # republished under the same version number, which npm's immutability
+        # policy forbids. Accepted rather than vendoring the tool into
+        # devDependencies, where it would enlarge every contributor's tree.
+        #
+        # `--package-lock-only` is not optional here: without it cyclonedx-npm
+        # shells out to `npm ls --all` against `node_modules/`, which pnpm laid
+        # out as a symlink store npm cannot read. `npm ls` then exits non-zero
+        # ("missing"/"invalid" for effectively every package) and cyclonedx-npm
+        # aborts with `npm-ls exited with errors: 1`, failing the release after
+        # the artifacts are already built. `--ignore-npm-errors` covers the
+        # residual `npm ls` complaints about peer dependencies the lockfile
+        # does not pin. Verified locally: 0 exit, 395 components.
+        run: |
+          npx --yes @cyclonedx/cyclonedx-npm@6.0.1 \
+            --package-lock-only \
+            --ignore-npm-errors \
+            --output-file sbom.json
+        # cyclonedx-npm reads package-lock.json, which is committed alongside
+        # pnpm-lock.yaml for exactly this kind of npm-ecosystem tooling.
 
       - name: Generate artifact attestation for main.js
-        uses: actions/attest-build-provenance@v1
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
         with:
           subject-path: main.js
 
       - name: Generate artifact attestation for styles.css
-        uses: actions/attest-build-provenance@v1
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
         with:
           subject-path: styles.css
 
@@ -47,4 +119,4 @@ jobs:
           gh release create "$tag" \
             --title="$tag" \
             --draft \
-            main.js manifest.json styles.css
+            main.js manifest.json styles.css SHA256SUMS sbom.json
