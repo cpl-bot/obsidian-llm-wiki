@@ -94,3 +94,56 @@ These cannot be performed from the codebase and must be done by the operator:
       plugins → disable **Automatic updates**; uninstall the store version.
 - [ ] Rotate every provider API key that was ever entered into the store
       version (removes doubt about `data.json` history).
+
+---
+
+# Post-hardening baseline — integration branch at `3498bbf` (2026-09-04)
+
+All seven phases of the plan are merged (PRs #1–#7). Re-run the same commands and
+diff against these numbers after every upstream merge (see `UPSTREAM-MERGE.md`).
+
+## Build artefacts (`pnpm build`, production; two builds byte-identical)
+
+| Artefact | sha256 |
+|----------|--------|
+| `main.js` | `28dabfc26c335e7cffdf9ea65c5bac88b76da03678235f372a042dd2294faa8d` |
+| `styles.css` | `9389fbb5c9d55ebb3e0ac92d2a6f88e4c5c7bcc48a7266a6032101521121498c` |
+
+`main.js`: 87,553 lines. `grep -c mineru main.js` → **0**. `grep -c 'settings.apiKey' main.js` → **0**.
+`manifest.json` id → `karpathywiki-hardened`.
+
+## Bundle hostnames (`check:bundle-hosts`: 28 hosts, all accounted for in `src/core/egress-hosts.json`)
+
+Same list as the pre-hardening baseline minus `mineru.net`. Fetch-allowlisted provider hosts
+are enforced at runtime by `src/core/egress-policy.ts`; the rest are documentation-only
+strings (`ai-gateway.vercel.sh` is present in the `ai` SDK but blocked by policy).
+
+## Quality gate (`pnpm gate:1` = lint, typecheck, build, test, css-lint, check:lockfile, check:bundle-mineru, check:bundle-hosts)
+
+| Check | Result |
+|-------|--------|
+| all eight steps | green |
+| tests | **281 files / 4,135 tests** (pre-hardening 267 / 3,792; the 2 removed files were MinerU-only) |
+| `pnpm check:reproducible` | two builds byte-identical |
+| `pnpm typecheck:tools` | clean |
+
+## Dependency audit
+
+`npm audit --audit-level=high` → **0 high / 0 critical** (verified during the PR #1 review; the
+registry audit endpoint returned transient 5xx errors at the time of this final run — re-run
+if in doubt). `package-lock.json` mirror refs → **0**; `fast-uri` resolves to 3.1.7.
+
+## Findings closed
+
+| Finding | Closed by |
+|---------|-----------|
+| F-01 auto-update supply chain | Phase 6 (detection: tripwires, reproducible build, SBOM, provenance) + Phase 7 (distinct plugin id, manual install, runbook) + Phase 4 (egress allowlist) |
+| F-02 mirror lockfile | Phase 1 (#1) |
+| F-03 plaintext key in data.json | Phase 3 (#7) |
+| F-04 no egress control | Phase 4 (#3) |
+| F-05 fast-uri advisories | Phase 1 (#1) |
+| F-06 MinerU upload | Phase 2.A (#2) |
+| F-07 tag-pinned actions | Phase 6 (#6) |
+| F-08 no write-gate | Phase 5 (#4) |
+| F-09 vestigial deps | Phase 1 (#1) |
+| F-10 process gaps | Phase 6 (#6) |

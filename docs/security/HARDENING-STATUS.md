@@ -17,22 +17,43 @@
 - Gate before every PR: `pnpm lint && pnpm typecheck && pnpm build && pnpm test && pnpm css-lint`
   (build **before** test). Baseline 267 files / 3792 tests.
 
-## Phase status
+## Phase status — ALL SEVEN PHASES MERGED (2026-09-04)
 
-| Phase | Branch / PR | State | Gate | Notes |
-|-------|-------------|-------|------|-------|
-| 0 Baseline | integration branch, commit `c6d15e2` | **done** | n/a | `SECURITY-BASELINE.md`; plan checked in. Operator items 0.3/0.4 (disable auto-update, rotate keys) are outside the repo — still open. |
-| 1 Dependency hygiene | `harden/phase-1-deps` → [PR #1](https://github.com/cpl-bot/obsidian-llm-wiki/pull/1) | **ready for review** | green, 268/3810, audit 0 high | Tasks 1.1–1.6 complete. |
-| 2.A MinerU removal | `harden/phase-2-mineru-removal` → [PR #2](https://github.com/cpl-bot/obsidian-llm-wiki/pull/2) | **ready for review** | green, 265/3793 | Tasks 2.1–2.8 complete. `grep -c mineru main.js` = 0. **Merge first.** |
-| 2.B Discretionary removals | — | not started (deliberately) | | Decide per deployment: Codex OAuth, Bedrock SSO, unused providers, `AGENTS.md`/`CLAUDE.md`/`MEMORY.md`. One PR each. |
-| 3 Secret handling | — | not started | | Blocked on PR #2 merge (shared `types.ts`, `main.ts`, `src/texts/*`). |
-| 4 Egress policy | `harden/phase-4-egress-policy` → [PR #3](https://github.com/cpl-bot/obsidian-llm-wiki/pull/3) | **ready for review** | green, 271/3880 | Tasks 4.1–4.6 complete. `check:bundle-hosts` fails only on `mineru.net` until PR #2 merges. |
-| 5 Vault write-gate | `harden/phase-5-vault-write-gate` → [PR #4 (draft)](https://github.com/cpl-bot/obsidian-llm-wiki/pull/4) | **WIP** | typecheck FAIL, 32 tests fail | 5.1 + 5.4 done (`2a4278f`); 5.2 mostly done (`b82435b`); 5.3 (ESLint rule) not started. Remaining steps listed in the PR body. |
-| 6 Build & CI supply chain | — | not started | | Depends on PR #1 (CI steps), PR #3 (tripwire script), PR #2 (host list). |
-| 7 Update governance | — | not started | | `UPSTREAM-MERGE.md`, `manifest.json` id → `karpathywiki-hardened`, install runbook, ops controls, quarterly checklist. |
+Integration branch head: `3498bbf`. Post-hardening numbers are in `SECURITY-BASELINE.md`
+(281 files / 4,135 tests; `gate:1` and `check:reproducible` green).
 
-## Resume procedure (next session)
+| Phase | PR | Merge commit | Highlights |
+|-------|----|--------------|-----------|
+| 0 Baseline | — | `c6d15e2` | `SECURITY-BASELINE.md`, plan checked in |
+| 1 Dependency hygiene | [#1](https://github.com/cpl-bot/obsidian-llm-wiki/pull/1) | `80535dd` | official-registry lockfile, fast-uri 3.1.7, ignore-scripts, `check:lockfile`, audit steps |
+| 2.A MinerU removal | [#2](https://github.com/cpl-bot/obsidian-llm-wiki/pull/2) | `cdaeb28` | backend deleted, scrub migration, `check:bundle-mineru` |
+| 3 Secret handling | [#7](https://github.com/cpl-bot/obsidian-llm-wiki/pull/7) | `3498bbf` | keychain-only fail-closed, plaintext scrub, `redact.ts`, Windows gate |
+| 4 Egress policy | [#3](https://github.com/cpl-bot/obsidian-llm-wiki/pull/3) | `14b0e96` | `egress-policy.ts` + `egress-hosts.json`, `strictEgress`, `check:bundle-hosts` |
+| 5 Vault write-gate | [#4](https://github.com/cpl-bot/obsidian-llm-wiki/pull/4) | `cf768b8` | `VaultWriter` incl. `process`/`rename`, ESLint enforcement |
+| 6 CI supply chain | [#6](https://github.com/cpl-bot/obsidian-llm-wiki/pull/6) | `b1a7e89` | SHA-pinned actions, CodeQL + gitleaks, reproducible build, SBOM, `SECURITY.md` |
+| 7 Governance | [#5](https://github.com/cpl-bot/obsidian-llm-wiki/pull/5) | `0bfad53` | `UPSTREAM-MERGE.md`, id `karpathywiki-hardened`, runtime plugin id |
 
+Every PR was implemented by an Opus/Sonnet sub-agent, then independently reviewed by a
+second agent that fixed its findings on the branch before merge (review notes are on each PR).
+
+## Open items (not code, or deliberately deferred)
+
+- **Operator tasks (plan 0.3 / 0.4 / 7.3):** disable community-plugin auto-update in every vault,
+  uninstall the store build, rotate every provider key ever entered, set per-provider spend caps,
+  configure a host egress firewall. See `UPSTREAM-MERGE.md`.
+- **Repository settings (plan 6.8):** branch protection on the integration branch — required
+  checks (Gate 1, CodeQL, gitleaks), no force-push, signed commits. Manual; listed in `SECURITY.md`.
+- **Phase 2.B discretionary removals:** Codex OAuth, Bedrock SSO, unused providers,
+  `AGENTS.md`/`CLAUDE.md`/`MEMORY.md`. Decide per deployment; one PR each; shrink
+  `src/core/egress-hosts.json` accordingly.
+- **Release workflow hardening (noted in PR #6 review):** `release.yml` still triggers on any tag
+  and skips lint/test before building; consider restricting to `v*` tags and running `gate:1`.
+- **Known limitations documented in code:** `requestUrl` follows redirects without re-validation;
+  ESLint cannot catch a vault receiver renamed on assignment.
+- Merging this integration branch into `main` (or making it the fork's default branch) is the
+  owner's decision; nothing here touches `main`.
+
+## Resume procedure (if more work is needed)
 1. `git fetch origin && git checkout claude/multi-agent-plan-orchestration-uvvzcn && git pull`.
    `pnpm install --frozen-lockfile && pnpm build` (test suite reads `main.js`).
 2. **Review + merge in this order:** PR #2 (MinerU) → PR #1 (deps) → PR #3 (egress).
