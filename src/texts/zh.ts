@@ -51,6 +51,7 @@ export const ZH_TEXTS = {
     // Hardening Phase 3 (F-03): fail-closed keychain contract.
     keychainUnavailableNotice: '无法访问系统钥匙串 —— 在其恢复可读之前，LLM 功能已停用：{}',
     plaintextApiKeyScrubbedNotice: '已从 data.json 中删除明文 API Key —— 请轮换该密钥。',
+    unsupportedPlatform: 'LLM Wiki 不支持 Windows，插件未加载。',
     codexAuthName: '登录 ChatGPT 套餐',
     codexAuthDesc: '通过实验性的 Codex OAuth 使用 ChatGPT 套餐额度。OpenAI Platform API 仍单独计费。',
     codexAuthSignedOut: '未登录',

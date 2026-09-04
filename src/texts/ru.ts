@@ -55,6 +55,7 @@ export const RU_TEXTS = {
     // Hardening Phase 3 (F-03): fail-closed keychain contract.
     keychainUnavailableNotice: 'Связка ключей недоступна — функции LLM отключены, пока её не удастся прочитать: {}',
     plaintextApiKeyScrubbedNotice: 'Открытый API-ключ удалён из data.json — смените этот ключ.',
+    unsupportedPlatform: 'LLM Wiki не поддерживает Windows. Плагин не был загружен.',
     codexAuthName: 'Вход через ChatGPT Plan',
     codexAuthDesc: 'Экспериментальный доступ через Codex OAuth с использованием лимита вашего тарифа ChatGPT. Биллинг OpenAI Platform API ведётся отдельно.',
     codexAuthSignedOut: 'Не выполнен вход',

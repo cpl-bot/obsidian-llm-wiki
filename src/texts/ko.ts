@@ -51,6 +51,7 @@ export const KO_TEXTS = {
     // Hardening Phase 3 (F-03): fail-closed keychain contract.
     keychainUnavailableNotice: '키체인을 읽을 수 없습니다. 복구될 때까지 LLM 기능이 비활성화됩니다: {}',
     plaintextApiKeyScrubbedNotice: 'data.json에서 평문 API 키를 제거했습니다 — 이 키를 교체하세요.',
+    unsupportedPlatform: 'LLM Wiki는 Windows를 지원하지 않습니다. 플러그인이 로드되지 않았습니다.',
     codexAuthName: 'ChatGPT 플랜 로그인',
     codexAuthDesc: 'ChatGPT 플랜 사용량을 이용하는 실험적 Codex OAuth 액세스입니다. OpenAI Platform API 요금은 별도로 청구됩니다.',
     codexAuthSignedOut: '로그인하지 않음',

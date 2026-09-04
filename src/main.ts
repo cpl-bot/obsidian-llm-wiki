@@ -1,4 +1,4 @@
-import { Plugin, Notice } from 'obsidian';
+import { Plugin, Notice, Platform } from 'obsidian';
 
 import {
   LLMWikiSettings,
@@ -86,6 +86,22 @@ export class LLMWikiPlugin extends Plugin {
    */
   private keychainNoticeShown = false;
   async onload() {
+    // Hardening Phase 3 (F-03/3.7): platform gate, first statement, before
+    // `loadData()` touches the vault. The plaintext `data.json` fallback
+    // this phase removed existed for exactly one reason — Windows 10
+    // Credential Manager failing under Obsidian (#339). With the fallback
+    // gone the hardened build has no safe behaviour to offer that platform,
+    // so it refuses to run rather than degrading into "your key is gone"
+    // on every load. Target platforms are macOS (Keychain) and Linux
+    // (Secret Service); see README "Secret storage prerequisites".
+    //
+    // The Notice is English-only by construction: `settings.language` is
+    // read from data.json, and reading it is precisely what this gate
+    // prevents.
+    if (Platform.isWin) {
+      new Notice(getText('en', 'unsupportedPlatform'), NOTICE_ERROR);
+      return;
+    }
     await this.loadSettings();
     this.codexCredentialStore = new CodexCredentialStore(this.app.secretStorage, this.settings.openAICodexSecretId);
     this.codexAuthManager = new CodexAuthManager({
