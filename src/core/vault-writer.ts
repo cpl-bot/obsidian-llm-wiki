@@ -23,10 +23,17 @@
 //      * backslash           — never a vault separator; a Windows-shaped path
 //      * absolute path       — leading `/`, leading `~`, or a drive letter
 //      * `..` segment        — traversal, checked after `.`/`//` collapsing
-//    A path is then normalised: `normalizePath` from Obsidian, plus our own
-//    collapse of `//` and `.` segments. We do not rely on `normalizePath`
-//    alone — the Obsidian test stub makes it the identity function, and the
-//    real implementation is not documented as a security boundary.
+//    A path is then collapsed (`//`, `.`, trailing slash) in BOTH of the two
+//    forms that can reach the filesystem, and both must land inside the same
+//    configured root:
+//      * the caller's own string — what this function returns, and therefore
+//        what actually gets written;
+//      * `normalizePath(raw)` — what Obsidian's vault API may resolve to
+//        internally. The real implementation also NFC-normalises and rewrites
+//        non-breaking spaces, so it is NOT the identity function it is stubbed
+//        as in tests, and it is not documented as a security boundary. Neither
+//        form is trusted alone: a path only Obsidian's rewrite would pull into
+//        scope is refused, and so is one only the raw form would.
 //
 // 2. Folder containment, via `isAtOrInFolderScope` from `folder-scope.ts` —
 //    the same primitive the ingest-source pickers use, so "inside a folder"
@@ -48,7 +55,9 @@
 // `wiki-engine.ts` already re-resolves files across that mismatch. Containment
 // is therefore compared in NFC on both sides, but the path handed back to the
 // caller keeps its original form — re-normalising it here would silently
-// retarget the write at a different file than the caller resolved.
+// retarget the write at a different file than the caller resolved. That is
+// also why the returned path is built from the caller's string rather than
+// from `normalizePath`'s output, which NFC-folds it.
 
 import { normalizePath } from 'obsidian';
 import { isAtOrInFolderScope } from './folder-scope';
@@ -147,6 +156,27 @@ function scopeRoots(scope: VaultWriteScope): string[] {
 }
 
 /**
+ * Collapse `//`, `.` and trailing-slash noise into a clean relative path,
+ * rejecting any `..` segment on the way. `rawPath` is carried through only so
+ * a rejection names the string the caller actually passed.
+ */
+function collapseSegments(path: string, rawPath: string, operation: string): string {
+  const kept: string[] = [];
+  for (const segment of path.split('/')) {
+    if (segment === '' || segment === '.') continue;
+    if (segment === '..') {
+      throw new VaultWriteScopeError(operation, rawPath, 'parent-traversal');
+    }
+    kept.push(segment);
+  }
+  const collapsed = kept.join('/');
+  if (collapsed.length === 0) {
+    throw new VaultWriteScopeError(operation, rawPath, 'empty-path');
+  }
+  return collapsed;
+}
+
+/**
  * Validate `rawPath` against `scope` and return the normalised path to write.
  * Throws `VaultWriteScopeError` — never returns a rejected path.
  *
@@ -171,28 +201,31 @@ export function assertWithinScope(
     throw new VaultWriteScopeError(operation, rawPath, 'absolute-path');
   }
 
-  // Obsidian's own normaliser first (it is what the vault API expects), then
-  // our own segment collapse so `..` detection cannot be fooled by `//`, `.`
-  // or a trailing slash regardless of what `normalizePath` did.
-  const segments = normalizePath(rawPath).split('/');
-  const kept: string[] = [];
-  for (const segment of segments) {
-    if (segment === '' || segment === '.') continue;
-    if (segment === '..') {
-      throw new VaultWriteScopeError(operation, rawPath, 'parent-traversal');
-    }
-    kept.push(segment);
-  }
-  const normalized = kept.join('/');
-  if (normalized.length === 0) {
-    throw new VaultWriteScopeError(operation, rawPath, 'empty-path');
-  }
+  // Collapse `//`, `.` and a trailing slash — our own pass, so `..` detection
+  // cannot be fooled by any of them regardless of what `normalizePath` does.
+  // Done twice: once over the caller's string (`target` — the value returned,
+  // and therefore the path that is written) and once over `normalizePath`'s
+  // output (`resolved` — what the vault API may resolve to internally).
+  const target = collapseSegments(rawPath, rawPath, operation);
+  const resolved = collapseSegments(normalizePath(rawPath), rawPath, operation);
 
-  const roots = scopeRoots(scope);
-  const comparable = normalized.normalize('NFC');
-  for (const root of roots) {
-    if (isVaultRoot(root)) return normalized;
-    if (isAtOrInFolderScope(comparable, root.normalize('NFC'), false)) return normalized;
+  // Both forms must be inside the SAME root, each compared against that root
+  // under the same transformation and in NFC. Requiring both is what keeps
+  // `normalizePath` out of the trust boundary in either direction: it can
+  // neither pull an out-of-scope path in nor push an in-scope one out.
+  for (const root of scopeRoots(scope)) {
+    if (isVaultRoot(root)) return target;
+    const inRawRoot = isAtOrInFolderScope(
+      target.normalize('NFC'),
+      root.normalize('NFC'),
+      false
+    );
+    const inResolvedRoot = isAtOrInFolderScope(
+      resolved.normalize('NFC'),
+      normalizePath(root).normalize('NFC'),
+      false
+    );
+    if (inRawRoot && inResolvedRoot) return target;
   }
   throw new VaultWriteScopeError(operation, rawPath, 'out-of-scope');
 }
@@ -277,6 +310,12 @@ export class VaultWriter {
    * writer's own scope.
    */
   scoped(extraFolder: string): VaultWriter {
+    // Widening by the vault root would turn the gate off silently — every
+    // path is inside the root — so an empty or slash-only widening is a
+    // programming error, not a permissive default.
+    if (typeof extraFolder !== 'string' || extraFolder.trim().length === 0 || isVaultRoot(extraFolder)) {
+      throw new VaultWriteScopeError('scoped', String(extraFolder), 'empty-path');
+    }
     return new VaultWriter({
       vault: this.vault,
       adapter: this.adapter,

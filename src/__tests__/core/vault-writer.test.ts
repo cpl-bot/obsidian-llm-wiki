@@ -444,6 +444,25 @@ describe('VaultWriter — construction', () => {
     expect(vault.create).toHaveBeenCalledTimes(1);
   });
 
+  it('`scoped()` refuses a widening that names the vault root', () => {
+    // A root-naming widening would turn the gate off silently: every path is
+    // inside the vault root. It is a programming error, so it throws at the
+    // widening rather than at the write it would have let through.
+    const { writer } = makeWriter();
+    for (const bad of ['', '   ', '/', '///']) {
+      expectRejected(() => writer.scoped(bad), 'empty-path');
+    }
+  });
+
+  it('`scoped()` widening by a single file path permits that file only', async () => {
+    // The production shape: the PDF sidecar names one file, not its folder.
+    const { writer, vault } = makeWriter();
+    const widened = writer.scoped('Papers/thesis.pdf.md');
+    await widened.create('Papers/thesis.pdf.md', 'x');
+    await expect(widened.create('Papers/other.md', 'x')).rejects.toBeInstanceOf(VaultWriteScopeError);
+    expect(vault.create).toHaveBeenCalledTimes(1);
+  });
+
   it('throws a clear error when the needed capability was not supplied', async () => {
     const writer = new VaultWriter({ scope: WIKI });
     await expect(writer.create('wiki/a.md', 'x')).rejects.toThrow(/vault/i);
