@@ -46,6 +46,36 @@ jobs:
       - name: Install (lockfile-pinned)
         run: pnpm install --frozen-lockfile
 
+      # Supply-chain gates (HARDENING-PLAN Phase 1, tasks 1.5-1.6).
+      # These run before the Five-Gate block because a lockfile that points
+      # at the wrong registry, or a tree with an unfixed HIGH advisory, is a
+      # finding the reviewer needs regardless of whether the code compiles.
+
+      - name: Lockfile registry check (F-02)
+        # Rejects any `resolved` URL in package-lock.json, and any absolute
+        # URL in pnpm-lock.yaml, that is not on registry.npmjs.org. The
+        # committed lockfile carried 358 registry.npmmirror.com entries until
+        # v1.27.0 despite .npmrc pinning the official registry; nothing caught
+        # it because the tree still installed. This is what catches it.
+        run: pnpm check:lockfile
+
+      - name: Audit production dependencies (blocking)
+        # Anything HIGH or CRITICAL that ships inside main.js. This must never
+        # be waived: it is the dependency surface a plugin user actually runs.
+        # `npm audit` needs only package-lock.json plus network access, so it
+        # is unaffected by the pnpm-managed node_modules above.
+        run: npm audit --audit-level=high --omit=dev --registry=https://registry.npmjs.org/
+
+      - name: Audit all dependencies including dev (blocking)
+        # Dev-only advisories (F-05, fast-uri 3.1.5) reach contributors'
+        # machines and CI runners even though they never reach a user. Policy:
+        # this step is blocking. If a dev-only HIGH appears upstream with no
+        # published fix, add `continue-on-error: true` to THIS step only —
+        # never to the --omit=dev step above — record the advisory ID and the
+        # reason in the PR description, and remove the flag as soon as a fix
+        # lands. A permanently non-blocking audit is the same as no audit.
+        run: npm audit --audit-level=high --registry=https://registry.npmjs.org/
+
       - name: Five-Gate (lint + typecheck + build + test + css-lint)
         # Order is non-negotiable: `build` MUST run before `test`. The test
         # suite contains build-artifact verifications (e.g.
