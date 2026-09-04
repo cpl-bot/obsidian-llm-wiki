@@ -1,6 +1,48 @@
 import tsparser from "@typescript-eslint/parser";
 import obsidianmd from "eslint-plugin-obsidianmd";
 
+// ── Phase 5 (F-08) — the filesystem write-gate, enforced by lint ─────────
+//
+// Every vault write in `src/` goes through `VaultWriter`
+// (`src/core/vault-writer.ts`), which asserts the target path is inside a
+// configured folder before calling Obsidian. That property is only worth
+// anything if it cannot quietly regress, so a direct call to the underlying
+// write API is a lint error everywhere except the gate module itself.
+//
+// Two AST shapes per method, because both occur in this codebase:
+//   * a member receiver — `app.vault.create(...)`, `this.ctx.app.vault.create(...)`,
+//     `app.vault.adapter.write(...)` — matched on `callee.object.property.name`
+//   * a bare receiver — `const { vault } = app; vault.create(...)` — matched
+//     on `callee.object.name`
+// Both are anchored on the *receiver* name (`vault` / `adapter`), so an
+// unrelated `foo.create(...)` is untouched.
+//
+// Test files are not linted at all (see the `ignores` block below), and
+// `plugin.saveData()` is deliberately not restricted: it writes the plugin's
+// own `data.json` through Obsidian's plugin API, not a caller-supplied path.
+const WRITE_GATE_HINT =
+  "Route it through the VaultWriter in src/core/vault-writer.ts, which asserts " +
+  "the path is inside a configured folder (Phase 5, finding F-08).";
+
+/** `no-restricted-syntax` entries for one receiver and its write methods. */
+function writeGateRules(receiver, methods) {
+  return methods.flatMap((method) => [
+    {
+      selector: `CallExpression[callee.property.name="${method}"][callee.object.property.name="${receiver}"]`,
+      message: `Direct \`.${receiver}.${method}()\` call. ${WRITE_GATE_HINT}`,
+    },
+    {
+      selector: `CallExpression[callee.property.name="${method}"][callee.object.name="${receiver}"]`,
+      message: `Direct \`${receiver}.${method}()\` call. ${WRITE_GATE_HINT}`,
+    },
+  ]);
+}
+
+const WRITE_GATE_RESTRICTED_SYNTAX = [
+  ...writeGateRules("vault", ["create", "modify", "createFolder", "delete", "rename"]),
+  ...writeGateRules("adapter", ["write", "writeBinary", "mkdir", "remove", "rename"]),
+];
+
 export default [
   ...obsidianmd.configs.recommended,
   {
@@ -10,6 +52,15 @@ export default [
       parserOptions: {
         project: "./tsconfig.json",
       },
+    },
+  },
+  {
+    // The write-gate itself is the one module allowed to call the real API.
+    // Nothing else in `src/` may — including future files, which is the point.
+    files: ["src/**/*.ts"],
+    ignores: ["src/core/vault-writer.ts"],
+    rules: {
+      "no-restricted-syntax": ["error", ...WRITE_GATE_RESTRICTED_SYNTAX],
     },
   },
   {

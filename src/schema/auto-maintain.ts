@@ -711,7 +711,7 @@ export class AutoMaintainManager {
       getMarkdownFiles: async (): Promise<string[]> => {
         return this.app.vault.getMarkdownFiles().map(f => f.path);
       },
-      create: async (path: string, content: string): Promise<void> => {
+      createNote: async (path: string, content: string): Promise<void> => {
         const folder = path.includes('/') ? path.substring(0, path.lastIndexOf('/')) : '';
         if (folder && !this.app.vault.getAbstractFileByPath(folder)) {
           await this.vaultWriter.createFolder(folder);
