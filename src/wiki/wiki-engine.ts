@@ -651,7 +651,7 @@ export class WikiEngine {
    * re-enters `ingestSource` with the converted markdown threaded via
    * `IngestOptions.contentOverride`.
    *
-   * Artifact policy: the cache (`.obsidian/plugins/karpathywiki/pdf-cache/`) is
+   * Artifact policy: the cache (`.obsidian/plugins/<plugin-id>/pdf-cache/`) is
    * always the source of truth. When the user opts in via `writePdfMarkdownToVault`,
    * the converted markdown is also written to `<dir>/<basename>.pdf.md` next to
    * the source PDF. Otherwise (default, cache-only) no sidecar is written — the
