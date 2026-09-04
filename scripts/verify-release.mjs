@@ -114,6 +114,37 @@ export function releaseAssetUrl({ owner, repo, tag, asset }) {
 }
 
 /**
+ * A tag name this script is willing to hand to git. Pure.
+ *
+ * Nothing here goes through a shell — every call is `spawnSync(cmd, argv)` with
+ * no `shell: true` — so this is not about `;` or `$(...)`. It is about
+ * *argument* injection: the tag is passed positionally to `git rev-parse` and
+ * `git worktree add`, and git reads any argument starting with `-` as an
+ * option. A "tag" of `--upload-pack=...` or `-c` turns a verification run into
+ * arbitrary git configuration. The `--`-prefixed forms are already filtered out
+ * by the flag parser in `main`; a single leading `-` is not, which is exactly
+ * the gap this closes.
+ *
+ * The allowed set is what git tags and this project's `v1.27.0` scheme actually
+ * use: letters, digits, `.`, `_`, `-`, and no leading `-`. A tag outside it is
+ * refused rather than escaped — a verification tool that "handles" a hostile
+ * input has already lost the argument it exists to make.
+ *
+ * @param {unknown} tag
+ * @returns {string} the tag, unchanged
+ */
+export function assertSafeTag(tag) {
+  const value = String(tag ?? '');
+  if (!/^[A-Za-z0-9._][A-Za-z0-9._-]*$/.test(value)) {
+    throw new VerifyReleaseError(
+      `refusing to use ${JSON.stringify(value)} as a tag: expected only letters, ` +
+      'digits, ".", "_" and "-", and not a leading "-" (git would read it as an option)',
+    );
+  }
+  return value;
+}
+
+/**
  * Run a command, returning stdout. Throws VerifyReleaseError on failure so the
  * caller can exit 2 ("could not check") rather than 1 ("does not match").
  *
@@ -205,9 +236,9 @@ async function main(argv) {
   const keep = args.includes('--keep');
   const assetIndex = args.indexOf('--asset');
   const asset = assetIndex >= 0 ? args[assetIndex + 1] : 'main.js';
-  const tag = args.find((a, i) => !a.startsWith('--') && (assetIndex < 0 || i !== assetIndex + 1));
+  const tagArg = args.find((a, i) => !a.startsWith('--') && (assetIndex < 0 || i !== assetIndex + 1));
 
-  if (!tag) {
+  if (!tagArg) {
     console.error('usage: node scripts/verify-release.mjs <tag> [--asset main.js] [--keep]');
     return 2;
   }
@@ -215,6 +246,8 @@ async function main(argv) {
     console.error('--asset needs a file name');
     return 2;
   }
+  // Validate before the tag reaches `git` as a positional argument.
+  const tag = assertSafeTag(tagArg);
 
   const { owner, repo } = parseOwnerRepo(run('git', ['remote', 'get-url', 'origin'], { quiet: true }));
   console.log(`Repository: ${owner}/${repo}`);

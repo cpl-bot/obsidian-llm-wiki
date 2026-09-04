@@ -12,6 +12,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   VerifyReleaseError,
+  assertSafeTag,
   parseOwnerRepo,
   releaseAssetUrl,
 } from '../../../scripts/verify-release.mjs';
@@ -77,5 +78,36 @@ describe('releaseAssetUrl', () => {
       tag: '',
       asset: 'main.js',
     })).toThrow(/missing tag/);
+  });
+});
+
+describe('assertSafeTag', () => {
+  it('accepts the tag shapes this project actually cuts', () => {
+    for (const tag of ['v1.27.0', '1.27.0', 'v2.0.0-rc.1', 'release_2026.09']) {
+      expect(assertSafeTag(tag)).toBe(tag);
+    }
+  });
+
+  it('refuses a tag git would read as an option', () => {
+    // The tag is passed positionally to `git rev-parse` and `git worktree add`.
+    // A single leading `-` survives the `--`-prefix flag filter in main(), so
+    // this is the only thing standing between a crafted argument and git's
+    // option parser.
+    for (const hostile of ['-c', '--upload-pack=touch /tmp/pwned', '--output=x']) {
+      expect(() => assertSafeTag(hostile)).toThrow(VerifyReleaseError);
+    }
+    expect(() => assertSafeTag('-c')).toThrow(/leading "-"/);
+  });
+
+  it('refuses whitespace, path separators and shell metacharacters', () => {
+    for (const hostile of ['v1 0', 'v1.0;rm -rf /', '../../etc/passwd', 'v1.0$(id)', 'v1.0`id`']) {
+      expect(() => assertSafeTag(hostile)).toThrow(VerifyReleaseError);
+    }
+  });
+
+  it('refuses an empty or absent tag rather than defaulting to something', () => {
+    expect(() => assertSafeTag('')).toThrow(VerifyReleaseError);
+    expect(() => assertSafeTag(undefined)).toThrow(VerifyReleaseError);
+    expect(() => assertSafeTag(null)).toThrow(VerifyReleaseError);
   });
 });

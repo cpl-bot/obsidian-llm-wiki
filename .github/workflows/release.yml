@@ -84,7 +84,20 @@ jobs:
         # republished under the same version number, which npm's immutability
         # policy forbids. Accepted rather than vendoring the tool into
         # devDependencies, where it would enlarge every contributor's tree.
-        run: npx --yes @cyclonedx/cyclonedx-npm@6.0.1 --output-file sbom.json
+        #
+        # `--package-lock-only` is not optional here: without it cyclonedx-npm
+        # shells out to `npm ls --all` against `node_modules/`, which pnpm laid
+        # out as a symlink store npm cannot read. `npm ls` then exits non-zero
+        # ("missing"/"invalid" for effectively every package) and cyclonedx-npm
+        # aborts with `npm-ls exited with errors: 1`, failing the release after
+        # the artifacts are already built. `--ignore-npm-errors` covers the
+        # residual `npm ls` complaints about peer dependencies the lockfile
+        # does not pin. Verified locally: 0 exit, 395 components.
+        run: |
+          npx --yes @cyclonedx/cyclonedx-npm@6.0.1 \
+            --package-lock-only \
+            --ignore-npm-errors \
+            --output-file sbom.json
         # cyclonedx-npm reads package-lock.json, which is committed alongside
         # pnpm-lock.yaml for exactly this kind of npm-ecosystem tooling.
 

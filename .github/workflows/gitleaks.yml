@@ -30,6 +30,15 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      # gitleaks-action's pull_request path calls
+      # `GET /repos/{owner}/{repo}/pulls/{n}/commits` to derive the commit
+      # range it scans. That call needs the `pull-requests` scope; with only
+      # `contents: read` the token gets a 403 and the action throws before it
+      # ever runs gitleaks — a scanner that fails open on a permissions error
+      # is worse than no scanner, because the job turns red for the wrong
+      # reason and gets waived. Read is enough: comments are disabled below,
+      # so nothing here needs `pull-requests: write`.
+      pull-requests: read
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -44,3 +53,11 @@ jobs:
           # repository is ever moved under an organisation the job will fail
           # with a licence error rather than silently skipping the scan.
           GITLEAKS_CONFIG: .gitleaks.toml
+          # No inline PR review comments. Posting them needs
+          # `pull-requests: write`, and the action's comment path also reads
+          # the existing review comments *outside* a try/catch — under a
+          # read-only token that read throws and takes the whole job with it.
+          # Granting write to a third-party action so it can restate a finding
+          # the job summary and the SARIF artifact already carry is the wrong
+          # trade: the finding is not lost, only the comment is.
+          GITLEAKS_ENABLE_COMMENTS: "false"

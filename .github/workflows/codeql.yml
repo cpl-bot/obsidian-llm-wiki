@@ -32,6 +32,11 @@ jobs:
     permissions:
       contents: read
       security-events: write # upload results to the Security tab
+      # Required by codeql-action on a PRIVATE repository: `analyze` reads the
+      # workflow run's own metadata through the Actions API to attach the SARIF
+      # to the right run. Without it the upload 403s on this fork. Read-only,
+      # and a no-op if the repository is ever made public.
+      actions: read
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
