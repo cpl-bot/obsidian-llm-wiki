@@ -5,7 +5,7 @@
 // while cloud providers (openai, anthropic) still require a key.
 //
 // Hardening Phase 3 (F-03): "the configured key" is now whatever the OS
-// keychain holds — `settings.apiKey` is gone — so the fixtures seed a stub
+// keychain holds — the plaintext settings field is gone — so fixtures seed a stub
 // keychain via `storedKey` instead of a settings field.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';

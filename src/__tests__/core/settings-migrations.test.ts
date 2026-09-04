@@ -18,7 +18,7 @@ describe('applySettingsMigrations — historical (#199 regression guard)', () =>
 
   // Hardening Phase 3 (F-03). The v1.25.3 #182 / v1.25.4 #339 pair used to
   // live here: it stashed the plaintext key for main.ts and deliberately
-  // LEFT `settings.apiKey` populated so the resolver could fall back to it
+  // LEFT the plaintext field populated so the resolver could fall back to it
   // when the keychain write failed. That fallback is what kept a live key
   // mirrored inside `data.json` — a file that rides the vault into git,
   // iCloud and every backup. The scrub below replaces it: the field is

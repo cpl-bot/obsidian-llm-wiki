@@ -3,7 +3,7 @@
 // commands see llmClient === null and show errorNoApiKey.
 //
 // Hardening Phase 3 (F-03): "empty apiKey" now means an empty OS-keychain
-// slot, not an empty `settings.apiKey` field — that field no longer exists.
+// slot, not an empty settings field — that field no longer exists.
 // The fixtures below therefore seed a stub keychain instead.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';

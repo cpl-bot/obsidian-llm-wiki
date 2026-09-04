@@ -1,7 +1,7 @@
 // v1.25.3 #182: tests for the central API-key resolver. Mirrors the
 // provider-secret-store.test.ts backend factory shape.
 //
-// Hardening Phase 3 (F-03): the `settings.apiKey` tier these tests used
+// Hardening Phase 3 (F-03): the on-disk plaintext tier these tests used
 // to exercise is gone — there is no on-disk slot to fall back to. What
 // replaces those cases is the fail-closed contract: `''` means "no key
 // configured", a throw means "the keychain could not be read".
@@ -47,7 +47,7 @@ describe('resolveProviderApiKey (#182)', () => {
 });
 
 // Hardening Phase 3 (F-03). The old behaviour swallowed a getSecret throw
-// and returned the plaintext `settings.apiKey` from data.json — the exact
+// and returned the plaintext key mirrored in data.json — the exact
 // path that kept a live key mirrored inside the (synced) vault. With the
 // mirror deleted, swallowing the throw would report "no key configured"
 // for a machine whose keychain is merely locked, and invite the user to

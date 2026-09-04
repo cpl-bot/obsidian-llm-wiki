@@ -108,7 +108,7 @@ describe('createLLMClientFromSettings (async)', () => {
 
   describe('input handling', () => {
     // Hardening Phase 3 (F-03): the key no longer arrives as a settings
-    // field, so the trim that used to apply to `settings.apiKey` now
+    // field, so the trim that used to apply to the settings field now
     // applies to the transient `pendingApiKey` argument — the only way a
     // caller can hand a raw typed key to the factory.
     it('trims pendingApiKey whitespace', async () => {

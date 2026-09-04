@@ -84,7 +84,7 @@ describe('ProviderSecretStore (#182)', () => {
 //
 // Hardening Phase 3 (F-03) extends that to the READ path. It used to
 // degrade a getSecret throw to null, which the resolver read as "no key
-// here" and answered with the plaintext `settings.apiKey` from data.json.
+// here" and answered with the plaintext key mirrored in data.json.
 // With that mirror deleted, degrading to null would report a locked
 // keychain as "no key configured" — so the read throws too, and `null` is
 // reserved for the one thing it should ever have meant: an empty slot.

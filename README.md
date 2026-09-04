@@ -39,7 +39,7 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs):
 
 [Official Site](https://llmwiki.greenerai.top/) | [Obsidian Marketplace](https://community.obsidian.md/plugins/karpathywiki) | [Blog](https://llmwiki.greenerai.top/blog/) | [Discussions](https://github.com/green-dalii/obsidian-llm-wiki/discussions)
 
-🤔 [Why this plugin?](#-why-this-plugin) | 🚀 [Quick Start](#-quick-start) | ✨ [Features](#-features) | 🌐 [Ecosystem](#-ecosystem) | 🛠️ [Headless CLI](#-headless-cli) | 🔍 [How Retrieval Works](#-how-retrieval-works) | 🤖 [Models](#-models) | ❓ [FAQ](#-faq)
+🤔 [Why this plugin?](#-why-this-plugin) | 🚀 [Quick Start](#-quick-start) | ✨ [Features](#-features) | 🌐 [Ecosystem](#-ecosystem) | 🛠️ [Headless CLI](#-headless-cli) | 🔍 [How Retrieval Works](#-how-retrieval-works) | 🤖 [Models](#-models) | ❓ [FAQ](#-faq) | 🔑 [Secret storage](#-secret-storage-prerequisites)
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/H7V1228WMD) ← If this plugin has helped you, feel free to buy me a coffee♥️ or drop a star🌟↗
 
@@ -345,6 +345,24 @@ Click the status bar (shows "Ingesting… click to cancel") or `Cmd+P/Ctrl+P` �
 ### Where do I get help?
 
 [GitHub Issues](https://github.com/green-dalii/obsidian-llm-wiki/issues) for bug reports · [GitHub Discussions](https://github.com/green-dalii/obsidian-llm-wiki/discussions) for questions and feature requests · Developer Console (`Ctrl+Shift+I` / `Cmd+Option+I`) for plugin logs.
+
+---
+
+## 🔑 Secret storage prerequisites
+
+Your provider API key is stored **only** in the OS credential manager, never in `data.json`. That file lives inside the vault, so anything written there follows the vault into git, iCloud, Syncthing and every backup. The plugin therefore fails closed: if the credential manager cannot be read, LLM features stay disabled and you get a "Keychain unavailable" notice — it will never fall back to an on-disk copy.
+
+- **macOS** — the system Keychain. Nothing to set up.
+- **Linux** — a Secret Service daemon must be running in your desktop session (**gnome-keyring** or **KWallet**, via libsecret). Verify with:
+
+  ```bash
+  secret-tool store --label test test key && secret-tool lookup test key
+  ```
+
+  If that round-trips your input, the plugin will work. Headless boxes and minimal window managers without a Secret Service fail closed **by design** — that is the guarantee, not a bug.
+- **Windows** — not supported by this hardened build. The plugin refuses to load and says so.
+
+If you are upgrading from a build that kept the key in `data.json`, the first load moves it into the credential manager, deletes it from disk, and tells you to **rotate the key**. Do rotate it: it has already been on disk inside a synced folder.
 
 ---
 
