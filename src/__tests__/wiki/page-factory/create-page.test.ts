@@ -14,6 +14,7 @@ import {
   type CreatePageContext,
 } from '../../../wiki/page-factory/create-page';
 import { createMockEntity, createMockConcept } from '../../__support__/factories';
+import { createTestVaultWriter, mapStore, testScopeFor } from '../../__support__/vault-writer';
 import type { LLMWikiSettings, LLMClient } from '../../../types';
 
 const EXISTING_FM = `---\ncreated: 2026-07-10\nupdated: 2026-07-10\nsources:\n  - "[[existing]]"\ntags: []\n---\n\n## Description\nOld body.\n`;
@@ -26,8 +27,10 @@ function makeCtx(opts: {
   const files = new Map<string, string>(Object.entries(opts.files ?? {}));
   return {
     written: files,
-    // Phase 5 (F-08): the contradiction-record folder is created through the gate.
-    vaultWriter: new VaultWriter({ vault: { createFolder: async () => undefined }, scope: { wikiFolder: 'wiki' } }),
+    // Phase 5 (F-08): the contradiction-record folder is created through the
+    // gate — a real `VaultWriter` over this fixture's own `files` map, so a
+    // permitted write lands in it and an out-of-scope one is refused.
+    vaultWriter: createTestVaultWriter(mapStore(files), testScopeFor('wiki')).writer,
     app: {
       vault: {
         getMarkdownFiles: opts.mockVault?.getMarkdownFiles ?? (() => []),
@@ -195,10 +198,11 @@ describe('createNewPage — wraps errors with entity context', () => {
     const failingClient: LLMClient = {
       createMessage: async () => { throw new Error('rate limit'); },
     };
+    const written = new Map<string, string>();
     const ctx: CreatePageContext & { written: Map<string, string> } = {
-      written: new Map(),
-    // Phase 5 (F-08): the contradiction-record folder is created through the gate.
-    vaultWriter: new VaultWriter({ vault: { createFolder: async () => undefined }, scope: { wikiFolder: 'wiki' } }),
+      written,
+      // Phase 5 (F-08): the contradiction-record folder is created through the gate.
+      vaultWriter: createTestVaultWriter(mapStore(written), testScopeFor('wiki')).writer,
       app: { vault: { getMarkdownFiles: () => [], read: async () => '' } },
       settings: { wikiFolder: 'wiki', wikiLanguage: 'en', slugCase: 'preserve', disableThinking: false } as LLMWikiSettings,
       async tryReadFile() { return null; },

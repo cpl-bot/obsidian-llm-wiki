@@ -20,6 +20,7 @@
 import { TFile } from 'obsidian'; // mocked in setup.ts
 import { EngineContext, LLMClient, LLMWikiSettings } from '../../types';
 import { parseFrontmatter } from '../../core/frontmatter';
+import { createTestVaultWriter, testScopeFor } from './vault-writer';
 
 // ── Mock File ────────────────────────────────────────────────────
 
@@ -48,6 +49,8 @@ class MockVault {
   has(path: string): boolean { return this.files.has(path); }
   read(path: string): string | null { return this.files.get(path) ?? null; }
   write(path: string, content: string): void { this.files.set(path, content); }
+  /** Phase 5 (F-08): the write-gate deletes through the same fake vault. */
+  remove(path: string): void { this.files.delete(path); }
   list(): string[] { return [...this.files.keys()]; }
   get size(): number { return this.files.size; }
 }
@@ -128,6 +131,18 @@ export function createMockContext(opts: MockContextOptions = {}): { ctx: EngineC
   const client = createMockClient(opts.llmResponses ?? []);
   const settings = { ...DEFAULT_SETTINGS, ...opts.settings };
 
+  // Phase 5 (F-08): a REAL `VaultWriter` over this same fake vault, scoped
+  // exactly as production scopes it (`settings.wikiFolder` + the plugin config
+  // dir), read through a getter so a test that mutates `settings.wikiFolder`
+  // re-scopes the gate the way `createVaultWriter` does. Writes the gate
+  // permits land in `vault`, so assertions still observe real writes; writes
+  // it refuses throw `VaultWriteScopeError` here exactly as they would in the
+  // plugin.
+  const { writer: vaultWriter } = createTestVaultWriter(
+    vault,
+    () => testScopeFor(settings.wikiFolder)
+  );
+
   // Build mock files array for getMarkdownFiles
   const mockFiles = Object.keys(opts.vaultFiles ?? {}).map(path => ({
     path,
@@ -168,6 +183,7 @@ export function createMockContext(opts: MockContextOptions = {}): { ctx: EngineC
     } as unknown as EngineContext['app'],
     settings,
     getClient: () => client,
+    vaultWriter,
     createOrUpdateFile: async (path, content) => { vault.write(path, content); },
     tryReadFile: async (path) => vault.read(path),
     deleteFile: async () => {},
