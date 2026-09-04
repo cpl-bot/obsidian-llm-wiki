@@ -115,12 +115,16 @@ export function findNonOfficialUrlsInText(text) {
 
 /**
  * CLI entry point. Returns the process exit code rather than calling
- * `process.exit`, so the pure logic above stays testable.
+ * `process.exit`, so both the pure logic above and this orchestration stay
+ * testable.
+ *
+ * Fail-closed: a missing lockfile is a failure, not a skip. A guard that
+ * reports OK because it found nothing to check is worse than no guard.
  *
  * @param {string} repoRoot
- * @returns {number} 0 on pass, 1 on any offender
+ * @returns {number} 0 on pass, 1 on any offender or missing lockfile
  */
-function main(repoRoot) {
+export function main(repoRoot) {
   const npmLockPath = join(repoRoot, 'package-lock.json');
   const pnpmLockPath = join(repoRoot, 'pnpm-lock.yaml');
 
@@ -180,6 +184,12 @@ function main(repoRoot) {
         console.error(`  pnpm-lock.yaml:${offender.line} -> ${offender.url}`);
       }
     }
+  } else {
+    // Fail closed, symmetrically with package-lock.json above. pnpm-lock.yaml
+    // is the lockfile CI installs from; a run that silently skips it would
+    // report OK while checking nothing that matters.
+    console.error('check-lockfile-registry: pnpm-lock.yaml not found.');
+    return 1;
   }
 
   if (failed) {
