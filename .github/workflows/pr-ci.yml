@@ -114,3 +114,10 @@ jobs:
 
       - name: Bundle tripwire — no unaccounted hostname (F-04)
         run: pnpm check:bundle-hosts
+
+      - name: Reproducible build (F-01 detection)
+        # Two builds from the same tree must produce the same sha256. If they
+        # ever diverge, a released `main.js` can no longer be checked against
+        # a local rebuild, and the provenance attestation degrades to "CI
+        # built something" rather than "CI built exactly this source".
+        run: pnpm check:reproducible

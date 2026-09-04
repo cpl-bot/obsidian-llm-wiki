@@ -11,8 +11,11 @@ name: Release Obsidian plugin
 #     defeats the hash comparison below before it starts.
 #   - the same three supply-chain checks PR CI runs, re-run here because a tag
 #     can be pushed from a branch CI never saw.
+#   - `SHA256SUMS` published with the release so `scripts/verify-release.mjs`
+#     (and any user) can rebuild from the tag and diff.
 #   - build provenance attestation retained: it proves the artifact came from
-#     this repository's CI. It does NOT prove the source is benign.
+#     this repository's CI. It does NOT prove the source is benign — the hash
+#     comparison against a local rebuild is what closes that gap.
 #
 # Every `uses:` is pinned to a commit SHA (Phase 6.1 — F-07).
 
@@ -62,6 +65,29 @@ jobs:
       - name: Bundle tripwire — no unaccounted hostname (F-04)
         run: pnpm check:bundle-hosts
 
+      - name: Publish build hashes
+        # `SHA256SUMS` is the anchor for `scripts/verify-release.mjs`: check
+        # out the tag, rebuild, and the two hashes must match. esbuild output
+        # is byte-stable for this config (no minification, no embedded date),
+        # so a mismatch means the released artifact was not built from the
+        # tagged source.
+        run: |
+          sha256sum main.js styles.css > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Generate SBOM
+        # NOTE: `npx` downloads @cyclonedx/cyclonedx-npm from the registry at
+        # release time — a network fetch inside the release job. It is pinned
+        # to an exact version (never a range) so the downloaded code is fixed,
+        # and it runs AFTER the build so it cannot influence `main.js`. The
+        # residual risk is a compromised release of that exact version being
+        # republished under the same version number, which npm's immutability
+        # policy forbids. Accepted rather than vendoring the tool into
+        # devDependencies, where it would enlarge every contributor's tree.
+        run: npx --yes @cyclonedx/cyclonedx-npm@6.0.1 --output-file sbom.json
+        # cyclonedx-npm reads package-lock.json, which is committed alongside
+        # pnpm-lock.yaml for exactly this kind of npm-ecosystem tooling.
+
       - name: Generate artifact attestation for main.js
         uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
         with:
@@ -80,4 +106,4 @@ jobs:
           gh release create "$tag" \
             --title="$tag" \
             --draft \
-            main.js manifest.json styles.css
+            main.js manifest.json styles.css SHA256SUMS sbom.json
