@@ -1298,3 +1298,22 @@
   border-radius: 4px;
   cursor: pointer;
 }
+
+/* Phase 4 (F-04) — network egress policy feedback.
+   `.llm-wiki-egress-warning` is the inline reason shown under the Base URL
+   field when a typed value is refused by the policy (the field keeps its
+   previous value). `.llm-wiki-strict-egress-warning` is the standing red
+   banner shown while the Strict-egress toggle is off. Both use
+   `--text-error` so they inherit the user's theme instead of a hardcoded
+   red. */
+.llm-wiki-egress-warning {
+  color: var(--text-error);
+  font-size: 0.85em;
+  margin: 4px 0 8px 0;
+}
+.llm-wiki-strict-egress-warning {
+  color: var(--text-error);
+  font-size: 0.85em;
+  font-weight: 600;
+  margin: 4px 0 8px 0;
+}

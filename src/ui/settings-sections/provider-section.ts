@@ -35,7 +35,8 @@ import type { LLMWikiSettingTab } from '../settings';
 import type { LLMWikiSettings } from '../../types';
 import { PREDEFINED_PROVIDERS } from '../../types';
 import { BEDROCK_REGIONS, BEDROCK_DEFAULT_REGION, NATIVE_PDF_PROVIDER_IDS, MAX_BATCH_DELAY_MS } from '../../constants';
-import { renderRangeSlider } from '../settings-helpers';
+import { renderRangeSlider, egressReasonTextKey } from '../settings-helpers';
+import { assertAllowedEgress, EgressDeniedError } from '../../core/egress-policy';
 import { getCodexAuthUiState } from '../openai-codex-auth-controls';
 import { getBedrockAuthUiState } from '../bedrock-auth-controls';
 import { resolveInitialApiKey } from '../../llm-sdk/provider-api-key-resolver';
@@ -157,6 +158,28 @@ export function renderProviderSection(tab: LLMWikiSettingTab, containerEl: HTMLE
 
   // Base URL
   if (tempSettings.provider === 'custom' || tempSettings.provider === 'anthropic-compatible' || (providerConfig && tempSettings.baseUrl !== providerConfig.baseUrl)) {
+    // Phase 4.3 (F-04): the Base URL is where finding F-04 actually bites —
+    // a `http://` endpoint here sends `Authorization: Bearer <key>` in the
+    // clear. Validate against the same policy the transport enforces and
+    // refuse to store a value that violates it, keeping the previous one.
+    //
+    // The candidate is validated WITH ITSELF installed as `baseUrl`: clause
+    // (b) of the policy trusts the host the user configured, so what this
+    // check really enforces is scheme (https, or http for loopback), no
+    // embedded credentials, and no private / link-local target. That keeps
+    // legitimate self-hosted endpoints configurable while closing the
+    // cleartext and SSRF-shaped holes.
+    let baseUrlWarningEl: HTMLElement | null = null;
+    const clearBaseUrlWarning = (): void => {
+      baseUrlWarningEl?.remove();
+      baseUrlWarningEl = null;
+    };
+    const showBaseUrlWarning = (denial: EgressDeniedError): void => {
+      const message = tab.getText('egressBaseUrlRejected')
+        .replace('{reason}', tab.getText(egressReasonTextKey(denial.reason)));
+      if (baseUrlWarningEl) baseUrlWarningEl.setText(message);
+      else baseUrlWarningEl = containerEl.createEl('p', { text: message, cls: 'llm-wiki-egress-warning' });
+    };
     new Setting(containerEl)
       .setName(tab.getText('baseUrlName'))
       .setDesc(tempSettings.provider === 'custom' || tempSettings.provider === 'anthropic-compatible'
@@ -164,7 +187,43 @@ export function renderProviderSection(tab: LLMWikiSettingTab, containerEl: HTMLE
       .addText(text => text
         .setPlaceholder(providerConfig?.baseUrl || 'https://api.example.com/v1')
         .setValue(tempSettings.baseUrl)
-        .onChange((value) => { tempSettings.baseUrl = value; tempSettings.llmReady = false; }));
+        .onChange((value) => {
+          const trimmed = value.trim();
+          // Empty clears the override — always allowed, nothing is sent.
+          if (trimmed !== '') {
+            try {
+              assertAllowedEgress(trimmed, { ...tempSettings, baseUrl: trimmed });
+            } catch (error) {
+              if (error instanceof EgressDeniedError) {
+                showBaseUrlWarning(error);
+                return; // previous value survives; nothing is persisted
+              }
+              throw error;
+            }
+          }
+          clearBaseUrlWarning();
+          tempSettings.baseUrl = value;
+          tempSettings.llmReady = false;
+        }));
+  }
+
+  // Phase 4.4 (F-04): strict egress toggle. Default on; off is the documented
+  // escape hatch for a corporate proxy / gateway, and is flagged in red
+  // because it removes the allowlist (never the https requirement).
+  new Setting(containerEl)
+    .setName(tab.getText('strictEgressName'))
+    .setDesc(tab.getText('strictEgressDesc'))
+    .addToggle(toggle => toggle
+      .setValue(tempSettings.strictEgress !== false)
+      .onChange((value) => {
+        tempSettings.strictEgress = value;
+        tab.display();
+      }));
+  if (tempSettings.strictEgress === false) {
+    containerEl.createEl('p', {
+      text: tab.getText('strictEgressWarning'),
+      cls: 'llm-wiki-strict-egress-warning',
+    });
   }
 
   // v1.24.1 PATCH Bedrock Stage 1 - region selector (only when provider
