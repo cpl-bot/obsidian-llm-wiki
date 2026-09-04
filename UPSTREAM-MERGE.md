@@ -87,10 +87,15 @@ already exists in your tree.
 git diff upstream/vX..upstream/vY -- package.json pnpm-lock.yaml
 ```
 For every new/bumped dependency: does it add a `postinstall`/`preinstall`
-lifecycle script? (`ignore-scripts=true` in `.npmrc` should mean this is inert,
-but confirm nothing depends on the script having run.) Does it pull in a
-transitive dependency with an existing HIGH/CRITICAL advisory? Re-run
-`npm audit --audit-level=high` after merging, before you build.
+lifecycle script? Once Phase 1's `.npmrc` hardening (task 1.4) lands,
+`ignore-scripts=true` there should mean this is inert — but confirm nothing
+depends on the script having run. On a tree that predates that merge,
+`.npmrc` has no `ignore-scripts` line yet (it currently carries only the
+registry pin — see the file's own header comment), so a lifecycle script
+still runs; treat that as a reason to read it, not to assume it's neutralized.
+Does the new dependency pull in a transitive dependency with an existing
+HIGH/CRITICAL advisory? Re-run `npm audit --audit-level=high` after merging,
+before you build.
 
 **Build / CI / instruction-file changes**
 ```bash
@@ -133,12 +138,14 @@ pnpm check:bundle-mineru       # Phase 2 — fails if `mineru` ever reappears in
 pnpm check:bundle-hosts        # Phase 4 — fails if main.js contains a host outside the allowlist
 ```
 
-`check:lockfile`, `check:bundle-mineru`, and `check:bundle-hosts` land via the
-sibling Phase 1/2/4 hardening PRs — if your tree predates those merges, these
-scripts (and their `pnpm` aliases) won't exist yet; run the gate without them
-in that case, but do not consider a merge complete until all three exist and
-pass. Test count may only decrease by tests belonging to features you
-deliberately removed (see Phase 2.A/2.B) — never let it silently drop.
+`check:bundle-mineru` already exists on this branch (Phase 2.A merged it —
+see `package.json`'s `scripts` block). `check:lockfile` and `check:bundle-hosts`
+are still pending: they land via the sibling Phase 1 and Phase 4 hardening
+PRs respectively, and on a tree that predates those merges the scripts (and
+their `pnpm` aliases) won't exist yet. Run the gate without whichever of the
+two is still missing, but do not consider a merge complete until all three
+exist and pass. Test count may only decrease by tests belonging to features
+you deliberately removed (see Phase 2.A/2.B) — never let it silently drop.
 
 ### 1.6 Rebuild, verify, and diff against CI
 
@@ -203,7 +210,14 @@ and sorted into two buckets:
 **Left unchanged — secret-storage keys and migration markers.** Changing
 these would orphan a user's already-stored keys or replay a migration that
 already ran:
-- `src/constants.ts` — `MINERU_API_TOKEN_SECRET_ID = 'karpathywiki-mineru-api-token'`
+- `src/core/settings-migrations.ts` — `REMOVED_CONVERSION_SECRET_ID`
+  (`` `karpathywiki-${REMOVED_BACKEND_VENDOR}-api-token` ``), the keychain slot
+  the removed MinerU backend used, kept so `scrubRemovedConversionBackendSecret`
+  can still find and clear it on upgrade. Phase 2.A deleted the backend itself
+  (and the `MINERU_API_TOKEN_SECRET_ID` constant that used to live in
+  `src/constants.ts`) — this migration module is the only place in `src/`
+  that still knows the vendor name, and composes it from fragments so
+  `check:bundle-mineru` can assert the string never reappears in `main.js`.
 - `src/llm-sdk/openai-codex/constants.ts` — `CODEX_SECRET_ID = 'karpathywiki-openai-codex'`
 - `src/llm-sdk/bedrock-sso/constants.ts` — `BEDROCK_SSO_SECRET_ID`, `BEDROCK_IAM_SECRET_ID` (`karpathywiki-bedrock-sso` / `-iam`)
 - `src/types.ts` — the matching `DEFAULT_SETTINGS` secret-id defaults (`openAICodexSecretId`, `providerApiKeySecretId`)
