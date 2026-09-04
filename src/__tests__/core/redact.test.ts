@@ -79,6 +79,30 @@ describe('redactSecrets — credential shapes', () => {
     expect(out).not.toContain('0123456789abcdef0123456789abcdef0123');
   });
 
+  // Review follow-up. Gemini authenticates by query parameter, so the key
+  // rides in the request URL that `core/obsidian-fetch-bridge.ts` logs on
+  // every streaming fallback. The pre-existing rules missed it: the
+  // `api_key` rule needs the `api` prefix, and the base64 rule's character
+  // class stops at the `-` / `_` that Google keys contain.
+  it('masks a Google API key in a query string and keeps the URL readable', () => {
+    const key = 'AIzaSyD-1234567890abcdefghijklmnopqrstu';
+    const out = redactSecrets(`GET https://generativelanguage.googleapis.com/v1/models?key=${key} failed`);
+    expect(out).not.toContain(key);
+    expect(out).toContain('https://generativelanguage.googleapis.com/v1/models');
+    expect(out).toContain('key=');
+  });
+
+  it('masks a Google API key with no surrounding label at all', () => {
+    const key = 'AIzaSyD_abcdefghijklmnopqrstuvwxyz012345';
+    expect(redactSecrets(`stored ${key} ok`)).toBe('stored *** ok');
+  });
+
+  it('masks a long dashed/underscored value behind a bare key/token/secret label', () => {
+    const value = 'abcd-efgh_1234-5678_ijkl-mnop_9012-3456';
+    expect(redactSecrets(`key=${value}`)).toBe('key=***');
+    expect(redactSecrets(`secret: ${value}`)).toBe('secret: ***');
+  });
+
   it('leaves a long hex string with no credential label alone', () => {
     const sha = 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3';
     expect(redactSecrets(`content hash ${sha}`)).toContain(sha);
@@ -106,6 +130,22 @@ describe('redactSecrets — must not eat ordinary text', () => {
     expect(redactSecrets(msg)).toBe(msg);
   });
 
+  // The bare-label rule is the one most likely to over-reach, so pin the
+  // near misses: a path, a model id, and a number are all things a user
+  // needs to read out of an error message.
+  it('leaves a file path after a credential-shaped word alone', () => {
+    const msg = 'Failed to read /Users/alice/Documents/vault/notes/key-management.md';
+    expect(redactSecrets(msg)).toBe(msg);
+    const win = 'wrote file at C:/Users/bob/Documents/my-wiki-folder/index.md';
+    expect(redactSecrets(win)).toBe(win);
+  });
+
+  it('leaves a short value behind a bare key/token label alone', () => {
+    expect(redactSecrets('key: some-model-name-v2')).toBe('key: some-model-name-v2');
+    expect(redactSecrets('token budget exceeded: 128000')).toBe('token budget exceeded: 128000');
+    expect(redactSecrets('wikiFolder key=my-wiki')).toBe('wikiFolder key=my-wiki');
+  });
+
   it('is idempotent — redacting a redacted line changes nothing further', () => {
     const once = redactSecrets('Authorization: Bearer sk-abcdefghij1234567890');
     expect(redactSecrets(once)).toBe(once);
@@ -120,6 +160,34 @@ describe('redactSecrets — must not eat ordinary text', () => {
 describe('redactError', () => {
   it('redacts an Error message', () => {
     expect(redactError(new Error('401 from Bearer sk-abcdefghij1234567890'))).not.toContain('abcdefghij1234567890');
+  });
+
+  // Review follow-up: the sites that adopted this helper used to log the
+  // error OBJECT, whose console rendering leads with the class name. A
+  // plain `Error` stays bare so no Notice text changes; a named one keeps
+  // the name, which is the whole diagnostic for e.g. a keychain failure.
+  it('keeps a non-generic error name, the way String(error) renders it', () => {
+    expect(redactError(new TypeError('network down'))).toBe('TypeError: network down');
+    class ProviderSecretStorageError extends Error {
+      constructor(message: string) { super(message); this.name = 'ProviderSecretStorageError'; }
+    }
+    expect(redactError(new ProviderSecretStorageError('Secret Service is not running')))
+      .toBe('ProviderSecretStorageError: Secret Service is not running');
+  });
+
+  it('renders a plain Error bare, so user-facing messages are unchanged', () => {
+    expect(redactError(new Error('status 401: incorrect api key'))).toBe('status 401: incorrect api key');
+  });
+
+  it('reads the message off a non-Error throwable instead of collapsing to [object Object]', () => {
+    const out = redactError({ message: 'gateway said Bearer sk-abcdefghij1234567890' });
+    expect(out).not.toContain('abcdefghij1234567890');
+    expect(out).toContain('gateway said');
+    expect(out).not.toContain('[object Object]');
+  });
+
+  it('survives a throwable that cannot be stringified', () => {
+    expect(redactError(Object.create(null))).toBe('[unrenderable thrown value]');
   });
 
   it('redacts a non-Error thrown value', () => {

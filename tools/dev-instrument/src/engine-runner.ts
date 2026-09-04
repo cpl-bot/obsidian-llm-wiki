@@ -90,6 +90,24 @@ async function resolveApiKey(provider: string): Promise<string> {
 }
 
 /**
+ * Hardening Phase 3 (F-03): a process-lifetime SecretStorage for the
+ * instrument, holding exactly the key `resolveApiKey` produced.
+ *
+ * The plugin reads its key from `App.secretStorage`, and the resolver now
+ * fails closed when there is no store at all (`minAppVersion` 1.11.4
+ * guarantees the real one exists, so its absence means a broken host).
+ * The instrument runs outside Obsidian, so it has to supply the seam it
+ * is standing in for. Nothing is written to disk.
+ */
+function memorySecretStorage(secretId: string, apiKey: string): { getSecret(id: string): string | null; setSecret(id: string, value: string): void } {
+  const values = new Map<string, string>([[secretId, apiKey]]);
+  return {
+    getSecret: (id: string) => values.get(id) ?? null,
+    setSecret: (id: string, value: string) => { values.set(id, value); },
+  };
+}
+
+/**
  * Wraps the LLMClient to total up input/output tokens across all three
  * LLMClient methods (`createMessage`, `createMessageWithOutput`,
  * `createMessageStream`). Per v1.26.3 PATCH Phase B expanded-scope
@@ -242,7 +260,16 @@ export async function runIngest(vaultRoot: string, sourcePath: string): Promise<
   }
 
   const settings = await loadSettings(vaultRoot);
-  settings.apiKey = await resolveApiKey(settings.provider);
+  // Hardening Phase 3 (F-03): `LLMWikiSettings.apiKey` no longer exists —
+  // there is no persisted plaintext slot anywhere. The instrument's key
+  // therefore travels the same route the plugin's does: an in-memory
+  // SecretStorage handed to the factory. Assigning to `settings.apiKey`
+  // here would compile-fail, and (before this fix) dropped WIKI_API_KEY on
+  // the floor, leaving every non-local run unauthenticated.
+  const secretStorage = memorySecretStorage(
+    settings.providerApiKeySecretId,
+    await resolveApiKey(settings.provider),
+  );
 
   // Measurement arms — env-only (positional CLI cannot express them); applied
   // to settings before snapshotting so per-step metrics reflect the arm, and
@@ -258,7 +285,7 @@ export async function runIngest(vaultRoot: string, sourcePath: string): Promise<
 
   await preloadLLMClientModules();
   const tokens = { in: 0, out: 0 };
-  const client = withTokenTracking(createLLMClient(settings), tokens);
+  const client = withTokenTracking(createLLMClient(settings, undefined, undefined, secretStorage), tokens);
   const getClient = (): LLMClient => client;
 
   const engineApp = app as unknown as App;

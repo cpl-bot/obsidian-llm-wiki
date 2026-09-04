@@ -47,6 +47,26 @@ const PATTERNS: Array<{ readonly pattern: RegExp; readonly replacement: string }
     replacement: `$1${MASK}`,
   },
 
+  // Bare credential labels — `key`, `token`, `secret` — followed by a long
+  // opaque value. Distinct from the rule above because that one requires
+  // the `api` prefix (`api_key`), and Google, GitHub and most gateway
+  // vendors spell it `?key=` / `token=`. The value class allows `-` and
+  // `_` (both appear in real keys) but NOT `/` or `.`, so a path or a
+  // filename after `key:` survives; 32+ chars keeps ordinary words,
+  // model ids and UUID-ish fragments out.
+  {
+    pattern: /\b((?:key|token|secret)"?\s*[:=]\s*"?)[A-Za-z0-9_-]{32,}/gi,
+    replacement: `$1${MASK}`,
+  },
+
+  // Google API keys. Fixed shape (`AIza` + 35), and the reason the rule
+  // above cannot be the only cover: Gemini authenticates by query
+  // parameter, so the key rides in every request URL — including the ones
+  // `core/obsidian-fetch-bridge.ts` logs on the streaming fallback path.
+  // `{35,}` rather than `{35}`: a longer lookalike must be swallowed
+  // whole, not masked down to a readable tail.
+  { pattern: /\bAIza[0-9A-Za-z_-]{35,}/g, replacement: MASK },
+
   // OpenAI-style keys, and every vendor that copied the convention
   // (`sk-`, `sk-ant-`, `sk-or-v1-`). >= 10 chars after the prefix so the
   // literal string "sk-" in prose is left alone.
@@ -94,8 +114,52 @@ export function redactSecrets(text: string): string {
  * `error instanceof Error ? error.message : String(error)` — appears at
  * ~30 catch sites. Routing them through one helper means a new provider
  * whose errors carry a credential is covered everywhere at once.
+ *
+ * Shape rules, because the call sites are diagnostics and an unreadable
+ * diagnostic is its own kind of failure:
+ *
+ *   - An `Error` keeps its NAME when the name is informative. `String(err)`
+ *     renders `TypeError: …` / `ProviderSecretStorageError: …`, and the
+ *     sites that now log `redactError(e)` used to log the error object
+ *     itself; dropping the class name would turn "the keychain refused"
+ *     into an anonymous sentence. A plain `Error` (the shape
+ *     `mapAiSdkError` builds, whose message already reads `status 401: …`)
+ *     is rendered bare, so no user-facing Notice text changes.
+ *   - A non-`Error` throwable that carries a string `message` is rendered
+ *     from that message. `String({ message: '…' })` is `'[object Object]'`,
+ *     which is what a rejected `requestUrl` / a thrown plain object from a
+ *     provider SDK used to collapse to — the diagnostic was simply lost.
+ *   - Everything else falls back to `String(error)`, itself guarded: a
+ *     throwable with a hostile `toString` must not throw a second error
+ *     out of a catch block.
+ *
+ * The `stack` is deliberately NOT included: it is unredactable free text
+ * of unbounded length, and it is still available on the object itself for
+ * anyone who wants to log that separately.
  */
 export function redactError(error: unknown): string {
-  if (error instanceof Error) return redactSecrets(error.message);
-  return redactSecrets(String(error));
+  if (error instanceof Error) {
+    const name = typeof error.name === 'string' ? error.name : '';
+    const message = redactSecrets(error.message ?? '');
+    if (!name || name === 'Error') return message;
+    return message.length === 0 ? name : `${name}: ${message}`;
+  }
+  if (typeof error === 'object' && error !== null) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string' && message.length > 0) return redactSecrets(message);
+  }
+  return redactSecrets(safeString(error));
+}
+
+/**
+ * `String(value)` that cannot itself throw. A thrown value is arbitrary —
+ * `Object.create(null)` has no `toString`, and a Proxy can throw from one.
+ * Losing the detail is acceptable; throwing out of a catch block is not.
+ */
+function safeString(value: unknown): string {
+  try {
+    return String(value);
+  } catch {
+    return '[unrenderable thrown value]';
+  }
 }

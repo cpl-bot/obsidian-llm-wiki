@@ -151,6 +151,34 @@ describe('startup scrub of the plaintext API key (F-03, task 3.3)', () => {
     expect(notices().map((n) => n.message)).toContain(TEXTS.en.plaintextApiKeyScrubbedNotice);
   });
 
+  // Review follow-up: `data.json` is a synced file. A machine still on the
+  // old build, a sync-conflict merge, or an upstream merge can write
+  // `apiKey` back next to a marker that says the scrub already ran. The
+  // scrub must not trust its own marker over what is actually on disk.
+  it('scrubs a plaintext key that reappeared next to an already-set marker', async () => {
+    const store = keychain();
+    const plugin = pluginWith(store);
+    vi.spyOn(plugin, 'loadData').mockResolvedValue({
+      provider: 'openai', model: 'gpt-4.1', language: 'en', wikiLanguage: 'en', llmReady: true,
+      _migrated_harden_plaintext_api_key_removed: true,
+      apiKey: PLAINTEXT_KEY,
+    });
+    const saveData = vi.spyOn(plugin, 'saveData').mockResolvedValue();
+
+    await plugin.loadSettings();
+
+    // Removed from disk, adopted into the free slot, and the user told to
+    // rotate — the same treatment a first-ever scrub gives it.
+    const saved = saveData.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+    expect('apiKey' in saved).toBe(false);
+    expect(JSON.stringify(saved)).not.toContain(PLAINTEXT_KEY);
+    expect(store.setSecret).toHaveBeenCalledWith(PROVIDER_SECRET_ID, PLAINTEXT_KEY);
+    expect(notices().map((n) => n.message)).toContain(TEXTS.en.plaintextApiKeyScrubbedNotice);
+    // And it must not survive in memory either — `saveSettings()` would
+    // otherwise write it straight back out.
+    expect('apiKey' in (plugin.settings as unknown as Record<string, unknown>)).toBe(false);
+  });
+
   it('is silent and does no keychain IO on a load with no plaintext key', async () => {
     const store = keychain({ stored: 'sk-live-already-in-keychain' });
     const plugin = pluginWith(store);

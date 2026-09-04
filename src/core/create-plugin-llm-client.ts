@@ -24,10 +24,11 @@ export function createLLMClient(
   codexAuth?: CodexAuthManager,
   codexVersion?: string,
   // v1.25.3 #182: the SDK factory reads the live key from Obsidian
-  // SecretStorage. Pass `plugin.app.secretStorage` from production code;
-  // tests that don't have one can omit it — hardening Phase 3 (F-03)
-  // removed the on-disk fallback, so a null store simply resolves to
-  // "no key configured".
+  // SecretStorage. Pass `plugin.app.secretStorage` — hardening Phase 3
+  // (F-03) removed the on-disk fallback AND made an absent store fail
+  // closed (minAppVersion 1.11.4 guarantees `app.secretStorage` exists),
+  // so omitting it now throws `ProviderSecretStorageError` for every
+  // provider that needs a bearer key.
   secretStorage?: ProviderSecretStorage | null,
   // v1.25.7 PATCH: forward the in-memory typed key (tab.pendingApiKey
   // in the Test Connection flow) so the freshly-typed key wins over the

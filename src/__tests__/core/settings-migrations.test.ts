@@ -312,3 +312,62 @@ describe('scrubRemovedConversionBackendSecret', () => {
     expect(setSecret).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * Hardening Phase 3 (F-03), review follow-up.
+ *
+ * The scrub used to be gated on its own marker, so it only ever removed
+ * the field the FIRST time it saw it. That is the wrong shape for a
+ * "no persisted key slot survives" guarantee: `data.json` is a synced
+ * file that other machines, upstream merges and sync-conflict resolution
+ * all write to. A payload carrying the marker AND a repopulated `apiKey`
+ * passed straight through into `this.settings`, from where the next
+ * `saveSettings()` wrote the plaintext back to disk.
+ */
+describe('plaintext apiKey scrub is unconditional (hardening Phase 3)', () => {
+  it('removes a repopulated apiKey even when the marker says the scrub already ran', () => {
+    const { settings, applied } = applySettingsMigrations({
+      provider: 'openai',
+      _migrated_harden_plaintext_api_key_removed: true,
+      apiKey: 'sk-live-repopulated-by-a-later-write',
+    } as never);
+
+    expect('apiKey' in (settings as unknown as Record<string, unknown>)).toBe(false);
+    // `applied` is what makes main.ts persist the scrubbed payload and
+    // tell the user to rotate — without it the deletion stays in memory.
+    expect(applied).toContain('harden-plaintext-api-key-removed');
+  });
+
+  it('hands the repopulated key to the caller for adoption, exactly once', () => {
+    const { settings } = applySettingsMigrations({
+      _migrated_harden_plaintext_api_key_removed: true,
+      apiKey: '  sk-live-repopulated  ',
+    } as never);
+
+    expect((settings as unknown as { _legacyPlaintextApiKey?: string })._legacyPlaintextApiKey)
+      .toBe('sk-live-repopulated');
+  });
+
+  it('stays silent on a steady-state load, so it does not re-save on every start', () => {
+    const { applied } = applySettingsMigrations({
+      provider: 'openai',
+      _migrated_harden_plaintext_api_key_removed: true,
+      _migrated_v1_20_0_thinking: true,
+      _migrated_v1_23_0_startup_notice: true,
+      _migrated_harden_conversion_backend_removed: true,
+      openAICodexSecretId: 'karpathywiki-openai-codex',
+    } as never);
+
+    expect(applied).not.toContain('harden-plaintext-api-key-removed');
+  });
+
+  it('re-fires when only the superseded v1.25.3 marker is left behind', () => {
+    const { settings, applied } = applySettingsMigrations({
+      _migrated_harden_plaintext_api_key_removed: true,
+      _migrated_v1_25_3_secret_storage: true,
+    } as never);
+
+    expect(applied).toContain('harden-plaintext-api-key-removed');
+    expect('_migrated_v1_25_3_secret_storage' in (settings as unknown as Record<string, unknown>)).toBe(false);
+  });
+});

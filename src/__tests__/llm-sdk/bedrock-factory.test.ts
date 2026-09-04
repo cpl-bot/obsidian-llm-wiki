@@ -23,6 +23,7 @@ import {
   createLLMClientFromSettingsSync,
   preloadLLMClientModules,
 } from '../../llm-sdk/create-llm-client';
+import { emptySecretStorage } from '../__support__/secret-storage';
 
 function privateBaseURL(client: unknown): string | undefined {
   // Both client classes store baseURL as `private readonly baseURL`.
@@ -53,7 +54,7 @@ describe('Bedrock Stage 1 factory (v1.24.1 PATCH)', () => {
     it('bedrock-anthropic dispatches to AnthropicSdkClient with region-scoped baseURL', async () => {
       const client = await createLLMClientFromSettings({
         provider: 'bedrock-anthropic',
-        providerApiKeySecretId: 'karpathywiki-provider-api-key',
+        providerApiKeySecretId: 'karpathywiki-provider-api-key', secretStorage: emptySecretStorage(),
         bedrockRegion: 'us-east-1',
       });
       expect(client).toBeInstanceOf(AnthropicSdkClient);
@@ -63,7 +64,7 @@ describe('Bedrock Stage 1 factory (v1.24.1 PATCH)', () => {
     it('bedrock-openai dispatches to OpenAICompatSdkClient with /v1 region-scoped baseURL', async () => {
       const client = await createLLMClientFromSettings({
         provider: 'bedrock-openai',
-        providerApiKeySecretId: 'karpathywiki-provider-api-key',
+        providerApiKeySecretId: 'karpathywiki-provider-api-key', secretStorage: emptySecretStorage(),
         bedrockRegion: 'eu-central-1',
       });
       expect(client).toBeInstanceOf(OpenAICompatSdkClient);
@@ -75,7 +76,7 @@ describe('Bedrock Stage 1 factory (v1.24.1 PATCH)', () => {
     it('bedrock-anthropic dispatches to AnthropicSdkClient with default region when unspecified', () => {
       const client = createLLMClientFromSettingsSync({
         provider: 'bedrock-anthropic',
-        providerApiKeySecretId: 'karpathywiki-provider-api-key',
+        providerApiKeySecretId: 'karpathywiki-provider-api-key', secretStorage: emptySecretStorage(),
       });
       expect(client).toBeInstanceOf(AnthropicSdkClient);
       // Default region is us-east-1 (broadest Bedrock model coverage).
@@ -85,7 +86,7 @@ describe('Bedrock Stage 1 factory (v1.24.1 PATCH)', () => {
     it('bedrock-openai dispatches to OpenAICompatSdkClient honoring custom region', () => {
       const client = createLLMClientFromSettingsSync({
         provider: 'bedrock-openai',
-        providerApiKeySecretId: 'karpathywiki-provider-api-key',
+        providerApiKeySecretId: 'karpathywiki-provider-api-key', secretStorage: emptySecretStorage(),
         bedrockRegion: 'ap-northeast-2',
       });
       expect(client).toBeInstanceOf(OpenAICompatSdkClient);
@@ -97,7 +98,7 @@ describe('Bedrock Stage 1 factory (v1.24.1 PATCH)', () => {
     it('anthropic still routes to AnthropicSdkClient with empty baseURL', async () => {
       const client = await createLLMClientFromSettings({
         provider: 'anthropic',
-        providerApiKeySecretId: 'karpathywiki-provider-api-key',
+        providerApiKeySecretId: 'karpathywiki-provider-api-key', secretStorage: emptySecretStorage(),
       });
       expect(client).toBeInstanceOf(AnthropicSdkClient);
       // Official endpoint: no baseURL override needed — should be undefined.
@@ -107,7 +108,7 @@ describe('Bedrock Stage 1 factory (v1.24.1 PATCH)', () => {
     it('openai still routes to OpenAISdkClient', async () => {
       const client = await createLLMClientFromSettings({
         provider: 'openai',
-        providerApiKeySecretId: 'karpathywiki-provider-api-key',
+        providerApiKeySecretId: 'karpathywiki-provider-api-key', secretStorage: emptySecretStorage(),
       });
       // provider === 'openai' routes to OpenAISdkClient (official); the
       // bedrock-* branches must NOT be reached. bedrock-openai is
@@ -121,7 +122,7 @@ describe('Bedrock Stage 1 factory (v1.24.1 PATCH)', () => {
     it('api-key mode (default) leaves both fetch seams untouched', async () => {
       const client = await createLLMClientFromSettings({
         provider: 'bedrock-anthropic',
-        providerApiKeySecretId: 'karpathywiki-provider-api-key',
+        providerApiKeySecretId: 'karpathywiki-provider-api-key', secretStorage: emptySecretStorage(),
         bedrockRegion: 'us-east-1',
       });
       expect(privateField(client, 'fetchImpl')).toBe(obsidianFetchBridge);
@@ -131,7 +132,7 @@ describe('Bedrock Stage 1 factory (v1.24.1 PATCH)', () => {
     it('sso mode injects a signing wrapper on BOTH seams and skips the key resolver', async () => {
       const client = await createLLMClientFromSettings({
         provider: 'bedrock-anthropic',
-        providerApiKeySecretId: 'karpathywiki-provider-api-key',
+        providerApiKeySecretId: 'karpathywiki-provider-api-key', secretStorage: emptySecretStorage(),
         bedrockRegion: 'eu-central-1',
         bedrockAuthMethod: 'sso',
         bedrockSsoAccountId: '123456789012',
@@ -145,7 +146,7 @@ describe('Bedrock Stage 1 factory (v1.24.1 PATCH)', () => {
     it('iam mode wires the same wrapper for the chat-completions protocol', async () => {
       const client = await createLLMClientFromSettings({
         provider: 'bedrock-openai',
-        providerApiKeySecretId: 'karpathywiki-provider-api-key',
+        providerApiKeySecretId: 'karpathywiki-provider-api-key', secretStorage: emptySecretStorage(),
         bedrockRegion: 'us-east-1',
         bedrockAuthMethod: 'iam',
         bedrockAuthManager: fakeManager(),
@@ -158,7 +159,7 @@ describe('Bedrock Stage 1 factory (v1.24.1 PATCH)', () => {
     it('rejects sso/iam modes without the plugin-managed auth manager', async () => {
       await expect(createLLMClientFromSettings({
         provider: 'bedrock-anthropic',
-        providerApiKeySecretId: 'karpathywiki-provider-api-key',
+        providerApiKeySecretId: 'karpathywiki-provider-api-key', secretStorage: emptySecretStorage(),
         bedrockAuthMethod: 'sso',
       })).rejects.toThrow('BedrockAuthManager');
     });

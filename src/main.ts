@@ -289,8 +289,12 @@ export class LLMWikiPlugin extends Plugin {
           : '[main.loadSettings] Plaintext API key removed from data.json; keychain slot already held a key');
       } catch (error) {
         // Drop the marker before the shared saveData() below persists it,
-        // so the next load retries the adoption — mirrors the Phase 2.A
-        // conversion-backend scrub. The plaintext itself stays deleted.
+        // so disk never records a keychain write that did not happen —
+        // mirrors the Phase 2.A conversion-backend scrub. The plaintext
+        // itself stays deleted (the scrub is unconditional), so the next
+        // load has nothing left to adopt; what the dropped marker buys is
+        // an honest record, not a second attempt at the key. The user was
+        // told to rotate on this load either way.
         delete settings._migrated_harden_plaintext_api_key_removed;
         console.error('[main.loadSettings] Failed to adopt the plaintext API key into SecretStorage; key removed from data.json anyway:', redactError(error));
       }

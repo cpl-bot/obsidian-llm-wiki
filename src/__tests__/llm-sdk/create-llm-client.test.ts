@@ -13,6 +13,7 @@ import { OpenAICompatSdkClient } from '../../llm-sdk/openai-compat-sdk-client';
 import { OpenAICodexSdkClient } from '../../llm-sdk/openai-codex-sdk-client';
 import { CodexAuthManager } from '../../llm-sdk/openai-codex/auth-manager';
 import { memoryCredentialStore } from './openai-codex-test-helpers';
+import { emptySecretStorage } from '../__support__/secret-storage';
 
 /** Reads the private `apiKey` the factory handed the SDK client. */
 function privateApiKey(client: unknown): string {
@@ -27,21 +28,21 @@ describe('createLLMClientFromSettings (async)', () => {
   describe('official providers', () => {
     it('creates OpenAICodexSdkClient only with an auth manager', async () => {
       const codexAuth = fakeAuthManager();
-      const client = await createLLMClientFromSettings({ provider: 'openai-codex', providerApiKeySecretId: 'karpathywiki-provider-api-key', codexAuth });
+      const client = await createLLMClientFromSettings({ provider: 'openai-codex', providerApiKeySecretId: 'karpathywiki-provider-api-key', secretStorage: emptySecretStorage(), codexAuth });
       expect(client).toBeInstanceOf(OpenAICodexSdkClient);
     });
 
     it('rejects openai-codex without its auth manager', async () => {
-      await expect(createLLMClientFromSettings({ provider: 'openai-codex', providerApiKeySecretId: 'karpathywiki-provider-api-key' })).rejects.toThrow('Codex auth manager is required');
+      await expect(createLLMClientFromSettings({ provider: 'openai-codex', providerApiKeySecretId: 'karpathywiki-provider-api-key', secretStorage: emptySecretStorage() })).rejects.toThrow('Codex auth manager is required');
     });
 
     it('returns AnthropicSdkClient for provider="anthropic"', async () => {
-      const c = await createLLMClientFromSettings({ provider: 'anthropic', providerApiKeySecretId: '' });
+      const c = await createLLMClientFromSettings({ provider: 'anthropic', providerApiKeySecretId: '', secretStorage: emptySecretStorage() });
       expect(c).toBeInstanceOf(AnthropicSdkClient);
     });
 
     it('returns OpenAISdkClient for provider="openai"', async () => {
-      const c = await createLLMClientFromSettings({ provider: 'openai', providerApiKeySecretId: 'karpathywiki-provider-api-key' });
+      const c = await createLLMClientFromSettings({ provider: 'openai', providerApiKeySecretId: 'karpathywiki-provider-api-key', secretStorage: emptySecretStorage() });
       expect(c).toBeInstanceOf(OpenAISdkClient);
     });
   });
@@ -51,7 +52,7 @@ describe('createLLMClientFromSettings (async)', () => {
       const c = await createLLMClientFromSettings({
         provider: 'anthropic-compatible',
         baseUrl: 'https://api.z.ai/v1',
-        providerApiKeySecretId: 'karpathywiki-provider-api-key',
+        providerApiKeySecretId: 'karpathywiki-provider-api-key', secretStorage: emptySecretStorage(),
       });
       expect(c).toBeInstanceOf(AnthropicSdkClient);
     });
@@ -59,7 +60,7 @@ describe('createLLMClientFromSettings (async)', () => {
     it('falls back to AnthropicSdkClient (default baseURL) when anthropic-compatible has no baseUrl', async () => {
       const c = await createLLMClientFromSettings({
         provider: 'anthropic-compatible',
-        providerApiKeySecretId: 'karpathywiki-provider-api-key',
+        providerApiKeySecretId: 'karpathywiki-provider-api-key', secretStorage: emptySecretStorage(),
       });
       expect(c).toBeInstanceOf(AnthropicSdkClient);
     });
@@ -79,7 +80,7 @@ describe('createLLMClientFromSettings (async)', () => {
       const c = await createLLMClientFromSettings({
         provider,
         baseUrl: baseURL,
-        providerApiKeySecretId: 'karpathywiki-provider-api-key',
+        providerApiKeySecretId: 'karpathywiki-provider-api-key', secretStorage: emptySecretStorage(),
       });
       expect(c).toBeInstanceOf(OpenAICompatSdkClient);
     });
@@ -88,7 +89,7 @@ describe('createLLMClientFromSettings (async)', () => {
       const c = await createLLMClientFromSettings({
         provider: 'custom-provider',
         baseUrl: 'https://my-custom.example.com/v1',
-        providerApiKeySecretId: 'karpathywiki-provider-api-key',
+        providerApiKeySecretId: 'karpathywiki-provider-api-key', secretStorage: emptySecretStorage(),
       });
       expect(c).toBeInstanceOf(OpenAICompatSdkClient);
     });
@@ -100,7 +101,7 @@ describe('createLLMClientFromSettings (async)', () => {
         provider: 'deepseek',
         baseUrl: 'https://api.deepseek.com/v1',
         useOfficialOpenAI: true,
-        providerApiKeySecretId: 'karpathywiki-provider-api-key',
+        providerApiKeySecretId: 'karpathywiki-provider-api-key', secretStorage: emptySecretStorage(),
       });
       expect(c).toBeInstanceOf(OpenAISdkClient);
     });
@@ -113,7 +114,7 @@ describe('createLLMClientFromSettings (async)', () => {
     // caller can hand a raw typed key to the factory.
     it('trims pendingApiKey whitespace', async () => {
       const c = await createLLMClientFromSettings(
-        { provider: 'anthropic', providerApiKeySecretId: 'karpathywiki-provider-api-key' },
+        { provider: 'anthropic', providerApiKeySecretId: 'karpathywiki-provider-api-key', secretStorage: emptySecretStorage() },
         '  sk-ant  ',
       );
       expect(c).toBeInstanceOf(AnthropicSdkClient);
@@ -124,7 +125,7 @@ describe('createLLMClientFromSettings (async)', () => {
       const c = await createLLMClientFromSettings({
         provider: 'openai',
         baseUrl: '   ',
-        providerApiKeySecretId: 'karpathywiki-provider-api-key',
+        providerApiKeySecretId: 'karpathywiki-provider-api-key', secretStorage: emptySecretStorage(),
       });
       expect(c).toBeInstanceOf(OpenAISdkClient);
     });
@@ -143,7 +144,7 @@ describe('createLLMClientFromSettingsSync (preloaded)', () => {
     );
     _resetPreloadedModulesForTests();
     expect(() =>
-      createLLMClientFromSettingsSync({ provider: 'openai', providerApiKeySecretId: 'karpathywiki-provider-api-key' })
+      createLLMClientFromSettingsSync({ provider: 'openai', providerApiKeySecretId: 'karpathywiki-provider-api-key', secretStorage: emptySecretStorage() })
     ).toThrow(/SDK modules not preloaded/);
   });
 
@@ -151,7 +152,7 @@ describe('createLLMClientFromSettingsSync (preloaded)', () => {
     const { createLLMClientFromSettingsSync, preloadLLMClientModules } = await import('../../llm-sdk/create-llm-client');
     await preloadLLMClientModules();
     const codexAuth = fakeAuthManager();
-    expect(createLLMClientFromSettingsSync({ provider: 'openai-codex', codexAuth, providerApiKeySecretId: 'karpathywiki-provider-api-key' })).toBeInstanceOf(OpenAICodexSdkClient);
-    expect(() => createLLMClientFromSettingsSync({ provider: 'openai-codex', providerApiKeySecretId: 'karpathywiki-provider-api-key' })).toThrow('Codex auth manager is required');
+    expect(createLLMClientFromSettingsSync({ provider: 'openai-codex', codexAuth, providerApiKeySecretId: 'karpathywiki-provider-api-key', secretStorage: emptySecretStorage() })).toBeInstanceOf(OpenAICodexSdkClient);
+    expect(() => createLLMClientFromSettingsSync({ provider: 'openai-codex', providerApiKeySecretId: 'karpathywiki-provider-api-key', secretStorage: emptySecretStorage() })).toThrow('Codex auth manager is required');
   });
 });

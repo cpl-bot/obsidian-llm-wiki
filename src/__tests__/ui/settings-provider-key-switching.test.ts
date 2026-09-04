@@ -26,7 +26,7 @@ import {
   resolveProviderApiKey,
   resolveInitialApiKey,
 } from '../../llm-sdk/provider-api-key-resolver';
-import type { ProviderSecretStorage } from '../../llm-sdk/provider-secret-store';
+import { ProviderSecretStorageError, type ProviderSecretStorage } from '../../llm-sdk/provider-secret-store';
 
 const SETTINGS = { providerApiKeySecretId: 'karpathywiki-provider-api-key' };
 
@@ -64,10 +64,14 @@ describe('v1.25.7 PATCH: resolveInitialApiKey input precedence', () => {
     ).toBe('');
   });
 
-  it('returns empty string when secretStorage is null and the typed buffer is empty', () => {
-    expect(
-      resolveInitialApiKey('', SETTINGS, null),
-    ).toBe('');
+  // Hardening Phase 3 (F-03), review follow-up: an ABSENT store is not
+  // "no key". `manifest.minAppVersion` is 1.11.4 and `App.secretStorage`
+  // is `@since 1.11.4`, so the API exists on every build this plugin can
+  // load into — its absence is a broken host and fails closed like a
+  // throwing keychain, rather than painting an empty box that reads as
+  // "your key is gone".
+  it('throws rather than painting an empty box when there is no SecretStorage at all', () => {
+    expect(() => resolveInitialApiKey('', SETTINGS, null)).toThrow(ProviderSecretStorageError);
   });
 
   it('trims whitespace from the typed buffer', () => {

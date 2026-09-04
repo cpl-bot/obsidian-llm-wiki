@@ -19,6 +19,13 @@
 import { ProviderSecretStorageError, type ProviderSecretStorage } from './provider-secret-store';
 
 /**
+ * Message carried by the fail-closed throw when `app.secretStorage` is
+ * missing entirely. Exported so callers' tests can assert on the reason
+ * without matching a literal in two places.
+ */
+export const MISSING_STORE_MESSAGE = 'Obsidian SecretStorage is unavailable on this host';
+
+/**
  * Minimal settings shape the resolver needs. Avoids pulling the full
  * LLMWikiSettings type so the helper can be reused by callers that
  * only know the relevant subset (tests, isolated modules).
@@ -58,16 +65,20 @@ export interface ApiKeySettings {
  *
  * @param settings - the LLMWikiSettings-like object (only
  *   `providerApiKeySecretId` is read).
- * @param secretStorage - the live Obsidian SecretStorage, or null/undefined
- *   in environments where it's not available (some unit tests, server-side
- *   fixtures). With no store there is no source at all, so the result is
- *   ''. That is distinct from a store that exists and fails to answer,
- *   which throws — "there is no keychain here" and "the keychain is
- *   broken" are different situations for the user.
+ * @param secretStorage - the live Obsidian SecretStorage. `manifest.json`
+ *   pins `minAppVersion` to 1.11.4 and `App.secretStorage` is `@since
+ *   1.11.4`, so on every Obsidian build this plugin is allowed to load
+ *   into, the store EXISTS. An absent store is therefore not "this
+ *   environment has no keychain" — it is the same class of anomaly as a
+ *   keychain that refuses to answer, and it fails closed the same way:
+ *   `ProviderSecretStorageError`, never a confident ''. Returning '' here
+ *   would report "no key configured" and invite the user to paste their
+ *   key into a store that is not there.
  * @param pendingKey - optional in-memory buffer (Settings UI's
  *   `pendingApiKey`). When non-empty (after trim) it wins over
  *   SecretStorage. Pass `undefined` to skip this tier entirely.
- * @throws ProviderSecretStorageError when the keychain read fails.
+ * @throws ProviderSecretStorageError when the keychain read fails, or when
+ *   there is no SecretStorage to read at all.
  */
 export function resolveProviderApiKey(
   settings: ApiKeySettings,
@@ -76,7 +87,12 @@ export function resolveProviderApiKey(
 ): string {
   const pending = pendingKey?.trim();
   if (pending) return pending;
-  if (secretStorage === null || secretStorage === undefined) return '';
+  if (secretStorage === null || secretStorage === undefined) {
+    // Fail closed, same as a throwing store. See the @param note above:
+    // minAppVersion guarantees the API exists, so its absence is a broken
+    // host, not an empty slot.
+    throw new ProviderSecretStorageError(undefined, MISSING_STORE_MESSAGE);
+  }
   let raw: string | null;
   try {
     raw = secretStorage.getSecret(settings.providerApiKeySecretId);
@@ -103,10 +119,11 @@ export function resolveProviderApiKey(
  * @param pendingKey - the Settings UI's in-memory typed buffer
  *   (`tab.pendingApiKey`).
  * @param settings - only `providerApiKeySecretId` is read.
- * @param secretStorage - the live Obsidian SecretStorage, or null/undefined.
+ * @param secretStorage - the live Obsidian SecretStorage.
  * @returns the trimmed key to paint into the input, or '' when nothing
  *   is configured.
- * @throws ProviderSecretStorageError when the keychain read fails.
+ * @throws ProviderSecretStorageError when the keychain read fails, or when
+ *   there is no SecretStorage to read at all.
  */
 export function resolveInitialApiKey(
   pendingKey: string,

@@ -7,7 +7,7 @@
 // configured", a throw means "the keychain could not be read".
 
 import { describe, expect, it } from 'vitest';
-import { resolveProviderApiKey, resolveInitialApiKey } from '../../llm-sdk/provider-api-key-resolver';
+import { resolveProviderApiKey, resolveInitialApiKey, MISSING_STORE_MESSAGE } from '../../llm-sdk/provider-api-key-resolver';
 import { ProviderSecretStorageError, type ProviderSecretStorage } from '../../llm-sdk/provider-secret-store';
 
 function backendWith(raw?: string): ProviderSecretStorage {
@@ -41,8 +41,38 @@ describe('resolveProviderApiKey (#182)', () => {
     expect(resolveProviderApiKey(SETTINGS, backendWith('   '))).toBe('');
   });
 
-  it('returns empty string when there is no SecretStorage at all', () => {
-    expect(resolveProviderApiKey(SETTINGS, null)).toBe('');
+});
+
+// Hardening Phase 3 (F-03), review follow-up. "The store is missing" used
+// to resolve to '' — indistinguishable from "the slot is empty". It is not
+// the same thing: `manifest.minAppVersion` is 1.11.4 and
+// `App.secretStorage` is `@since 1.11.4`, so the API exists on every
+// Obsidian build this plugin is allowed to load into. A missing store is a
+// broken host, and answering '' would tell the user to paste their key
+// into something that is not there.
+describe('resolveProviderApiKey with no SecretStorage at all (hardening Phase 3)', () => {
+  it('throws ProviderSecretStorageError instead of reporting "no key configured"', () => {
+    expect(() => resolveProviderApiKey(SETTINGS, null)).toThrow(ProviderSecretStorageError);
+    expect(() => resolveProviderApiKey(SETTINGS, undefined)).toThrow(ProviderSecretStorageError);
+  });
+
+  it('says the store is unavailable, not that the slot is empty', () => {
+    try {
+      resolveProviderApiKey(SETTINGS, null);
+      expect.unreachable('an absent store must fail closed');
+    } catch (error) {
+      expect((error as ProviderSecretStorageError).message).toBe(MISSING_STORE_MESSAGE);
+    }
+  });
+
+  it('never returns a value on the absent-store path', () => {
+    let returned: string | undefined;
+    try {
+      returned = resolveProviderApiKey(SETTINGS, undefined);
+    } catch {
+      returned = undefined;
+    }
+    expect(returned).toBeUndefined();
   });
 });
 
@@ -123,9 +153,12 @@ describe('resolveInitialApiKey (Settings UI paint)', () => {
     expect(resolveInitialApiKey('', SETTINGS, backendWith('  sk-stored  '))).toBe('sk-stored');
   });
 
-  it('paints an empty box when nothing is configured', () => {
+  it('paints an empty box when the slot is empty', () => {
     expect(resolveInitialApiKey('', SETTINGS, backendWith())).toBe('');
-    expect(resolveInitialApiKey('', SETTINGS, null)).toBe('');
+  });
+
+  it('throws rather than painting a blank box when there is no store at all', () => {
+    expect(() => resolveInitialApiKey('', SETTINGS, null)).toThrow(ProviderSecretStorageError);
   });
 
   it('throws rather than painting a blank box when the keychain is unreadable', () => {

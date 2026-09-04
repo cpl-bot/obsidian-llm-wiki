@@ -25,7 +25,7 @@ import { applyCodexModelPolicy } from '../core/openai-codex-model-policy';
 import type { CodexDevicePrompt } from './openai-codex-auth-controls';
 import { BEDROCK_DEFAULT_REGION, NOTICE_NORMAL, NOTICE_ERROR } from '../constants';
 import { ProviderSecretStore } from '../llm-sdk/provider-secret-store';
-import { redactSecrets } from '../core/redact';
+import { redactError, redactSecrets } from '../core/redact';
 
 // v1.25.5: getSettingDefinitions() implemented as a no-op stub for
 // Obsidian 1.13+ declarative settings API compatibility. The real
@@ -333,7 +333,16 @@ export class LLMWikiSettingTab extends PluginSettingTab {
     }
   }
 
-  private codexAuthError(error: unknown): string { return this.getText('codexAuthFailed').replace('{}', error instanceof Error ? error.message : String(error)); }
+  /**
+   * Hardening Phase 3 (F-03/3.5), review follow-up: the Codex flow is the
+   * one that HANDLES bearer tokens — device-code exchange, refresh, and
+   * sign-out all talk to `auth.openai.com` / `chatgpt.com/backend-api`
+   * with an Authorization header. Its failures are exactly the messages
+   * that can quote that header back, and this string goes straight into a
+   * Notice. `main-commands/codex-auth-commands.ts` already redacts its
+   * twin; this was the one that did not.
+   */
+  private codexAuthError(error: unknown): string { return this.getText('codexAuthFailed').replace('{}', redactError(error)); }
 
   public syncCodexModelsFromPlugin(): void {
     this.tempSettings.openAICodexModels = (this.plugin.settings.openAICodexModels ?? []).map((entry) => ({ ...entry, supportedReasoningLevels: [...entry.supportedReasoningLevels], additionalSpeedTiers: [...entry.additionalSpeedTiers], serviceTiers: entry.serviceTiers.map((tier) => ({ ...tier })) }));
@@ -342,7 +351,7 @@ export class LLMWikiSettingTab extends PluginSettingTab {
     applyCodexModelPolicy(this.tempSettings);
   }
 
-  public async refreshOpenAICodexModels(force: boolean, showSuccess: boolean): Promise<void> { await runCodexModelRefresh({ refresh: () => this.plugin.refreshOpenAICodexModels(force), sync: () => { this.syncCodexModelsFromPlugin(); }, showSuccess: (count) => { if (showSuccess) new Notice(this.getText('codexModelsRefreshSuccess').replace('{}', String(count)), NOTICE_NORMAL); }, showError: (error) => { new Notice(this.getText('codexModelsRefreshFailed').replace('{}', error instanceof Error ? error.message : String(error)), NOTICE_ERROR); }, setBusy: (value) => { this.codexAuthBusy = value; }, render: () => { this.display(); } }); }
+  public async refreshOpenAICodexModels(force: boolean, showSuccess: boolean): Promise<void> { await runCodexModelRefresh({ refresh: () => this.plugin.refreshOpenAICodexModels(force), sync: () => { this.syncCodexModelsFromPlugin(); }, showSuccess: (count) => { if (showSuccess) new Notice(this.getText('codexModelsRefreshSuccess').replace('{}', String(count)), NOTICE_NORMAL); }, showError: (error) => { new Notice(this.getText('codexModelsRefreshFailed').replace('{}', redactError(error)), NOTICE_ERROR); }, setBusy: (value) => { this.codexAuthBusy = value; }, render: () => { this.display(); } }); }
 
   public queueStaleCodexModelRefresh(): void {
     const now = Date.now();
@@ -391,9 +400,13 @@ export class LLMWikiSettingTab extends PluginSettingTab {
 
   // ===== #425 Bedrock Stage 2 — SSO auth controls =====
 
+  /**
+   * Hardening Phase 3 (F-03/3.5), review follow-up: same reasoning as
+   * `codexAuthError` — the SSO device flow exchanges and refreshes AWS
+   * tokens, so its error bodies are credential-adjacent by construction.
+   */
   private bedrockAuthError(error: unknown): string {
-    const detail = error instanceof Error ? error.message : String(error);
-    return this.getText('bedrockSsoFailed').replace('{}', detail);
+    return this.getText('bedrockSsoFailed').replace('{}', redactError(error));
   }
 
   public async loginBedrockSso(): Promise<void> {

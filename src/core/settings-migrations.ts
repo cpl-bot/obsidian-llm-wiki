@@ -138,25 +138,43 @@ export function applySettingsMigrations(
   // Pure side: stash the plaintext for the caller, delete the field, drop
   // the superseded marker, set ours. The keychain write and the user-facing
   // Notice happen in `main.ts loadSettings`, which owns the IO — this
-  // function must stay pure. Idempotent via the marker: a second load is a
-  // no-op. Deliberately NOT gated on `_migrated_v1_25_3_secret_storage`,
-  // which every install since v1.25.3 already carries.
-  if (savedData && !settings._migrated_harden_plaintext_api_key_removed) {
-    const legacy = typeof (savedData as { apiKey?: unknown }).apiKey === 'string'
-      ? ((savedData as { apiKey: string }).apiKey).trim()
+  // function must stay pure. Deliberately NOT gated on
+  // `_migrated_v1_25_3_secret_storage`, which every install since v1.25.3
+  // already carries.
+  //
+  // The DELETE is unconditional — deliberately NOT gated on our own
+  // marker. A marker-gated scrub only removes the field the first time it
+  // is seen, which is the wrong shape for the guarantee this phase makes:
+  // the whole point is that no persisted key slot survives, including one
+  // a later upstream merge, a downgrade-then-upgrade cycle, or a
+  // sync conflict re-introduces alongside a marker that says the scrub
+  // already ran. Marker-gated, `{ _migrated_…: true, apiKey: 'sk-…' }`
+  // loaded straight through into `this.settings`, and the next
+  // `saveSettings()` wrote it back to disk.
+  //
+  // Idempotence is preserved where it matters — the WRITE. `applied` is
+  // pushed (and `main.ts` therefore calls `saveData` and shows the rotate
+  // Notice) only when this load actually had something to remove, so a
+  // steady-state load is still silent and does no IO.
+  if (savedData) {
+    const untrustedSaved = savedData as Record<string, unknown>;
+    const hadPlaintextField = Object.prototype.hasOwnProperty.call(untrustedSaved, 'apiKey');
+    const hadSupersededMarker = Object.prototype.hasOwnProperty.call(untrustedSaved, '_migrated_v1_25_3_secret_storage');
+    const alreadyScrubbed = settings._migrated_harden_plaintext_api_key_removed === true;
+    const legacy = typeof untrustedSaved.apiKey === 'string'
+      ? untrustedSaved.apiKey.trim()
       : '';
     if (legacy.length > 0) {
       // Stash for main.ts to read. NOT a settings field — main.ts deletes
       // it before the shared saveData() below can persist it.
       (settings as unknown as { _legacyPlaintextApiKey?: string })._legacyPlaintextApiKey = legacy;
     }
-    // Delete unconditionally: the field must not survive this load even
-    // when it is empty, so a downgrade-then-upgrade cycle cannot resurrect
-    // the slot with a value.
     delete untrustedSettings.apiKey;
     delete untrustedSettings._migrated_v1_25_3_secret_storage;
     settings._migrated_harden_plaintext_api_key_removed = true;
-    applied.push('harden-plaintext-api-key-removed');
+    if (!alreadyScrubbed || hadPlaintextField || hadSupersededMarker) {
+      applied.push('harden-plaintext-api-key-removed');
+    }
   }
 
   // Hardening Phase 2.A (F-06): the optional third-party document-conversion
