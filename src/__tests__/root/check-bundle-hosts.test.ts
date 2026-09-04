@@ -56,7 +56,15 @@ describe('isAcceptedBundleHost', () => {
 
   it('accepts a fully expanded regional AWS host', () => {
     expect(isAcceptedBundleHost('oidc.us-east-1.amazonaws.com', EGRESS_HOSTS)).toBe(true);
-    expect(isAcceptedBundleHost('d-9067abcdef.awsapps.com', EGRESS_HOSTS)).toBe(true);
+    expect(isAcceptedBundleHost('portal.sso.eu-west-1.amazonaws.com', EGRESS_HOSTS)).toBe(true);
+  });
+
+  it('accepts the SSO placeholder literal but no other awsapps tenant', () => {
+    // The placeholder is a doc host; *.awsapps.com is NOT pattern-accepted,
+    // so a newly appearing tenant domain still trips the wire.
+    expect(isAcceptedBundleHost('d-xxxxxxxxx.awsapps.com', EGRESS_HOSTS)).toBe(true);
+    expect(isAcceptedBundleHost('d-9067abcdef.awsapps.com', EGRESS_HOSTS)).toBe(false);
+    expect(isAcceptedBundleHost('attacker.awsapps.com', EGRESS_HOSTS)).toBe(false);
   });
 
   it('rejects an unknown host', () => {

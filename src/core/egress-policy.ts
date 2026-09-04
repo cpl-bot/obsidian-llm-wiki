@@ -22,8 +22,10 @@
  *       loopback exception in (a) applies;
  *   (b) the hostname must match EGRESS_ALLOWLIST exactly, match one of
  *       EGRESS_HOST_PATTERNS (regional AWS hosts whose middle label is
- *       concatenated at runtime), be a loopback host, or equal the
- *       hostname of a URL the user themselves configured in settings;
+ *       concatenated at runtime — every pattern suffix is a namespace AWS
+ *       controls, never one anybody can self-register under), be a
+ *       loopback host, or equal the hostname of the provider base URL the
+ *       user themselves configured;
  *   (e) when `settings.strictEgress === false` the user has explicitly
  *       opted into an unlisted destination (corporate proxy / gateway):
  *       (b) and (d) are skipped, (a) and (c) still apply, so the key can
@@ -91,10 +93,16 @@ export class EgressDeniedError extends Error {
  * `types.ts` import graph so the bridge can depend on it cheaply.
  */
 export interface EgressSettings {
-  /** User-configured provider base URL (`LLMWikiSettings.baseUrl`). */
+  /**
+   * User-configured provider base URL (`LLMWikiSettings.baseUrl`). This is
+   * the ONLY settings field whose hostname becomes a destination: it is the
+   * one URL the plugin actually fetches on the user's instruction. Notably
+   * NOT included is `bedrockSsoStartUrl` — that value is only ever a field
+   * inside the body of a request to `oidc.<region>.amazonaws.com`
+   * (`sso-oidc.ts` startDeviceAuthorization), never a fetch target, so
+   * trusting its host would widen the allowlist for nothing.
+   */
   baseUrl?: string;
-  /** Bedrock IAM Identity Center portal URL (`LLMWikiSettings.bedrockSsoStartUrl`). */
-  bedrockSsoStartUrl?: string;
   /** Phase 4.4 toggle. Absent / undefined means strict (fail closed). */
   strictEgress?: boolean;
 }
@@ -181,14 +189,31 @@ function parseIpv6(hostname: string): number[] | null {
   return groups;
 }
 
+/**
+ * The IPv4 address embedded in an IPv6 literal, or null when there is
+ * none. Every standard embedding is covered, because they all reach the
+ * same v4 destination and a guard that only knows `::ffff:a.b.c.d` is a
+ * guard `https://[64:ff9b::169.254.169.254]/` walks straight through:
+ *   - `::a.b.c.d`        IPv4-compatible (RFC 4291)
+ *   - `::ffff:a.b.c.d`   IPv4-mapped (RFC 4291)
+ *   - `::ffff:0:a.b.c.d` IPv4-translated (RFC 2765)
+ *   - `64:ff9b::a.b.c.d` NAT64 well-known prefix (RFC 6052)
+ */
+function embeddedIpv4(groups: number[]): number[] | null {
+  const zeros = (from: number, to: number): boolean => groups.slice(from, to).every((g) => g === 0);
+  const compatibleOrMapped = zeros(0, 5) && (groups[5] === 0xffff || groups[5] === 0);
+  const translated = zeros(0, 4) && groups[4] === 0xffff && groups[5] === 0;
+  const nat64 = groups[0] === 0x0064 && groups[1] === 0xff9b && zeros(2, 6);
+  if (!compatibleOrMapped && !translated && !nat64) return null;
+  const octets = [groups[6] >> 8, groups[6] & 0xff, groups[7] >> 8, groups[7] & 0xff];
+  return octets.some((o) => o !== 0) ? octets : null;
+}
+
 function isBlockedIpv6(groups: number[]): boolean {
-  const allZeroLeading = groups.slice(0, 5).every((g) => g === 0);
-  // IPv4-mapped (::ffff:a.b.c.d) and IPv4-compatible (::a.b.c.d) forms
-  // re-enter the IPv4 rules — otherwise `::ffff:10.0.0.1` would sneak past.
-  if (allZeroLeading && (groups[5] === 0xffff || groups[5] === 0)) {
-    const octets = [groups[6] >> 8, groups[6] & 0xff, groups[7] >> 8, groups[7] & 0xff];
-    if (octets.some((o) => o !== 0)) return isBlockedIpv4(octets);
-  }
+  // Embedded-IPv4 forms re-enter the IPv4 rules — otherwise
+  // `::ffff:10.0.0.1` and its cousins would sneak past clause (d).
+  const embedded = embeddedIpv4(groups);
+  if (embedded) return isBlockedIpv4(embedded);
   if (groups.every((g) => g === 0)) return true;              // :: unspecified
   if ((groups[0] & 0xffc0) === 0xfe80) return true;           // fe80::/10 link-local
   if ((groups[0] & 0xfe00) === 0xfc00) return true;           // fc00::/7 unique-local
@@ -230,10 +255,12 @@ function hostnameOf(raw: string | undefined): string | null {
  * The user's own configured destinations. A base URL the user typed is
  * trusted for the requests derived from it — that is what makes
  * self-hosted / gateway deployments keep working under strict egress.
+ * Deliberately a list of one: every additional settings field admitted
+ * here is another way to widen the allowlist, so a field earns a place
+ * only by actually being fetched.
  */
 function configuredHostnames(settings: EgressSettings): string[] {
-  return [hostnameOf(settings.baseUrl), hostnameOf(settings.bedrockSsoStartUrl)]
-    .filter((h): h is string => h !== null);
+  return [hostnameOf(settings.baseUrl)].filter((h): h is string => h !== null);
 }
 
 /**

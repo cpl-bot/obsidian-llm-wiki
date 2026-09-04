@@ -90,22 +90,39 @@ describe('isAllowedHost', () => {
     expect(isAllowedHost('portal.sso.eu-central-1.amazonaws.com', STRICT)).toBe(true);
     expect(isAllowedHost('bedrock-runtime.ap-northeast-1.amazonaws.com', STRICT)).toBe(true);
     expect(isAllowedHost('bedrock-mantle.eu-central-1.api.aws', STRICT)).toBe(true);
-    expect(isAllowedHost('d-9067abcdef.awsapps.com', STRICT)).toBe(true);
+  });
+
+  it('never blanket-allows *.awsapps.com — anyone can self-register a tenant there', () => {
+    // The SSO start URL is only ever a body field on a request to
+    // oidc.<region>.amazonaws.com; no awsapps.com host is ever fetched, so
+    // none may be reachable by default.
+    expect(isAllowedHost('d-9067abcdef.awsapps.com', STRICT)).toBe(false);
+    expect(isAllowedHost('attacker.awsapps.com', STRICT)).toBe(false);
+    expect(EGRESS_HOST_PATTERNS.some((p) => p.suffix.endsWith('.awsapps.com'))).toBe(false);
   });
 
   it('rejects AWS look-alikes with an extra label in the region slot', () => {
     expect(isAllowedHost('oidc.evil.example.amazonaws.com', STRICT)).toBe(false);
     expect(isAllowedHost('bedrock-mantle.a.b.api.aws', STRICT)).toBe(false);
     expect(isAllowedHost('oidc.us-east-1.amazonaws.com.evil.net', STRICT)).toBe(false);
-    expect(isAllowedHost('tenant.evil.awsapps.com', STRICT)).toBe(false);
+  });
+
+  it('requires a dot boundary before a pattern suffix', () => {
+    expect(isAllowedHost('evil-amazonaws.com', STRICT)).toBe(false);
+    expect(isAllowedHost('oidcevil-amazonaws.com', STRICT)).toBe(false);
   });
 
   it('accepts the hostname of a user-configured provider base URL', () => {
     expect(isAllowedHost('llm.corp.internal', { baseUrl: 'https://llm.corp.internal/v1' })).toBe(true);
   });
 
-  it('accepts the hostname of a user-configured Bedrock SSO start URL', () => {
-    expect(isAllowedHost('sso.corp.example', { bedrockSsoStartUrl: 'https://sso.corp.example/start' })).toBe(true);
+  it('does not trust the Bedrock SSO start URL host — it is never a fetch target', () => {
+    // startDeviceAuthorization sends the start URL as a body field to
+    // oidc.<region>.amazonaws.com; admitting its host would widen the
+    // allowlist for a destination the plugin never contacts.
+    const settings = { baseUrl: '' } as EgressSettings & { bedrockSsoStartUrl: string };
+    settings.bedrockSsoStartUrl = 'https://sso.corp.example/start';
+    expect(isAllowedHost('sso.corp.example', settings)).toBe(false);
   });
 
   it('ignores an unparsable configured base URL instead of throwing', () => {
@@ -169,6 +186,12 @@ describe('assertAllowedEgress — credentials and address ranges', () => {
     ['https://[fe80::1]/v1'],
     ['https://[::]/v1'],
     ['https://[::ffff:10.0.0.1]/v1'],
+    // IPv4-translated (RFC 2765) and NAT64 (RFC 6052) reach the very same
+    // v4 address as ::ffff:a.b.c.d and must not be a way around clause (d).
+    ['https://[::ffff:0:169.254.169.254]/latest/meta-data'],
+    ['https://[64:ff9b::169.254.169.254]/latest/meta-data'],
+    ['https://[::ffff:0:10.0.0.1]/v1'],
+    ['https://[64:ff9b::192.168.1.1]/v1'],
   ])('denies the private / link-local / unspecified address %s', (url) => {
     expect(denialReason(url)).toBe('private-address');
   });
