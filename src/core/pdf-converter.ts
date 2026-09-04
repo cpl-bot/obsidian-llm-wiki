@@ -45,7 +45,6 @@ import {
 } from '../constants';
 import { PDF_PROMPTS } from '../wiki/prompts/pdf';
 import type { LLMClient } from '../types';
-import { convertPdfWithMineru } from './mineru-converter';
 
 // --- public types ---
 
@@ -58,12 +57,8 @@ export interface PdfConversionContext {
     baseUrl?: string;
     model: string;
     forcePdfSupport?: boolean;
-    markdownConversionBackend?: 'native' | 'mineru';
     [k: string]: unknown;
   };
-  /** Resolved at the WikiEngine boundary from Obsidian SecretStorage. */
-  mineruApiToken?: string;
-  onMineruPhase?: (phase: 'uploading' | 'waiting' | 'downloading') => void;
   pdfFile: TFile;
   llmClient: LLMClient;
   /** Returns the resolved model for the conversion task. */
@@ -121,9 +116,6 @@ export class EncryptedPdfError extends Error {
  * propagates LLM errors verbatim.
  */
 export async function convertPdfToMarkdown(ctx: PdfConversionContext): Promise<ConversionResult> {
-  if (ctx.settings.markdownConversionBackend === 'mineru') {
-    return convertPdfWithMineru(ctx);
-  }
   const { app, settings, pdfFile, llmClient, resolveModelForTask, subtle } = ctx;
 
   // 1. Read PDF bytes. readBinary returns ArrayBuffer; wrap as Uint8Array so

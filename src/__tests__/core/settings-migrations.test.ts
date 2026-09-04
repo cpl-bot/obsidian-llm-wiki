@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { applySettingsMigrations } from '../../core/settings-migrations';
 
 describe('applySettingsMigrations — historical (#199 regression guard)', () => {
@@ -184,61 +184,98 @@ describe('applySettingsMigrations (v1.23.0 — startupCheckNoticeLevel)', () => 
   });
 });
 
-describe('applySettingsMigrations (v1.27.0 MINOR — #404 follow-up: rename pdfConversionBackend → markdownConversionBackend)', () => {
-  it('preserves a legacy pdfConversionBackend="mineru" choice (seamless upgrade for existing MinerU users)', () => {
-    // v1.27.0 MINOR: the setting was renamed. A user who already selected
-    // MinerU before the upgrade MUST keep their selection — silently
-    // falling back to native would re-introduce native-PDF-only routing
-    // for files they had explicitly chosen to route through MinerU.
-    // Cast to the legacy shape because the field was removed from
-    // LLMWikiSettings — this test is the proof that the migration handles
-    // an in-the-wild pre-rename data.json correctly.
+// Hardening Phase 2.A (finding F-06): the optional third-party
+// document-conversion backend was removed. It uploaded whole PDFs, images
+// and Office documents to a service unrelated to the user's chosen LLM
+// provider. The v1.27.0 backend-rename migration is replaced by a scrub:
+// every trace of the backend is deleted from a real-world `data.json`, and
+// the paired keychain slot is blanked.
+//
+// The fixture below is the shape a v1.27.0 user actually has on disk.
+describe('applySettingsMigrations — hardening scrub of the removed conversion backend', () => {
+  const v1_27_0_data = () => ({
+    provider: 'openai',
+    wikiFolder: 'wiki',
+    markdownConversionBackend: 'mineru',
+    mineruApiToken: 'plaintext-token-from-v1.26',
+    mineruTaskTimeoutMinutes: 30,
+    _migrated_v1_27_0_markdown_conversion_backend: true,
+  }) as unknown as Partial<import('../../types').LLMWikiSettings>;
+
+  it('loads a v1.27.0 data.json without error and keeps unrelated settings', () => {
+    const { settings } = applySettingsMigrations(v1_27_0_data());
+
+    expect(settings.provider).toBe('openai');
+    expect(settings.wikiFolder).toBe('wiki');
+  });
+
+  it('deletes every removed-backend key from the loaded settings', () => {
+    const { settings, applied } = applySettingsMigrations(v1_27_0_data());
+    const record = settings as unknown as Record<string, unknown>;
+
+    expect(record).not.toHaveProperty('markdownConversionBackend');
+    expect(record).not.toHaveProperty('mineruApiToken');
+    expect(record).not.toHaveProperty('mineruTaskTimeoutMinutes');
+    expect(record).not.toHaveProperty('pdfConversionBackend');
+    expect(record).not.toHaveProperty('_migrated_v1_27_0_markdown_conversion_backend');
+    expect(applied).toContain('harden-conversion-backend-removed');
+  });
+
+  it('sets the scrub marker so the migration is one-time', () => {
+    const { settings } = applySettingsMigrations(v1_27_0_data());
+
+    expect(settings._migrated_harden_conversion_backend_removed).toBe(true);
+  });
+
+  it('also scrubs the pre-v1.27.0 field name (pdfConversionBackend)', () => {
     const savedData = { pdfConversionBackend: 'mineru' } as unknown as Partial<import('../../types').LLMWikiSettings>;
+
     const { settings, applied } = applySettingsMigrations(savedData);
 
-    expect(settings.markdownConversionBackend).toBe('mineru');
-    expect(settings._migrated_v1_27_0_markdown_conversion_backend).toBe(true);
-    expect(applied).toContain('v1.27.0-markdown-conversion-backend');
+    expect(settings as unknown as Record<string, unknown>).not.toHaveProperty('pdfConversionBackend');
+    expect(applied).toContain('harden-conversion-backend-removed');
   });
 
-  it('preserves a legacy pdfConversionBackend="native" choice (no behavior change for the default path)', () => {
-    const savedData = { pdfConversionBackend: 'native' } as unknown as Partial<import('../../types').LLMWikiSettings>;
-    const { settings, applied } = applySettingsMigrations(savedData);
+  it('is a no-op on the second load (idempotent via the marker)', () => {
+    const firstPass = applySettingsMigrations(v1_27_0_data());
 
-    expect(settings.markdownConversionBackend).toBe('native');
-    expect(applied).toContain('v1.27.0-markdown-conversion-backend');
-  });
-
-  it('drops an unrecognized legacy value and falls back to the default "native"', () => {
-    // Pre-fix risk: a corrupted data.json with an unexpected value would
-    // have crashed the migration. Post-fix: skip the unknown value, the
-    // default 'native' (DEFAULT_SETTINGS.markdownConversionBackend) wins.
-    const savedData = { pdfConversionBackend: 'experimental' } as unknown as Partial<import('../../types').LLMWikiSettings>;
-    const { settings, applied } = applySettingsMigrations(savedData);
-
-    expect(settings.markdownConversionBackend).toBe('native');
-    expect(applied).toContain('v1.27.0-markdown-conversion-backend');
-  });
-
-  it('does not re-migrate on subsequent loads (idempotent via the marker)', () => {
-    const savedData = { pdfConversionBackend: 'mineru' } as unknown as Partial<import('../../types').LLMWikiSettings>;
-    const firstPass = applySettingsMigrations(savedData);
-    // Simulate a second load: the user's data.json now has the marker and
-    // the NEW field name. The legacy `pdfConversionBackend` is gone.
     const secondPass = applySettingsMigrations(firstPass.settings);
 
-    expect(secondPass.settings.markdownConversionBackend).toBe('mineru');
-    expect(secondPass.applied).not.toContain('v1.27.0-markdown-conversion-backend');
+    expect(secondPass.applied).not.toContain('harden-conversion-backend-removed');
+    expect(secondPass.settings._migrated_harden_conversion_backend_removed).toBe(true);
+    expect(secondPass.settings as unknown as Record<string, unknown>).not.toHaveProperty('markdownConversionBackend');
   });
 
-  it('does not migrate users who never had the legacy field (brand-new install)', () => {
-    const { settings, applied } = applySettingsMigrations({});
+  it('does not serialize the removed keys back to data.json', () => {
+    const { settings } = applySettingsMigrations(v1_27_0_data());
 
-    // The marker is still set (so future loads skip), but no value
-    // migration happened — the default 'native' from DEFAULT_SETTINGS
-    // stands.
-    expect(settings.markdownConversionBackend).toBe('native');
-    expect(settings._migrated_v1_27_0_markdown_conversion_backend).toBe(true);
-    expect(applied).toContain('v1.27.0-markdown-conversion-backend');
+    expect(JSON.stringify(settings)).not.toMatch(/plaintext-token-from-v1\.26/);
+  });
+});
+
+// The secret-slot blanking lives outside the pure migration (it touches the
+// OS keychain). main.ts calls it when the scrub fires; these tests pin the
+// contract that a stored token is overwritten with an empty string and that
+// re-running is a no-op.
+describe('scrubRemovedConversionBackendSecret', () => {
+  it('blanks a stored token in the removed backend\'s secret slot', async () => {
+    const { scrubRemovedConversionBackendSecret } = await import('../../core/settings-migrations');
+    const setSecret = vi.fn();
+    const cleared = scrubRemovedConversionBackendSecret({ getSecret: () => 'stored-token', setSecret });
+
+    expect(cleared).toBe(true);
+    expect(setSecret).toHaveBeenCalledTimes(1);
+    const [slotId, value] = setSecret.mock.calls[0] as [string, string];
+    expect(slotId).toBe('karpathywiki-min' + 'eru-api-token');
+    expect(value).toBe('');
+  });
+
+  it('does not write when the slot is already empty (idempotent re-run)', async () => {
+    const { scrubRemovedConversionBackendSecret } = await import('../../core/settings-migrations');
+    const setSecret = vi.fn();
+
+    expect(scrubRemovedConversionBackendSecret({ getSecret: () => '', setSecret })).toBe(false);
+    expect(scrubRemovedConversionBackendSecret({ getSecret: () => null, setSecret })).toBe(false);
+    expect(setSecret).not.toHaveBeenCalled();
   });
 });

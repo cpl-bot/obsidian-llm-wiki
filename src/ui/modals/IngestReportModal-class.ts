@@ -40,8 +40,6 @@ export class IngestReportModal extends Modal {
     if (reason === 'incompatible-type') return 'rejectionReasonType';
     if (reason === 'duplicate') return 'rejectionReasonDuplicate';
     if (reason === 'unsupported-pdf') return 'rejectionReasonPdfUnsupported';
-    if (reason === 'mineru-page-limit') return 'rejectionReasonMineruPageLimit';
-    if (reason === 'mineru-size-limit') return 'rejectionReasonMineruSizeLimit';
     return 'rejectionReasonEmpty';
   }
 
