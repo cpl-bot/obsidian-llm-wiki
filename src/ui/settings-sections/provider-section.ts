@@ -40,6 +40,7 @@ import { getCodexAuthUiState } from '../openai-codex-auth-controls';
 import { getBedrockAuthUiState } from '../bedrock-auth-controls';
 import { resolveInitialApiKey } from '../../llm-sdk/provider-api-key-resolver';
 import { isProviderSecretStorageError } from '../../llm-sdk/provider-secret-store';
+import { redactSecrets } from '../../core/redact';
 
 export function renderProviderSection(tab: LLMWikiSettingTab, containerEl: HTMLElement): void {
   const { tempSettings } = tab;
@@ -144,7 +145,7 @@ export function renderProviderSection(tab: LLMWikiSettingTab, containerEl: HTMLE
         } catch (error: unknown) {
           if (!isProviderSecretStorageError(error)) throw error;
           initial = '';
-          new Notice(tab.getText('keychainUnavailableNotice').replace('{}', error.message), NOTICE_ERROR);
+          new Notice(tab.getText('keychainUnavailableNotice').replace('{}', redactSecrets(error.message)), NOTICE_ERROR);
         }
         text.setPlaceholder(tab.getText('apiKeyPlaceholder'))
           .setValue(initial)

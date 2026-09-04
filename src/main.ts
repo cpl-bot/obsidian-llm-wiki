@@ -10,6 +10,7 @@ import { preloadLLMClientModules } from './llm-sdk/create-llm-client';
 import { isProviderConfigured } from './core/provider-auth';
 import { resolveProviderApiKey } from './llm-sdk/provider-api-key-resolver';
 import { isProviderSecretStorageError } from './llm-sdk/provider-secret-store';
+import { redactError, redactSecrets } from './core/redact';
 import { createLLMClient } from './core/create-plugin-llm-client';
 import { CodexAuthManager } from './llm-sdk/openai-codex/auth-manager';
 import { BedrockAuthManager } from './llm-sdk/bedrock-sso/credential-manager';
@@ -22,14 +23,14 @@ import type { FetchLike } from './llm-sdk/openai-codex/types';
 // load so sync `createLLMClient` works without blocking. Failure is
 // non-fatal: falls back to legacy llm-client at createLLMClient time.
 const aiSdkModulesLoaded: Promise<void> = preloadLLMClientModules().catch((err) => {
-  console.warn('[v1.23.0 LLM migration] Failed to preload AI-SDK modules:', err);
+  console.warn('[v1.23.0 LLM migration] Failed to preload AI-SDK modules:', redactError(err));
 });
 
 export async function initializeLLMClientAfterModules(modulesLoaded: Promise<void>, initialize: () => void): Promise<void> {
   try {
     await modulesLoaded;
   } catch (error) {
-    console.warn('[v1.23.0 LLM migration] Failed to preload AI-SDK modules:', error);
+    console.warn('[v1.23.0 LLM migration] Failed to preload AI-SDK modules:', redactError(error));
   }
   initialize();
 }
@@ -259,7 +260,7 @@ export class LLMWikiPlugin extends Plugin {
         // so the next load retries the adoption — mirrors the Phase 2.A
         // conversion-backend scrub. The plaintext itself stays deleted.
         delete settings._migrated_harden_plaintext_api_key_removed;
-        console.error('[main.loadSettings] Failed to adopt the plaintext API key into SecretStorage; key removed from data.json anyway:', error);
+        console.error('[main.loadSettings] Failed to adopt the plaintext API key into SecretStorage; key removed from data.json anyway:', redactError(error));
       }
       // Same Notice on every path: the key touched disk inside a synced
       // vault, so it is disclosed whether or not the keychain took it.
@@ -287,7 +288,7 @@ export class LLMWikiPlugin extends Plugin {
         // the marker records a scrub that never happened and the stale
         // token would sit in the keychain forever.
         delete this.settings._migrated_harden_conversion_backend_removed;
-        console.error('[main.loadSettings] Failed to clear the removed conversion backend token; retrying on next load:', error);
+        console.error('[main.loadSettings] Failed to clear the removed conversion backend token; retrying on next load:', redactError(error));
       }
     }
 
@@ -401,11 +402,11 @@ export class LLMWikiPlugin extends Plugin {
       );
     } catch (error: unknown) {
       if (!isProviderSecretStorageError(error)) throw error;
-      console.error('[main] SecretStorage read failed; LLM features disabled:', error);
+      console.error('[main] SecretStorage read failed; LLM features disabled:', redactError(error));
       if (!this.keychainNoticeShown) {
         this.keychainNoticeShown = true;
         new Notice(
-          getText(this.settings.language, 'keychainUnavailableNotice').replace('{}', error.message),
+          getText(this.settings.language, 'keychainUnavailableNotice').replace('{}', redactSecrets(error.message)),
           NOTICE_ERROR,
         );
       }
@@ -445,7 +446,9 @@ export class LLMWikiPlugin extends Plugin {
       this.llmClient = createLLMClient(this.settings, this.codexAuthManager ?? undefined, this.manifest.version, this.app.secretStorage, undefined, this.bedrockAuthManager ?? undefined);
       console.debug('LLM Client initialized:', this.settings.provider);
     } catch (error) {
-      console.error('LLM Client initialization failed:', error);
+      // Hardening Phase 3 (F-03/3.5): the SDK factory's throw can carry a
+      // provider error body.
+      console.error('LLM Client initialization failed:', redactError(error));
       this.llmClient = null;
     }
   }

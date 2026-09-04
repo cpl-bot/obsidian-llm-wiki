@@ -30,6 +30,7 @@
 //   - Streaming SSE parser — AI-SDK's textStream replaces it.
 
 import { type LanguageModel, APICallError, NoSuchModelError, InvalidPromptError } from 'ai';
+import { redactSecrets } from '../core/redact';
 import { createOpenAI } from '@ai-sdk/openai';
 import { LLMClient } from '../types';
 import { obsidianFetchBridge, streamWithFallback } from '../core/obsidian-fetch-bridge';
@@ -593,7 +594,13 @@ export function mapAiSdkError(err: unknown): Error {
     // APICallError.message is "Provider returned error [status]: message"
     // We rebuild it to match the v1.22.5 format exactly:
     //   "status <code>: <provider message>"
-    const providerMsg = extractProviderMessage(err);
+    // Hardening Phase 3 (F-03/3.5): the provider's body is echoed into a
+    // message that every Notice and console.error in the plugin prints
+    // verbatim, and a 4xx from a misconfigured gateway routinely quotes
+    // the Authorization header back at us. Redact the MESSAGE only —
+    // `responseBody` below stays raw because the reasoning-field and
+    // output-mode probers classify on it.
+    const providerMsg = redactSecrets(extractProviderMessage(err));
     const code = err.statusCode ?? 0;
     const enriched = new Error(`status ${code}${providerMsg ? `: ${providerMsg}` : ''}`);
     // Attach useful properties for any code that reads them.
@@ -602,10 +609,10 @@ export function mapAiSdkError(err: unknown): Error {
     return enriched;
   }
   if (err instanceof NoSuchModelError) {
-    return new Error(`Unknown model: ${err.modelId ?? 'unspecified'} (${err.message})`);
+    return new Error(`Unknown model: ${err.modelId ?? 'unspecified'} (${redactSecrets(err.message)})`);
   }
   if (err instanceof InvalidPromptError) {
-    return new Error(`Invalid prompt: ${err.message}`);
+    return new Error(`Invalid prompt: ${redactSecrets(err.message)}`);
   }
   if (err instanceof Error) {
     return err;

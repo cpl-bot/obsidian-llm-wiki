@@ -26,6 +26,7 @@ import { createLLMClient } from '../core/create-plugin-llm-client';
 import { providerRequiresApiKey, usesBedrockAwsCredentials } from '../core/provider-auth';
 import { resolveProviderApiKey } from '../llm-sdk/provider-api-key-resolver';
 import { isProviderSecretStorageError } from '../llm-sdk/provider-secret-store';
+import { redactError, redactSecrets } from '../core/redact';
 import type { CodexAuthManager } from '../llm-sdk/openai-codex/auth-manager';
 import { applyCodexModelPolicy } from '../core/openai-codex-model-policy';
 import { resolveModelForTask } from '../core/model-resolver';
@@ -100,7 +101,7 @@ export const connectionCommands = {
         );
       } catch (error: unknown) {
         if (!isProviderSecretStorageError(error)) throw error;
-        return { success: false, message: t.keychainUnavailableNotice.replace('{}', error.message) };
+        return { success: false, message: t.keychainUnavailableNotice.replace('{}', redactSecrets(error.message)) };
       }
       if (!resolvedKey) {
         return { success: false, message: t.errorNoApiKey || 'API Key is not configured' };
@@ -179,7 +180,7 @@ export const connectionCommands = {
             await this.wikiEngine.ensureWikiStructure();
             console.debug('Wiki structure auto-initialized');
           } catch (initError) {
-            console.warn('Auto wiki init failed:', initError);
+            console.warn('Auto wiki init failed:', redactError(initError));
           }
         }
       }
@@ -197,10 +198,15 @@ export const connectionCommands = {
         message: `✅ ${t.testConnectionSuccessful || 'Connection successful'}: ${probeSummary}`
       };
     } catch (error) {
-      console.error('Connection test failed:', error);
+      // Hardening Phase 3 (F-03/3.5): Test Connection is the single most
+      // likely place for a provider to answer with a body quoting the
+      // request — it is the one call made specifically to see what the
+      // provider says. Both the log and the returned Notice text are
+      // redacted.
+      console.error('Connection test failed:', redactError(error));
       this.settings.llmReady = false;
       await this.saveSettings();
-      const errorMsg = error instanceof Error ? error.message : String(error);
+      const errorMsg = redactError(error);
       return {
         success: false,
         message: `❌ ${t.testConnectionFailed || 'Connection failed'}: ${errorMsg || t.errorUnknown || 'Unknown error'}`

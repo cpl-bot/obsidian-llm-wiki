@@ -25,6 +25,7 @@ import { applyCodexModelPolicy } from '../core/openai-codex-model-policy';
 import type { CodexDevicePrompt } from './openai-codex-auth-controls';
 import { BEDROCK_DEFAULT_REGION, NOTICE_NORMAL, NOTICE_ERROR } from '../constants';
 import { ProviderSecretStore } from '../llm-sdk/provider-secret-store';
+import { redactSecrets } from '../core/redact';
 
 // v1.25.5: getSettingDefinitions() implemented as a no-op stub for
 // Obsidian 1.13+ declarative settings API compatibility. The real
@@ -160,7 +161,7 @@ export class LLMWikiSettingTab extends PluginSettingTab {
       this.bedrockIamSessionTokenBuffer = '';
     } catch (error: unknown) {
       const detail = error instanceof Error ? error.message : 'Unknown error';
-      new Notice(this.getText('bedrockIamSaveFailed').replace('{}', detail), NOTICE_ERROR);
+      new Notice(this.getText('bedrockIamSaveFailed').replace('{}', redactSecrets(detail)), NOTICE_ERROR);
     }
   }
 
@@ -195,8 +196,11 @@ export class LLMWikiSettingTab extends PluginSettingTab {
     } catch (error: unknown) {
       // Keep pendingApiKey populated so the user can retry on next save.
       // Surface a recoverable Notice (error.message only — no PII).
+      // Hardening Phase 3 (F-03/3.5): the platform error is raised while
+      // handling the key itself, so it is exactly the message that must
+      // not quote it back on screen.
       const detail = error instanceof Error ? error.message : 'Unknown error';
-      new Notice(this.getText('apiKeyMigrationFailedNotice').replace('{}', detail), NOTICE_ERROR);
+      new Notice(this.getText('apiKeyMigrationFailedNotice').replace('{}', redactSecrets(detail)), NOTICE_ERROR);
       return false;
     }
   }

@@ -13,6 +13,7 @@
  */
 
 import { Notice } from 'obsidian';
+import { redactError } from '../core/redact';
 import type { App } from 'obsidian';
 import type { LLMWikiSettings } from '../types';
 import { getText } from '../core/i18n';
@@ -54,7 +55,7 @@ export const pdfCacheCommands = {
         );
       }
     } catch (error) {
-      console.warn('[pdf-cache] batch prep failed:', error);
+      console.warn('[pdf-cache] batch prep failed:', redactError(error));
     }
   },
 
@@ -71,7 +72,7 @@ export const pdfCacheCommands = {
         );
       }
     } catch (error) {
-      console.warn('[pdf-cache] housekeeping failed:', error);
+      console.warn('[pdf-cache] housekeeping failed:', redactError(error));
     }
   },
 };

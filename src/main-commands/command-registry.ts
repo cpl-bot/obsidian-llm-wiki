@@ -12,6 +12,7 @@
  */
 
 import { Notice } from 'obsidian';
+import { redactError } from '../core/redact';
 import type { Plugin } from 'obsidian';
 import type { AutoMaintainManager } from '../schema/auto-maintain';
 import type { BatchProgress } from '../core/status-bar';
@@ -85,8 +86,10 @@ export function registerWikiCommands(plugin: CommandRegistryHost): void {
           await plugin.wikiEngine.generateIndexFromEngine();
           new Notice(getText(plugin.settings.language, 'regenerateIndexCompleted'));
         } catch (err) {
-          console.error('Regenerate index failed:', err);
-          new Notice(getText(plugin.settings.language, 'operationFailed') + (err instanceof Error ? err.message : String(err)));
+          // Hardening Phase 3 (F-03/3.5): this message is a provider error
+          // body as often as not.
+          console.error('Regenerate index failed:', redactError(err));
+          new Notice(getText(plugin.settings.language, 'operationFailed') + redactError(err));
         }
       })();
     }

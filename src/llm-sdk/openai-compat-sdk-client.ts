@@ -19,6 +19,7 @@
 // based on the `provider` id we pass in.
 
 import { type LanguageModel, APICallError, NoObjectGeneratedError, NoOutputGeneratedError } from 'ai';
+import { redactSecrets } from '../core/redact';
 import type { z } from 'zod';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import {
@@ -579,7 +580,7 @@ export class OpenAICompatSdkClient implements LLMClient {
         console.debug(
           `[REASONING-STRIP-DEBUG] baseURL=${this.baseURL} ` +
           `classifier matched. statusCode=${err.statusCode} ` +
-          `responseBody="${(err.responseBody ?? '').slice(0, 240)}" ` +
+          `responseBody="${redactSecrets((err.responseBody ?? '').slice(0, 240))}" ` +
           `→ retrying with enableThinking=true (no reasoningEffort on wire)`,
         );
         const retryLanguageModel = this.getProvider(model, this.fetchImpl);
@@ -710,7 +711,7 @@ export class OpenAICompatSdkClient implements LLMClient {
         console.debug(
           `[OUTPUT-MODE-DEMOTE-DEBUG] baseURL=${this.baseURL} ` +
           `tier=${currentMode} → tier=${demotedMode}. ` +
-          `responseBody="${lastErrBody.slice(0, 240)}"`,
+          `responseBody="${redactSecrets(lastErrBody.slice(0, 240))}"`,
         );
 
         // Tentative write BEFORE retry so the next iteration sees the
@@ -1181,7 +1182,7 @@ export class OpenAICompatSdkClient implements LLMClient {
           console.debug(
             `[OUTPUT-MODE-DEMOTE-DEBUG] (typed) baseURL=${this.baseURL} ` +
             `tier=${iterMode} → tier=${demotedMode}. ` +
-            `responseBody="${lastErrBody.slice(0, 240)}"`,
+            `responseBody="${redactSecrets(lastErrBody.slice(0, 240))}"`,
           );
 
           this.outputModeProber.markMode(this.baseURL, model, demotedMode);
