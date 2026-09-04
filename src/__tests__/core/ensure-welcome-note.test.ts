@@ -35,7 +35,7 @@ function makeFakeVault(initialFiles: Record<string, string> = {}): VaultAdapter 
       // exclude ALL Welcome files (any language) for safety.
       return [...files.keys()].filter(p => !/Welcome.*\.md$/.test(p));
     },
-    async create(path: string, content: string): Promise<void> {
+    async createNote(path: string, content: string): Promise<void> {
       files.set(path, content);
     },
   };

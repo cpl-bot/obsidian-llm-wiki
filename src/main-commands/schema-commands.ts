@@ -69,6 +69,9 @@ export const schemaCommands = {
               app: this.app,
               currentPath: `${this.settings.wikiFolder}/schema/config.md`,
               newBody: suggestion.newSchemaBody ?? '',
+              // Phase 5 (F-08): reuse the engine's write-gate rather than
+              // letting apply-suggestion derive one.
+              vaultWriter: this.wikiEngine.vaultWriter,
               onCacheInvalidate: () => this.schemaManager.invalidateCache(),
             });
             if (result.success) {

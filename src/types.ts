@@ -5,6 +5,7 @@ import type { z } from 'zod';
 import type { RejectionReason } from './core/source-requirements';
 import type { TaskPolicyMap } from './core/task-policy';
 import type { OutputMode } from './llm-sdk/output-mode-prober';
+import type { VaultWriter } from './core/vault-writer';
 
 /**
  * Issue #244 — Programmatic Mentions writes (v1.23.3 / v1.24.0).
@@ -955,6 +956,12 @@ export interface EngineContext {
   app: App;
   settings: LLMWikiSettings;
   getClient: () => LLMClient | null;
+  /**
+   * Phase 5 (F-08): the vault write-gate. Sub-modules that write directly
+   * (contradiction records, merge-page folders) go through this instead of
+   * `ctx.app.vault.*` — an ESLint rule rejects the direct call.
+   */
+  vaultWriter: VaultWriter;
   createOrUpdateFile: (path: string, content: string) => Promise<void>;
   tryReadFile: (path: string) => Promise<string | null>;
   deleteFile: (path: string) => Promise<void>;

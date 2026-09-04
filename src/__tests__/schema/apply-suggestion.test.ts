@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { applySchemaSuggestion } from '../../schema/apply-suggestion';
+import { VaultWriteScopeError } from '../../core/vault-writer';
 import { App, TFile } from 'obsidian'; // mocked in setup.ts
 
 // v1.22.0 #97: business logic for "apply a Schema suggestion" — the
@@ -76,6 +77,36 @@ auto_suggestion_count: 0
 ${CURRENT_BODY}`;
 
 const NEW_BODY = '# Wiki Schema\n\n## Wiki Structure\n- Entity pages (custom)\n';
+
+describe('applySchemaSuggestion — Phase 5 (F-08) default write scope', () => {
+  it('denies every write when `currentPath` has no directory component', async () => {
+    // The default writer scopes itself to the schema file's own folder. A
+    // path with no folder names a file at the VAULT ROOT, and scoping to the
+    // root would turn the gate off for the whole vault — "unconfigured" must
+    // not read as "unrestricted", so it denies instead.
+    const vault = mkMockVault({ 'config.md': CURRENT_FILE });
+    await expect(applySchemaSuggestion({
+      app: vault as unknown as App,
+      currentPath: 'config.md',
+      newBody: NEW_BODY,
+      now: () => new Date('2026-06-22T10:30:00.000Z'),
+    })).rejects.toBeInstanceOf(VaultWriteScopeError);
+    // Nothing was written: no backup, and the original is untouched.
+    expect([...vault.vault.files.keys()]).toEqual(['config.md']);
+    expect(vault.vault.files.get('config.md')).toBe(CURRENT_FILE);
+  });
+
+  it('still writes normally for the real `<wikiFolder>/schema/config.md` shape', async () => {
+    const vault = mkMockVault({ 'wiki/schema/config.md': CURRENT_FILE });
+    const result = await applySchemaSuggestion({
+      app: vault as unknown as App,
+      currentPath: 'wiki/schema/config.md',
+      newBody: NEW_BODY,
+      now: () => new Date('2026-06-22T10:30:00.000Z'),
+    });
+    expect(result.success).toBe(true);
+  });
+});
 
 describe('applySchemaSuggestion (#97)', () => {
   it('creates a backup file before writing the new body', async () => {

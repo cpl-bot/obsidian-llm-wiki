@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { runPreparationPhase } from '../../../wiki/lint/phases/preparation';
 import { LintPhaseContext } from '../../../wiki/lint/types';
 import { LLMWikiSettings } from '../../../types';
+import { createTestVaultWriter, recordStore, testScopeFor } from '../../__support__/vault-writer';
 
 function makeMockApp(files: Record<string, string>, abstractFiles: string[] = []) {
   const tfiles = new Map<string, { path: string; basename: string }>();
@@ -16,11 +17,6 @@ function makeMockApp(files: Record<string, string>, abstractFiles: string[] = []
         if (!abstractFiles.includes(path)) return null;
         return { path };
       },
-      process: async (file: { path: string }, fn: (data: string) => string | Promise<string>) => {
-        const result = await fn(files[file.path] ?? '');
-        files[file.path] = result;
-        return result;
-      },
     },
   };
 }
@@ -34,6 +30,12 @@ function makeContext(files: Record<string, string>, abstractFiles: string[] = []
       slugCase: 'lower',
       ...settings,
     } as LLMWikiSettings,
+    // Phase 5 (F-08): a REAL gate over the same fixture files, so the phase's
+    // in-place rewrites are asserted to be scope-checked, not stubbed away.
+    vaultWriter: createTestVaultWriter(
+      recordStore(files),
+      testScopeFor((settings?.wikiFolder as string) ?? 'wiki'),
+    ).writer,
     llmClient: () => null, // preparation phase does not consume LLM
     wikiEngine: { updateStatusBar: () => {} } as unknown as LintPhaseContext['wikiEngine'],
     checkCancelled: () => {},

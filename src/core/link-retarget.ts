@@ -64,7 +64,15 @@ export interface RetargetMetadataCache {
 /** The subset of `Vault` this module needs. */
 export interface RetargetVault {
   getMarkdownFiles(): RetargetFile[];
-  process(file: RetargetFile, fn: (data: string) => string): Promise<string>;
+  /**
+   * Phase 5 (F-08): a PORT, not Obsidian's `Vault.process` — hence the
+   * distinct name. Issue #386 makes this rewrite vault-wide on purpose (an
+   * ordinary user note outside the wiki folder may link to the merged page),
+   * so the caller supplies the gated write it wants; this module never
+   * reaches for `app.vault` itself. See `merge-duplicates.ts` for the
+   * production wiring and the scope it grants.
+   */
+  processFile(file: RetargetFile, fn: (data: string) => string): Promise<string>;
 }
 
 export interface RetargetDeps {
@@ -182,7 +190,7 @@ export async function retargetLinksToPage(
 
     let applied = 0;
     let stale = 0;
-    await deps.vault.process(file, data => {
+    await deps.vault.processFile(file, data => {
       let next = data;
       // Descending, so an earlier edit's offsets stay valid.
       for (const edit of [...edits].sort((a, b) => b.start - a.start)) {

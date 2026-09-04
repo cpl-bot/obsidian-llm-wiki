@@ -9,7 +9,7 @@ import { setActivePluginId, resetActivePluginIdForTests } from '../../core/plugi
 
 // PDF_DIR is a test-only fake path; the hardcoded `.obsidian` here is
 // intentional and confined to the test sandbox.
-const PDF_DIR = '/fake/.obsidian/plugins/karpathywiki/pdf-cache'; // eslint-disable-line obsidianmd/hardcoded-config-path
+const PDF_DIR = 'fake/.obsidian/plugins/karpathywiki/pdf-cache'; // eslint-disable-line obsidianmd/hardcoded-config-path
 const SAMPLE_HASH = 'abc123def456';
 
 // Use a runtime timestamp so TTL tests are deterministic regardless of when

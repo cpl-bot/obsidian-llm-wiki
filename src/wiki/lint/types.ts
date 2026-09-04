@@ -9,6 +9,7 @@
 import type { App } from 'obsidian';
 import { LLMWikiSettings, LLMClient } from '../../types';
 import { WikiEngine } from '../wiki-engine';
+import type { VaultWriter } from '../../core/vault-writer';
 
 // Public ctx for the entire lint run. The controller creates one of these
 // and passes it down to every phase (preparation, programmatic, llm-assisted,
@@ -18,6 +19,8 @@ export interface LintContext {
   settings: LLMWikiSettings;
   llmClient: LLMClient | null;
   wikiEngine: WikiEngine;
+  /** Phase 5 (F-08): the vault write-gate the fix runners write through. */
+  vaultWriter: VaultWriter;
   onAnalyzeSchema: (context?: string) => void;
   /**
    * #328 Phase 1 follow-up: shared composer used by fix-runners to
@@ -35,8 +38,7 @@ export interface LintPhaseContext {
     vault: {
       getMarkdownFiles: () => Array<{ path: string; basename: string }>;
       read: (file: { path: string }) => Promise<string>;
-      getAbstractFileByPath: (path: string) => unknown;
-      process: (file: unknown, fn: (data: string) => string | Promise<string>) => Promise<string>;
+      getAbstractFileByPath: (path: string) => { path: string } | null;
     };
     workspace: {
       onLayoutReady: (cb: () => void) => void;
@@ -46,6 +48,13 @@ export interface LintPhaseContext {
     };
   };
   settings: LLMWikiSettings;
+  /**
+   * Phase 5 (F-08): the vault write-gate. The preparation phase rewrites
+   * pages in place (double-nested links, polluted `sources:`) and does it
+   * through this, not through `app.vault.process` — which is why the phase
+   * ctx's `app.vault` shape no longer carries a `process` at all.
+   */
+  vaultWriter: VaultWriter;
   /**
    * v1.24.0: added for the LLM-assisted phases (dedup / analysis) extracted
    * from controller.ts:runLintWiki into `llm-phases/`. The LLM was previously

@@ -17,6 +17,7 @@ import { describe, it, expect } from 'vitest';
 import { TFile } from 'obsidian';
 import { updateRelatedPage, type RelatedPageContext } from '../../../wiki/page-factory/related-page';
 import type { SourceAnalysis, LLMWikiSettings } from '../../../types';
+import { createTestVaultWriter, mapStore, testScopeFor } from '../../__support__/vault-writer';
 
 const PAGE_PATH = 'wiki/entities/X.md';
 const PAGE_TITLE = 'X';
@@ -34,6 +35,9 @@ function makeCtx(opts: {
   }
   return {
     written,
+    // Phase 5 (F-08): the contradiction-record folder is created through the
+    // gate — a real `VaultWriter` over this fixture's own `written` map.
+    vaultWriter: createTestVaultWriter(mapStore(written), testScopeFor('wiki')).writer,
     app: {
       vault: {
         getMarkdownFiles: () => pages,

@@ -12,6 +12,8 @@ import {
   type PathResolutionContext,
 } from '../../../wiki/page-factory/path-resolution';
 import type { LLMWikiSettings } from '../../../types';
+import { VaultWriter } from '../../../core/vault-writer';
+import { testScopeFor } from '../../__support__/vault-writer';
 
 // Mock app is required because getExistingWikiPages accepts `ctx.app`. We
 // stub it at the test level so the real Obsidian API is never invoked.
@@ -23,6 +25,10 @@ function makeCtx(overrides: {
   const files = new Map<string, string>(Object.entries(overrides.files ?? {}));
   const ctx: PathResolutionContext & { written: Map<string, string> } = {
     written: files,
+    // Phase 5 (F-08): a real gate with NO rename capability — the default
+    // host in these tests offers no link-safe rename, which is exactly the
+    // documented fallback branch.
+    vaultWriter: new VaultWriter({ scope: testScopeFor('wiki') }),
     settings: {
       wikiFolder: 'wiki',
       slugCase: 'preserve',
@@ -406,6 +412,8 @@ describe('resolvePagePath — a cross-folder match re-decides the classification
     indexed: string[];
     reply: Record<string, unknown>;
     withRename?: boolean;
+    /** The folder the write-gate is scoped to. Defaults to the wiki folder. */
+    scopeFolder?: string;
   }) {
     const renamed: Array<[string, string]> = [];
     const ctx = makeCtx({
@@ -420,13 +428,19 @@ describe('resolvePagePath — a cross-folder match re-decides the classification
     (app.vault as Record<string, unknown>).getAbstractFileByPath = (p: string) =>
       ctx.written.has(p) ? { path: p } : null;
     if (opts.withRename !== false) {
-      app.fileManager = {
-        renameFile: async (file: { path: string }, newPath: string) => {
-          renamed.push([file.path, newPath]);
-          ctx.written.set(newPath, ctx.written.get(file.path)!);
-          ctx.written.delete(file.path);
+      // The move goes through the REAL gate: an out-of-scope destination is
+      // refused here exactly as it would be in production, and `renamed`
+      // records only what the gate let through.
+      ctx.vaultWriter = new VaultWriter({
+        scope: testScopeFor(opts.scopeFolder ?? 'wiki'),
+        fileManager: {
+          renameFile: async (file: { path: string }, newPath: string) => {
+            renamed.push([file.path, newPath]);
+            ctx.written.set(newPath, ctx.written.get(file.path)!);
+            ctx.written.delete(file.path);
+          },
         },
-      };
+      });
     }
     return { ctx, renamed };
   }
@@ -488,6 +502,28 @@ describe('resolvePagePath — a cross-folder match re-decides the classification
     expect(marked).toContain('type_conflict: entity');
     // The question stays open for the run after the twin is healed.
     expect(marked).not.toContain('type_confirmed');
+  });
+
+  it('does not move the page when the write scope does not contain it', async () => {
+    // Phase 5 (F-08): the move is a `fileManager.renameFile`, and it now goes
+    // through the gate with BOTH ends asserted. A scope that does not contain
+    // the page refuses the write; the refusal joins the dedup block's existing
+    // failure handling (fall back to the slug path), so the page is neither
+    // moved nor silently rewritten somewhere else.
+    const { ctx, renamed } = makeMovableCtx({
+      files: { 'wiki/concepts/Stress.md': '---\ntype: concept\n---\n\nbody' },
+      indexed: ['wiki/concepts/Stress.md'],
+      reply: { match: true, path: 'wiki/concepts/Stress.md', classification: 'entity' },
+      scopeFolder: 'other-wiki',
+    });
+
+    const result = await resolvePagePath(ctx, 'Stress', 'entity', 'desc');
+
+    expect(renamed).toEqual([]);
+    // The page stayed exactly where it was, with its content untouched.
+    expect(ctx.written.get('wiki/concepts/Stress.md')).toBe('---\ntype: concept\n---\n\nbody');
+    expect(ctx.written.has('wiki/entities/Stress.md')).toBe(false);
+    expect(result.path).toBe('wiki/entities/Stress.md');
   });
 
   it('marks the conflict when the host offers no link-safe rename', async () => {

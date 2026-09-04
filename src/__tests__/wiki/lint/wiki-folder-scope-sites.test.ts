@@ -29,6 +29,8 @@ import { getExistingWikiPages } from '../../../wiki/lint/get-existing-pages';
 import { ContradictionManager } from '../../../wiki/contradictions';
 import { deleteEmptyStubs } from '../../../wiki/lint/delete-empty-stubs';
 import { normalizeSourcesInFolder } from '../../../core/sources-normalizer';
+import { createTestVaultWriter, testScopeFor } from '../../__support__/vault-writer';
+import type { VaultWriter } from '../../../core/vault-writer';
 import type { EngineContext } from '../../../types';
 
 // --- shared fixture builders ------------------------------------------------
@@ -92,6 +94,22 @@ function makeVault(files: MockVaultFile[]) {
   };
 }
 
+/** A real Phase 5 gate over the fixture's own file list. */
+function makeCtxWriter(files: MockVaultFile[], wikiFolder: string): VaultWriter {
+  const byPath = new Map(files.map(f => [f.path, f]));
+  return createTestVaultWriter(
+    {
+      read: path => byPath.get(path)?.content ?? null,
+      write: (path, content) => {
+        const existing = byPath.get(path);
+        byPath.set(path, { ...(existing ?? { path, basename: path }), content });
+      },
+      remove: path => { byPath.delete(path); },
+    },
+    testScopeFor(wikiFolder),
+  ).writer;
+}
+
 function makeLintCtx(files: MockVaultFile[], settings: Partial<LLMWikiSettings> = {}): LintPhaseContext {
   return {
     app: makeVault(files) as unknown as LintPhaseContext['app'],
@@ -101,6 +119,7 @@ function makeLintCtx(files: MockVaultFile[], settings: Partial<LLMWikiSettings> 
       slugCase: 'lower',
       ...settings,
     } as LLMWikiSettings,
+    vaultWriter: makeCtxWriter(files, (settings.wikiFolder as string) ?? 'wiki'),
     llmClient: () => null,
     wikiEngine: { updateStatusBar: () => {} } as unknown as LintPhaseContext['wikiEngine'],
     checkCancelled: () => {},
@@ -302,7 +321,12 @@ describe('PR #384 / #383 — normalizeSourcesInFolder (production function)', ()
     ]);
     const app = makeVaultNormalizerApp(byPath, processed);
 
-    const result = await normalizeSourcesInFolder(app as unknown as App, 'wiki', false);
+    const result = await normalizeSourcesInFolder(
+      app as unknown as App,
+      'wiki',
+      false,
+      makeNormalizerWriter(byPath, processed),
+    );
 
     expect(processed).toEqual(['wiki/sources/Polluted.md']);
     expect(result).toEqual({ filesCleaned: 1, entriesCleaned: 1 });
@@ -315,7 +339,12 @@ describe('PR #384 / #383 — normalizeSourcesInFolder (production function)', ()
     ]);
     const app = makeVaultNormalizerApp(byPath, processed);
 
-    const result = await normalizeSourcesInFolder(app as unknown as App, 'wiki', false);
+    const result = await normalizeSourcesInFolder(
+      app as unknown as App,
+      'wiki',
+      false,
+      makeNormalizerWriter(byPath, processed),
+    );
 
     expect(processed).toEqual([]);
     expect(result).toEqual({ filesCleaned: 0, entriesCleaned: 0 });
@@ -328,11 +357,15 @@ describe('PR #384 / #383 — normalizeSourcesInFolder (production function)', ()
         read: async () => {
           throw new Error('IO error');
         },
-        process: async () => {},
       },
     };
 
-    const result = await normalizeSourcesInFolder(app as unknown as App, 'wiki', false);
+    const result = await normalizeSourcesInFolder(
+      app as unknown as App,
+      'wiki',
+      false,
+      makeNormalizerWriter(new Map(), []),
+    );
 
     expect(result).toEqual({ filesCleaned: 0, entriesCleaned: 0 });
   });
@@ -340,12 +373,11 @@ describe('PR #384 / #383 — normalizeSourcesInFolder (production function)', ()
 
 function makeVaultNormalizerApp(
   byPath: Map<string, string>,
-  processed: string[]
+  _processed: string[]
 ): {
   vault: {
     getMarkdownFiles: () => Array<{ path: string; basename: string; extension: string }>;
     read: (file: { path: string }) => Promise<string>;
-    process: (file: { path: string }, fn: (d: string) => string | Promise<string>) => Promise<void>;
   };
 } {
   return {
@@ -356,12 +388,27 @@ function makeVaultNormalizerApp(
         extension: 'md',
       })),
       read: async (f: { path: string }) => byPath.get(f.path) ?? '',
-      process: async (f: { path: string }, fn: (d: string) => string | Promise<string>) => {
-        processed.push(f.path);
-        byPath.set(f.path, String(await fn(byPath.get(f.path) ?? '')));
-      },
     },
   };
+}
+
+/**
+ * Phase 5 (F-08): the rewrite half now goes through a REAL `VaultWriter`, so
+ * `processed` records what the GATE let through — a path the gate refuses
+ * never reaches the store and never lands in the list.
+ */
+function makeNormalizerWriter(byPath: Map<string, string>, processed: string[]): VaultWriter {
+  return createTestVaultWriter(
+    {
+      read: path => byPath.get(path) ?? null,
+      write: (path, content) => {
+        processed.push(path);
+        byPath.set(path, content);
+      },
+      remove: path => { byPath.delete(path); },
+    },
+    testScopeFor('wiki'),
+  ).writer;
 }
 
 // --- 6. contradictions.ts (missed site fixed in follow-up) ----------------

@@ -49,6 +49,7 @@ import { QueryView, VIEW_TYPE_QUERY } from './wiki/query-engine';
 import { IngestReportModal, ConfirmModal } from './ui/modals';
 import { SchemaManager } from './schema/schema-manager';
 import { AutoMaintainManager } from './schema/auto-maintain';
+import { createVaultWriter, type VaultWriter } from './core/vault-writer';
 
 // v1.25.1 Phase C-PR3: Mixin method implementations.
 import { pdfCacheCommands } from './main-commands/pdf-cache-commands';
@@ -71,6 +72,12 @@ import type { SecretStorageCommandsMethods } from './main-commands/secret-storag
 export class LLMWikiPlugin extends Plugin {
   settings: LLMWikiSettings;
   llmClient: LLMClient | null = null;
+  /**
+   * Phase 5 (F-08): the one vault write-gate, built once after settings load
+   * and handed to every module that writes. Scope is read from `this.settings`
+   * on each call, so changing `wikiFolder` re-scopes it immediately.
+   */
+  vaultWriter: VaultWriter;
   wikiEngine: WikiEngine;
   schemaManager: SchemaManager;
   autoMaintainManager: AutoMaintainManager;
@@ -113,10 +120,16 @@ export class LLMWikiPlugin extends Plugin {
     this.cleanupVocabularyTags();
     await initializeLLMClientAfterModules(aiSdkModulesLoaded, () => this.initializeLLMClient());
 
+    // The config-dir root follows `manifest.id`, not a literal: Phase 7
+    // renames the plugin to `karpathywiki-hardened`, and a pinned literal
+    // would then scope the gate at a directory the plugin does not use.
+    this.vaultWriter = createVaultWriter(this.app, this.settings, this.manifest.id);
+
     this.schemaManager = new SchemaManager(
       this.app,
       this.settings,
-      () => this.llmClient
+      () => this.llmClient,
+      this.vaultWriter
     );
 
     this.wikiEngine = new WikiEngine(
@@ -137,7 +150,8 @@ export class LLMWikiPlugin extends Plugin {
         this.showProgressFor(ProgressScope.IngestAutoWatch, msg);
       },
       (report: IngestReport) => this.onIngestDoneDispatch(report),
-      (typeof activeWindow !== 'undefined' ? activeWindow.crypto : undefined)?.subtle
+      (typeof activeWindow !== 'undefined' ? activeWindow.crypto : undefined)?.subtle,
+      this.vaultWriter
     );
 
     // #164: when an interactive ingest hits a duplicate, ask the user whether to
@@ -158,7 +172,8 @@ export class LLMWikiPlugin extends Plugin {
       this.settings,
       this.wikiEngine,
       this,
-      () => this.lintWiki('auto')
+      () => this.lintWiki('auto'),
+      this.vaultWriter
     );
 
     void this.performPdfCacheHousekeeping();

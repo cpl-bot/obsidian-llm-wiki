@@ -46,6 +46,7 @@ import { mergeFrontmatter, parseFrontmatter, extractBody } from '../../core/fron
 import { incomingTypeTag } from '../../core/tag-vocab';
 import { appendContradictedByMarker } from '../../core/contradicted-marker';
 import { buildContradictionRecord } from '../../core/contradiction-record';
+import type { VaultWriter } from '../../core/vault-writer';
 import { injectMentionsSection } from '../../core/mentions-injector';
 import { renderTemplate } from '../../core/template-renderer';
 import { applySectionLabels, getSectionLabels } from '../system-prompts';
@@ -64,6 +65,9 @@ import { buildNoteExcerpt, renderNoteExcerptBlock } from './note-window';
 export interface MergeContext {
   app: unknown;
   settings: LLMWikiSettings;
+  /** Phase 5 (F-08): the vault write-gate — the contradiction-record folder
+   *  is created through it rather than through `app.vault.createFolder`. */
+  vaultWriter: VaultWriter;
   getClient(): LLMClient | null;
   buildSystemPrompt(mode: 'full' | 'compact' | 'merge'): Promise<string>;
   createOrUpdateFile(path: string, content: string): Promise<void>;
@@ -336,7 +340,7 @@ async function writeContradictionRecords(
   const wikiFolder = ctx.settings.wikiFolder;
   const dir = `${wikiFolder}/contradictions`;
   try {
-    await (ctx.app as { vault: { createFolder(p: string): Promise<unknown> } }).vault.createFolder(dir);
+    await ctx.vaultWriter.createFolder(dir);
   } catch {
     // folder already exists
   }

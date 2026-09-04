@@ -58,7 +58,7 @@ describe('DiskCache<T> ledger optimization', () => {
   it('set() below threshold skips the O(N) list scan', async () => {
     const { adapter, files } = createFakeAdapter();
     const cache = new DiskCache<string>({
-      cacheDir: '/fake/cache',
+      cacheDir: 'fake/cache',
       adapter: adapter as never,
       ttlMs: 30 * 24 * 60 * 60 * 1000,
       maxBytes: 10_000, // threshold at 8000 bytes
@@ -79,7 +79,7 @@ describe('DiskCache<T> ledger optimization', () => {
   it('set() above threshold triggers the list scan + enforce', async () => {
     const { adapter } = createFakeAdapter();
     const cache = new DiskCache<string>({
-      cacheDir: '/fake/cache',
+      cacheDir: 'fake/cache',
       adapter: adapter as never,
       ttlMs: 30 * 24 * 60 * 60 * 1000,
       maxBytes: 1_000,
@@ -99,7 +99,7 @@ describe('DiskCache<T> ledger optimization', () => {
   it('invalidate() decrements the ledger so subsequent set() does not over-count', async () => {
     const { adapter, files } = createFakeAdapter();
     const cache = new DiskCache<string>({
-      cacheDir: '/fake/cache',
+      cacheDir: 'fake/cache',
       adapter: adapter as never,
       ttlMs: 30 * 24 * 60 * 60 * 1000,
       maxBytes: 10_000,
@@ -111,7 +111,7 @@ describe('DiskCache<T> ledger optimization', () => {
 
     // Invalidate a. The next enforce should NOT over-evict because ledger was decremented.
     await cache.invalidate('a.json');
-    expect(files.has('/fake/cache/a.json')).toBe(false);
+    expect(files.has('fake/cache/a.json')).toBe(false);
 
     // Verify a new set under threshold still skips enforce.
     await cache.set('c.json', JSON.stringify({ data: 'z'.repeat(100) }));
@@ -124,7 +124,7 @@ describe('DiskCache<T> ledger optimization', () => {
   it('clear() resets the ledger', async () => {
     const { adapter, files } = createFakeAdapter();
     const cache = new DiskCache<string>({
-      cacheDir: '/fake/cache',
+      cacheDir: 'fake/cache',
       adapter: adapter as never,
       ttlMs: 30 * 24 * 60 * 60 * 1000,
       maxBytes: 10_000,
@@ -149,11 +149,11 @@ describe('DiskCache<T> ledger optimization', () => {
     // vault with cache restored from backup, or entries written by another
     // process. enforceSizeLimit() must still evict correctly.
     const { adapter, files } = createFakeAdapter({
-      '/fake/cache/old.json': { data: JSON.stringify({ data: 'x'.repeat(450) }), mtime: Date.now() - 60_000 },
-      '/fake/cache/fresh.json': { data: JSON.stringify({ data: 'y'.repeat(450) }), mtime: Date.now() },
+      'fake/cache/old.json': { data: JSON.stringify({ data: 'x'.repeat(450) }), mtime: Date.now() - 60_000 },
+      'fake/cache/fresh.json': { data: JSON.stringify({ data: 'y'.repeat(450) }), mtime: Date.now() },
     });
     const cache = new DiskCache<string>({
-      cacheDir: '/fake/cache',
+      cacheDir: 'fake/cache',
       adapter: adapter as never,
       ttlMs: 30 * 24 * 60 * 60 * 1000,
       maxBytes: 500,
@@ -164,18 +164,18 @@ describe('DiskCache<T> ledger optimization', () => {
     const result = await cache.enforceSizeLimit();
     expect(result.removed).toBeGreaterThanOrEqual(1);
     // Old entry must be evicted; fresh must remain.
-    expect(files.has('/fake/cache/old.json')).toBe(false);
-    expect(files.has('/fake/cache/fresh.json')).toBe(true);
+    expect(files.has('fake/cache/old.json')).toBe(false);
+    expect(files.has('fake/cache/fresh.json')).toBe(true);
   });
 
   it('enforceSizeLimit() below caps reconciles ledger to actual state (no eviction)', async () => {
     // Seed files directly. enforceSizeLimit() with no over-cap should
     // still update the ledger to match the filesystem state.
     const { adapter } = createFakeAdapter({
-      '/fake/cache/a.json': { data: JSON.stringify({ data: 'x'.repeat(100) }), mtime: Date.now() },
+      'fake/cache/a.json': { data: JSON.stringify({ data: 'x'.repeat(100) }), mtime: Date.now() },
     });
     const cache = new DiskCache<string>({
-      cacheDir: '/fake/cache',
+      cacheDir: 'fake/cache',
       adapter: adapter as never,
       ttlMs: 30 * 24 * 60 * 60 * 1000,
       maxBytes: 10_000,
@@ -195,11 +195,11 @@ describe('DiskCache<T> ledger optimization', () => {
 
   it('purgeExpired() reconciles ledger after eviction', async () => {
     const { adapter, files } = createFakeAdapter({
-      '/fake/cache/old.json': { data: JSON.stringify({ data: 'x' }), mtime: Date.now() - 60 * 24 * 60 * 60 * 1000 },
-      '/fake/cache/fresh.json': { data: JSON.stringify({ data: 'y' }), mtime: Date.now() },
+      'fake/cache/old.json': { data: JSON.stringify({ data: 'x' }), mtime: Date.now() - 60 * 24 * 60 * 60 * 1000 },
+      'fake/cache/fresh.json': { data: JSON.stringify({ data: 'y' }), mtime: Date.now() },
     });
     const cache = new DiskCache<string>({
-      cacheDir: '/fake/cache',
+      cacheDir: 'fake/cache',
       adapter: adapter as never,
       ttlMs: 30 * 24 * 60 * 60 * 1000, // 30 days
       maxBytes: 10_000,
@@ -209,8 +209,8 @@ describe('DiskCache<T> ledger optimization', () => {
 
     const result = await cache.purgeExpired();
     expect(result.removed).toBe(1);
-    expect(files.has('/fake/cache/old.json')).toBe(false);
-    expect(files.has('/fake/cache/fresh.json')).toBe(true);
+    expect(files.has('fake/cache/old.json')).toBe(false);
+    expect(files.has('fake/cache/fresh.json')).toBe(true);
 
     // After purge, ledger should reflect remaining state. A new write
     // under threshold should not trigger enforce.
@@ -222,7 +222,7 @@ describe('DiskCache<T> ledger optimization', () => {
   it('large single entry exceeding maxSingleEntryBytes is skipped without ledger update', async () => {
     const { adapter, files } = createFakeAdapter();
     const cache = new DiskCache<string>({
-      cacheDir: '/fake/cache',
+      cacheDir: 'fake/cache',
       adapter: adapter as never,
       ttlMs: 30 * 24 * 60 * 60 * 1000,
       maxBytes: 10_000,
