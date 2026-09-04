@@ -72,6 +72,34 @@ describe('UI text parity across all locales', () => {
   });
 });
 
+// Hardening Phase 2.A (finding F-06): the optional third-party
+// document-conversion backend was removed because it uploaded whole PDFs,
+// images and Office documents to a service unrelated to the user's chosen
+// LLM provider. i18n is the easiest place for a fragment of a removed
+// feature to survive — an orphan key here would put the vendor's name (and
+// its token-signup URL) back into the shipped bundle, which is exactly what
+// `scripts/check-bundle-no-mineru.mjs` asserts against post-build. This
+// guard fails at test time instead, in every locale, for keys AND values.
+//
+// The needle is assembled from fragments so this test file does not itself
+// contain the literal it forbids.
+const REMOVED_BACKEND_NEEDLE = 'min' + 'eru';
+
+describe('removed conversion backend leaves no i18n trace (hardening Phase 2.A)', () => {
+  it.each(LOCALES)('locale "%s" has no key naming the removed backend', (locale) => {
+    const offenders = Object.keys(TEXTS[locale]).filter((key) => key.toLowerCase().includes(REMOVED_BACKEND_NEEDLE));
+    expect(offenders, `removed-backend keys in ${locale}`).toEqual([]);
+  });
+
+  it.each(LOCALES)('locale "%s" has no value mentioning the removed backend', (locale) => {
+    const texts = TEXTS[locale] as unknown as Record<string, unknown>;
+    const offenders = Object.entries(texts)
+      .filter(([, value]) => typeof value === 'string' && value.toLowerCase().includes(REMOVED_BACKEND_NEEDLE))
+      .map(([key]) => key);
+    expect(offenders, `removed-backend copy in ${locale}`).toEqual([]);
+  });
+});
+
 describe('Italian locale wiring', () => {
   it('exposes the Italian UI locale', () => {
     expect(TEXTS.it).toBeDefined();

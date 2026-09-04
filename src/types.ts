@@ -213,12 +213,6 @@ export interface LLMWikiSettings {
    */
   strictEgress?: boolean;
   model: string;
-  /** Markdown conversion backend. Native keeps the existing provider flow
-   *  (PDF + images via the provider's native support); MinerU accepts PDF,
-   *  images, and Office documents via its online API. Renamed from
-   *  `pdfConversionBackend` in v1.27.0 MINOR to reflect the broader scope
-   *  (Anthropic Vision + OpenAI Vision support images natively). */
-  markdownConversionBackend?: 'native' | 'mineru';
   wikiFolder: string;
   language: 'en' | 'zh' | 'zh-Hant' | 'ja' | 'ko' | 'de' | 'fr' | 'es' | 'pt' | 'it';
   wikiLanguage: string;
@@ -324,10 +318,10 @@ export interface LLMWikiSettings {
   // the plaintext field. Idempotent — set true after the migration
   // runs so the second load is a no-op.
   _migrated_v1_25_3_secret_storage?: boolean;
-  // v1.27.0 MINOR #404 follow-up: rename `pdfConversionBackend` →
-  // `markdownConversionBackend`. Migration preserves the existing value so
-  // users who already selected MinerU do not silently fall back to native.
-  _migrated_v1_27_0_markdown_conversion_backend?: boolean;
+  // Hardening (Phase 2.A): the third-party document-conversion backend was
+  // removed. The migration blanks its secret slot and deletes the legacy
+  // backend keys from data.json. Idempotent — set true once the scrub runs.
+  _migrated_harden_conversion_backend_removed?: boolean;
 
   // Query dedup
   lastOfferedQueryHash?: string;
@@ -1191,7 +1185,6 @@ export const DEFAULT_SETTINGS: LLMWikiSettings = {
   // Phase 4.4 (F-04): egress allowlist enforced unless the user opts out.
   strictEgress: true,
   model: '',  // No hardcoded default — user must fetch models or enter manually
-  markdownConversionBackend: 'native',
   wikiFolder: 'wiki',
   language: 'en',
   wikiLanguage: 'en',

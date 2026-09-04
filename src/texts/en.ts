@@ -536,8 +536,6 @@ export const EN_TEXTS = {
     rejectionReasonType: 'unsupported type',
     rejectionReasonDuplicate: 'duplicate content',
     rejectionReasonPdfUnsupported: 'provider cannot read PDF',
-    rejectionReasonMineruPageLimit: 'exceeds MinerU page limit',
-    rejectionReasonMineruSizeLimit: 'exceeds MinerU size limit',
     ingestReportFailedGuidance: 'These items could not be automatically created. You can manually create the corresponding pages, or lower the extraction granularity and re-ingest the source file.',
 
     // Command Names (sentence case per Obsidian Bot rule 1)
@@ -778,7 +776,7 @@ export const EN_TEXTS = {
     sourceRejectedDuplicate: '⏭️ "{filename}" skipped — its content is already in the wiki.',
     // v1.25.0 PDF Level 1 (cache-only architecture)
     pdfReadingInProgress: 'Reading PDF: {filename}',
-    sourceRejectedPdfUnsupported: '⏭️ "{filename}" skipped — your current provider or model doesn\'t accept PDF input. Switch provider, open Settings → LLM Configuration → Advanced and turn on "Force PDF support" to try anyway, or switch the Markdown conversion backend to MinerU (also handles images and Office documents).',
+    sourceRejectedPdfUnsupported: '⏭️ "{filename}" skipped — your current provider or model doesn\'t accept PDF input. Switch provider, open Settings → LLM Configuration → Advanced and turn on "Force PDF support" to try anyway.',
     clearPdfCacheCommand: 'Clear PDF conversion cache',
     pdfCacheCleared: 'PDF cache cleared ({count} entries removed).',
     // v1.25.0 PR3: Advanced PDF settings
@@ -786,20 +784,8 @@ export const EN_TEXTS = {
     forcePdfSupportDesc: 'Off by default. Turn this on if your provider isn\'t listed as native but can still handle PDF files. When on, the PDF will be sent to your current provider — if it gets rejected, you\'ll see a clear notice. Native PDF providers (Anthropic / OpenAI / Bedrock) don\'t need this.',
     writePdfMarkdownToVaultName: 'Write converted Markdown to Vault',
     writePdfMarkdownToVaultDesc: 'Off by default. When on, each PDF conversion result is written to a "<basename>.pdf.md" file next to the source PDF. When off (cache-only architecture), results live only in the plugin cache and leave no artifacts in your Vault.',
-    markdownConversionBackendName: 'Markdown conversion backend',
-    markdownConversionBackendDesc: 'Native uses your provider\'s built-in PDF support (limited scope, not every provider/model handles PDF, costs LLM tokens). MinerU is an online service — fast, free up to the daily quota, accepts PDF/images/Office — but requires an API token (set it in the field below).',
-    markdownConversionBackendNative: 'Provider PDF/image support',
-    markdownConversionBackendMineru: 'MinerU online API',
-    mineruApiTokenName: 'MinerU API token',
-    mineruApiTokenDesc: 'Get your token at https://mineru.net/apiManage/token. MinerU accepts files up to 200 MB and up to 200 pages.',
-    mineruApiTokenPlaceholder: 'Paste MinerU API token',
-    mineruUploadingInProgress: 'Uploading PDF to MinerU: {filename}',
-    mineruWaitingInProgress: 'Waiting for MinerU conversion: {filename}',
-    mineruDownloadingInProgress: 'Downloading MinerU result: {filename}',
     markdownConversionComplete: 'Conversion complete: {filename}',
     markdownConversionCompleteSaved: 'Conversion complete — written to {path}: {filename}',
-    mineruPageLimitRejected: '{filename} exceeds MinerU\'s {limit}-page limit — split the file and retry',
-    mineruSizeLimitRejected: '{filename} exceeds MinerU\'s {limit} MB size limit',
     ingestRejectedSummary: '{count} file(s) skipped (empty, duplicate, or unsupported type).',
     reingestConfirmTitle: 'Re-ingest this file?',
     reingestConfirmBody: 'The content of "{filename}" is already in the wiki. Re-ingest it anyway?',

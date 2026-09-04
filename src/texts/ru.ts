@@ -539,8 +539,6 @@ export const RU_TEXTS = {
     rejectionReasonType: 'неподдерживаемый тип',
     rejectionReasonDuplicate: 'дублирующееся содержимое',
     rejectionReasonPdfUnsupported: 'провайдер не может прочитать PDF',
-    rejectionReasonMineruPageLimit: 'превышает лимит страниц MinerU',
-    rejectionReasonMineruSizeLimit: 'превышает лимит размера MinerU',
     ingestReportFailedGuidance: 'Эти элементы не удалось создать автоматически. Вы можете вручную создать соответствующие страницы или снизить гранулярность извлечения и повторно импортировать исходный файл.',
 
     // Имена команд (предложный регистр по правилу 1 Obsidian Bot)
@@ -759,7 +757,7 @@ export const RU_TEXTS = {
     sourceRejectedDuplicate: '⏭️ «{filename}» пропущено — его содержимое уже в Wiki.',
     // v1.25.0 PDF Level 1 (cache-only architecture)
     pdfReadingInProgress: 'Чтение PDF: {filename}',
-    sourceRejectedPdfUnsupported: '⏭️ «{filename}» пропущено — ваш текущий провайдер или модель не принимает PDF-вход. Переключите провайдера или откройте Настройки → Конфигурация LLM → Расширенные и включите «Force PDF support», чтобы попробовать всё равно, или переключите бэкенд конвертации Markdown на MinerU (также обрабатывает изображения и документы Office).',
+    sourceRejectedPdfUnsupported: '⏭️ «{filename}» пропущено — ваш текущий провайдер или модель не принимает PDF-вход. Переключите провайдера или откройте Настройки → Конфигурация LLM → Расширенные и включите «Force PDF support», чтобы попробовать всё равно.',
     clearPdfCacheCommand: 'Очистить кэш конвертации PDF',
     pdfCacheCleared: 'Кэш PDF очищен ({count} записей удалено).',
     // v1.25.0 PR3: расширенные настройки PDF
@@ -767,20 +765,8 @@ export const RU_TEXTS = {
     forcePdfSupportDesc: 'Выкл по умолчанию. Включите, если ваш провайдер не указан как нативный, но всё же может обрабатывать PDF-файлы. Когда вкл, PDF будет отправлен вашему текущему провайдеру — если будет отклонён, вы увидите чёткое уведомление. Нативным PDF-провайдерам (Anthropic / OpenAI / Bedrock) это не нужно.',
     writePdfMarkdownToVaultName: 'Записать конвертированный Markdown в хранилище',
     writePdfMarkdownToVaultDesc: 'Выкл по умолчанию. Когда вкл, каждый результат конвертации PDF записывается в файл «<basename>.pdf.md» рядом с исходным PDF. Когда выкл (архитектура только-кэш), результаты живут только в кэше плагина и не оставляют артефактов в вашем хранилище.',
-    markdownConversionBackendName: 'Способ конвертации Markdown',
-    markdownConversionBackendDesc: 'Используйте встроенную поддержку PDF вашего провайдера (ограниченная область применения, не все провайдеры/модели работают с PDF, расходует токены LLM). MinerU — это онлайн-сервис — быстрый, бесплатный до дневной квоты, принимает PDF/изображения/Office — но требует токен API (укажите его в поле ниже).',
-    markdownConversionBackendNative: 'Поддержка PDF/изображений провайдером',
-    markdownConversionBackendMineru: 'Онлайн API MinerU',
-    mineruApiTokenName: 'Токен API MinerU',
-    mineruApiTokenDesc: 'Получите токен на https://mineru.net/apiManage/token. MinerU принимает файлы до 200 МБ и до 200 страниц.',
-    mineruApiTokenPlaceholder: 'Вставьте токен API MinerU',
-    mineruUploadingInProgress: 'Загрузка PDF в MinerU: {filename}',
-    mineruWaitingInProgress: 'Ожидание конвертации MinerU: {filename}',
-    mineruDownloadingInProgress: 'Загрузка результата MinerU: {filename}',
     markdownConversionComplete: 'Конвертация завершена: {filename}',
     markdownConversionCompleteSaved: 'Конвертация завершена — записано в {path}: {filename}',
-    mineruPageLimitRejected: '{filename} превышает лимит MinerU в {limit} страниц — разделите файл и повторите попытку',
-    mineruSizeLimitRejected: '{filename} превышает лимит размера MinerU в {limit} МБ',
     ingestRejectedSummary: '{count} файл(ов) пропущено (пусто, дубликат или неподдерживаемый тип).',
     reingestConfirmTitle: 'Повторно импортировать этот файл?',
     reingestConfirmBody: 'Содержимое «{filename}» уже в Wiki. Повторно импортировать?',
