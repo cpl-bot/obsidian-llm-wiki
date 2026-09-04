@@ -46,10 +46,12 @@ export const JA_TEXTS = {
     apiKeyName: 'API Key',
     apiKeyDesc: 'APIキー。OSの資格情報マネージャーに保存され、data.jsonには書き込まれません。',
     apiKeyPlaceholder: 'API Keyを入力',
-    // v1.25.4 #339: SecretStorage migration repair + failure Notice
-    apiKeyMigrateToSecretStorageButton: 'SecretStorageを移行',
-    apiKeyMigratedToSecretStorageSuccess: 'APIキーがSecretStorageから設定に復元されました。',
+    // v1.25.4 #339: SecretStorage write-failure Notice (Settings tab flush)
     apiKeyMigrationFailedNotice: 'SecretStorageへのAPIキー保存に失敗しました: {}',
+    // Hardening Phase 3 (F-03): fail-closed keychain contract.
+    keychainUnavailableNotice: 'キーチェーンを読み取れません。読み取り可能になるまでLLM機能は無効です: {}',
+    plaintextApiKeyScrubbedNotice: 'data.json から平文のAPIキーを削除しました。このキーはローテーションしてください。',
+    unsupportedPlatform: 'LLM Wiki は Windows に対応していません。プラグインは読み込まれませんでした。',
     codexAuthName: 'ChatGPTプランにサインイン',
     codexAuthDesc: 'ChatGPTプランの利用枠を使う実験的なCodex OAuthアクセスです。OpenAI Platform APIの課金は別途行われます。',
     codexAuthSignedOut: 'サインインしていません',

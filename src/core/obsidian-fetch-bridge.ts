@@ -24,6 +24,7 @@
 // Reference: https://ai-sdk.dev/docs/reference/ai-sdk-core/provider#custom-fetch
 
 import { requestUrl, RequestUrlParam } from 'obsidian';
+import { redactSecrets } from './redact';
 
 import { assertAllowedEgress, currentEgressSettings } from './egress-policy';
 
@@ -147,7 +148,11 @@ export async function obsidianFetchBridge(
     // Re-throw as a fetch-like TypeError so AI-SDK treats it as a
     // network failure (vs. an API error with a body).
     if (err instanceof Error) {
-      throw new TypeError(`obsidianFetchBridge network error: ${err.message}`);
+      // Hardening Phase 3 (F-03/3.5): a network-layer error message can
+      // carry the request URL, and some providers authenticate by query
+      // parameter (`?key=`, `?api_key=`). This message is printed and
+      // surfaced verbatim by every caller above.
+      throw new TypeError(`obsidianFetchBridge network error: ${redactSecrets(err.message)}`);
     }
     throw err;
   }
@@ -296,13 +301,15 @@ export async function streamWithFallback(
 
   // Local providers: skip the CORS gamble. Use requestUrl directly.
   if (isLocalBaseURL(url)) {
-    console.debug(`[${STREAM_FETCH_LOG}] isLocal, fallback to obsidianFetchBridge (requestUrl): ${url}`);
+    // Hardening Phase 3 (F-03/3.5): the URL is logged on every request and
+    // some providers put the key in the query string.
+    console.debug(`[${STREAM_FETCH_LOG}] isLocal, fallback to obsidianFetchBridge (requestUrl): ${redactSecrets(url)}`);
     return obsidianFetchBridge(url, init);
   }
 
   // Cloud providers: try streaming first.
   try {
-    console.debug(`[${STREAM_FETCH_LOG}] try streamingObsidianFetch (window.fetch): ${url}`);
+    console.debug(`[${STREAM_FETCH_LOG}] try streamingObsidianFetch (window.fetch): ${redactSecrets(url)}`);
     const res = await streamingObsidianFetch(url, init);
     console.debug(`[${STREAM_FETCH_LOG}] streamingObsidianFetch succeeded, body=${typeof res.body}, status=${res.status}`);
     return res;
@@ -310,7 +317,7 @@ export async function streamWithFallback(
     // Fallback: TypeError = CORS / network / DNS failure.
     // Other errors (DOMException from AbortSignal) should propagate.
     if (err instanceof TypeError) {
-      console.debug(`[${STREAM_FETCH_LOG}] TypeError, falling back to obsidianFetchBridge: ${err.message}`);
+      console.debug(`[${STREAM_FETCH_LOG}] TypeError, falling back to obsidianFetchBridge: ${redactSecrets(err.message)}`);
       // Build a response from requestUrl — no streaming body, but
       // AI-SDK can still read it as a single yield.
       return obsidianFetchBridge(url, init);

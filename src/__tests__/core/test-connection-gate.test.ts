@@ -3,10 +3,28 @@
 // v1.23.0 LM Studio hotfix (#214): verify that local providers (ollama,
 // lmstudio) with empty apiKey bypass the gate in testLLMConnection,
 // while cloud providers (openai, anthropic) still require a key.
+//
+// Hardening Phase 3 (F-03): "the configured key" is now whatever the OS
+// keychain holds — the plaintext settings field is gone — so fixtures seed a stub
+// keychain via `storedKey` instead of a settings field.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import LLMWikiPlugin from '../../main';
 import { TEXTS } from '../../texts';
+
+const SECRET_ID = 'karpathywiki-provider-api-key';
+
+/**
+ * The key the stub keychains below answer with. Module-level so each
+ * `describe` can point its own mock app at it and each test can set it.
+ */
+let storedKey = '';
+
+/** Stub of Obsidian's `App.secretStorage`, backed by `storedKey`. */
+const stubSecretStorage = {
+  getSecret: (id: string) => (id === SECRET_ID ? storedKey : null),
+  setSecret: (id: string, value: string) => { if (id === SECRET_ID) storedKey = value; },
+};
 
 // Mock the create-llm-client module so testLLMConnection doesn't
 // try to dynamically import AI-SDK packages (which would fail in
@@ -28,6 +46,7 @@ describe('testLLMConnection — local provider API key gate', () => {
       getMarkdownFiles: vi.fn().mockReturnValue([]),
       read: vi.fn().mockResolvedValue(''),
     },
+    secretStorage: stubSecretStorage,
   };
   const mockManifest = {
     id: 'test-plugin',
@@ -39,11 +58,12 @@ describe('testLLMConnection — local provider API key gate', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    storedKey = '';
     plugin = new LLMWikiPlugin(mockApp as never, mockManifest as never);
     // Provide minimal settings required by testLLMConnection
     (plugin as unknown as Record<string, unknown>).settings = {
       provider: 'ollama',
-      apiKey: '',
+      providerApiKeySecretId: SECRET_ID,
       baseUrl: 'http://localhost:11434',
       model: 'qwen2.5-7b',
       language: 'en',
@@ -61,7 +81,6 @@ describe('testLLMConnection — local provider API key gate', () => {
     (plugin as unknown as Record<string, unknown>).settings = {
       ...(plugin as unknown as Record<string, unknown>).settings as Record<string, unknown>,
       provider: 'lmstudio',
-      apiKey: '',
     };
 
     const result = await plugin.testLLMConnection();
@@ -75,7 +94,6 @@ describe('testLLMConnection — local provider API key gate', () => {
     (plugin as unknown as Record<string, unknown>).settings = {
       ...(plugin as unknown as Record<string, unknown>).settings as Record<string, unknown>,
       provider: 'ollama',
-      apiKey: '',
     };
 
     const result = await plugin.testLLMConnection();
@@ -87,7 +105,6 @@ describe('testLLMConnection — local provider API key gate', () => {
     (plugin as unknown as Record<string, unknown>).settings = {
       ...(plugin as unknown as Record<string, unknown>).settings as Record<string, unknown>,
       provider: 'openai',
-      apiKey: '',
     };
 
     const result = await plugin.testLLMConnection();
@@ -100,7 +117,6 @@ describe('testLLMConnection — local provider API key gate', () => {
     (plugin as unknown as Record<string, unknown>).settings = {
       ...(plugin as unknown as Record<string, unknown>).settings as Record<string, unknown>,
       provider: 'anthropic',
-      apiKey: '',
     };
 
     const result = await plugin.testLLMConnection();
@@ -113,7 +129,6 @@ describe('testLLMConnection — local provider API key gate', () => {
     (plugin as unknown as Record<string, unknown>).settings = {
       ...(plugin as unknown as Record<string, unknown>).settings as Record<string, unknown>,
       provider: 'gemini',
-      apiKey: '',
     };
 
     const result = await plugin.testLLMConnection();
@@ -126,8 +141,8 @@ describe('testLLMConnection — local provider API key gate', () => {
     (plugin as unknown as Record<string, unknown>).settings = {
       ...(plugin as unknown as Record<string, unknown>).settings as Record<string, unknown>,
       provider: 'lmstudio',
-      apiKey: 'some-key',
     };
+    storedKey = 'some-key';
 
     const result = await plugin.testLLMConnection();
 
@@ -146,6 +161,7 @@ describe('testLLMConnection — per-task model probes (#208)', () => {
       getMarkdownFiles: vi.fn().mockReturnValue([]),
       read: vi.fn().mockResolvedValue(''),
     },
+    secretStorage: stubSecretStorage,
   };
   const mockManifest = {
     id: 'test-plugin',
@@ -153,6 +169,9 @@ describe('testLLMConnection — per-task model probes (#208)', () => {
     version: '1.0.0',
     minAppVersion: '0.15.0',
   };
+
+  // A configured provider key, held where the plugin now reads it from.
+  beforeEach(() => { storedKey = 'sk-test'; });
 
   /**
    * Build a plugin whose settings mirror a real per-task config.
@@ -164,7 +183,7 @@ describe('testLLMConnection — per-task model probes (#208)', () => {
     const plugin = new LLMWikiPlugin(mockApp as never, mockManifest as never);
     (plugin as unknown as Record<string, unknown>).settings = {
       provider: 'openai',
-      apiKey: 'sk-test',
+      providerApiKeySecretId: SECRET_ID,
       baseUrl: 'https://api.openai.com/v1',
       model: 'gpt-4.1',
       language: 'en',
@@ -277,6 +296,7 @@ describe('testLLMConnection — blank model gate (#517)', () => {
       getMarkdownFiles: vi.fn().mockReturnValue([]),
       read: vi.fn().mockResolvedValue(''),
     },
+    secretStorage: stubSecretStorage,
   };
   const mockManifest = {
     id: 'test-plugin',
@@ -285,12 +305,15 @@ describe('testLLMConnection — blank model gate (#517)', () => {
     minAppVersion: '0.15.0',
   };
 
+  // Fresh-install OpenRouter config: provider + key set, model not chosen.
+  beforeEach(() => { storedKey = 'sk-or-test'; });
+
   /** Fresh-install OpenRouter config: provider + key set, model not chosen. */
   function makePlugin(overrides: Record<string, unknown>) {
     const plugin = new LLMWikiPlugin(mockApp as never, mockManifest as never);
     (plugin as unknown as Record<string, unknown>).settings = {
       provider: 'openrouter',
-      apiKey: 'sk-or-test',
+      providerApiKeySecretId: SECRET_ID,
       baseUrl: 'https://openrouter.ai/api/v1',
       model: '',
       language: 'en',
@@ -363,7 +386,8 @@ describe('testLLMConnection — blank model gate (#517)', () => {
 
   it('the API key gate still wins over the model gate', async () => {
     const createMessage = await mockClient();
-    const result = await makePlugin({ apiKey: '', model: '' }).testLLMConnection();
+    storedKey = '';
+    const result = await makePlugin({ model: '' }).testLLMConnection();
     expect(result.success).toBe(false);
     expect(result.message).toBe(TEXTS.en.errorNoApiKey);
     expect(createMessage).not.toHaveBeenCalled();
@@ -379,6 +403,7 @@ describe('testLLMConnection — Bedrock SSO/IAM gate (#425)', () => {
       getMarkdownFiles: vi.fn().mockReturnValue([]),
       read: vi.fn().mockResolvedValue(''),
     },
+    secretStorage: stubSecretStorage,
   };
   const mockManifest = {
     id: 'test-plugin',
@@ -402,7 +427,6 @@ describe('testLLMConnection — Bedrock SSO/IAM gate (#425)', () => {
     const plugin = new LLMWikiPlugin(mockApp2 as never, mockManifest as never);
     (plugin as unknown as Record<string, unknown>).settings = {
       provider: 'bedrock-anthropic',
-      apiKey: '',
       model: 'anthropic.claude-3-5-sonnet',
       language: 'en',
       wikiFolder: 'wiki',

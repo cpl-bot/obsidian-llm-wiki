@@ -7,9 +7,11 @@
  * `tab.display()` re-render. Two independent causes were fixed:
  *
  *   1. provider-section.ts input initial value (now `resolveInitialApiKey`):
- *      `tempSettings.apiKey` non-empty wins over SecretStorage. Without
- *      this, every re-render painted the OLD provider's key over the
- *      freshly-typed value.
+ *      a non-empty typed buffer wins over SecretStorage. Without this,
+ *      every re-render painted the OLD provider's key over the
+ *      freshly-typed value. (Hardening Phase 3 (F-03) moved that buffer
+ *      off the settings object to `LLMWikiSettingTab.pendingApiKey`, so
+ *      it is now the helper's first argument.)
  *   2. resolveProviderApiKey gained an optional `pendingKey` parameter
  *      that wins over SecretStorage. Wired into Fetch Models /
  *      Test Connection / createLLMClient so the freshly-typed key
@@ -24,9 +26,9 @@ import {
   resolveProviderApiKey,
   resolveInitialApiKey,
 } from '../../llm-sdk/provider-api-key-resolver';
-import type { ProviderSecretStorage } from '../../llm-sdk/provider-secret-store';
+import { ProviderSecretStorageError, type ProviderSecretStorage } from '../../llm-sdk/provider-secret-store';
 
-const SETTINGS = { apiKey: '', providerApiKeySecretId: 'karpathywiki-provider-api-key' };
+const SETTINGS = { providerApiKeySecretId: 'karpathywiki-provider-api-key' };
 
 function backendWith(raw?: string): ProviderSecretStorage {
   const values = new Map<string, string>();
@@ -38,71 +40,56 @@ function backendWith(raw?: string): ProviderSecretStorage {
 }
 
 describe('v1.25.7 PATCH: resolveInitialApiKey input precedence', () => {
-  it('prefers tempSettings.apiKey over SecretStorage (typed key survives re-render)', () => {
+  it('prefers the typed buffer over SecretStorage (typed key survives re-render)', () => {
     expect(
-      resolveInitialApiKey(
-        { apiKey: 'sk-cp-minimax-xxx', providerApiKeySecretId: SETTINGS.providerApiKeySecretId },
-        backendWith('sk-deepseek-old'),
-      ),
+      resolveInitialApiKey('sk-cp-minimax-xxx', SETTINGS, backendWith('sk-deepseek-old')),
     ).toBe('sk-cp-minimax-xxx');
   });
 
-  it('falls back to SecretStorage when tempSettings.apiKey is empty', () => {
+  it('falls back to SecretStorage when the typed buffer is empty', () => {
     expect(
-      resolveInitialApiKey(
-        { apiKey: '', providerApiKeySecretId: SETTINGS.providerApiKeySecretId },
-        backendWith('sk-stored'),
-      ),
+      resolveInitialApiKey('', SETTINGS, backendWith('sk-stored')),
     ).toBe('sk-stored');
   });
 
-  it('falls back to SecretStorage when tempSettings.apiKey is whitespace-only', () => {
+  it('falls back to SecretStorage when the typed buffer is whitespace-only', () => {
     expect(
-      resolveInitialApiKey(
-        { apiKey: '   ', providerApiKeySecretId: SETTINGS.providerApiKeySecretId },
-        backendWith('sk-stored'),
-      ),
+      resolveInitialApiKey('   ', SETTINGS, backendWith('sk-stored')),
     ).toBe('sk-stored');
   });
 
   it('returns empty string when both sources are empty', () => {
     expect(
-      resolveInitialApiKey(
-        { apiKey: '', providerApiKeySecretId: SETTINGS.providerApiKeySecretId },
-        backendWith(),
-      ),
+      resolveInitialApiKey('', SETTINGS, backendWith()),
     ).toBe('');
   });
 
-  it('returns empty string when secretStorage is null and tempSettings.apiKey is empty', () => {
-    expect(
-      resolveInitialApiKey(
-        { apiKey: '', providerApiKeySecretId: SETTINGS.providerApiKeySecretId },
-        null,
-      ),
-    ).toBe('');
+  // Hardening Phase 3 (F-03), review follow-up: an ABSENT store is not
+  // "no key". `manifest.minAppVersion` is 1.11.4 and `App.secretStorage`
+  // is `@since 1.11.4`, so the API exists on every build this plugin can
+  // load into — its absence is a broken host and fails closed like a
+  // throwing keychain, rather than painting an empty box that reads as
+  // "your key is gone".
+  it('throws rather than painting an empty box when there is no SecretStorage at all', () => {
+    expect(() => resolveInitialApiKey('', SETTINGS, null)).toThrow(ProviderSecretStorageError);
   });
 
-  it('trims whitespace from tempSettings.apiKey', () => {
+  it('trims whitespace from the typed buffer', () => {
     expect(
-      resolveInitialApiKey(
-        { apiKey: '  sk-cp-new  ', providerApiKeySecretId: SETTINGS.providerApiKeySecretId },
-        backendWith('sk-stored'),
-      ),
+      resolveInitialApiKey('  sk-cp-new  ', SETTINGS, backendWith('sk-stored')),
     ).toBe('sk-cp-new');
   });
 
-  it('survives SecretStorage.getSecret throw (locked keychain)', () => {
+  // Hardening Phase 3 (F-03) inverted this case. Painting '' for a locked
+  // keychain told the user their key was gone and invited them to retype
+  // it into a store that could not accept it; provider-section now catches
+  // the throw and says "keychain unavailable" instead.
+  it('throws on a locked keychain instead of painting an empty box', () => {
     const broken: ProviderSecretStorage = {
       getSecret: () => { throw new Error('keychain locked'); },
       setSecret: () => {},
     };
-    expect(
-      resolveInitialApiKey(
-        { apiKey: '', providerApiKeySecretId: SETTINGS.providerApiKeySecretId },
-        broken,
-      ),
-    ).toBe('');
+    expect(() => resolveInitialApiKey('', SETTINGS, broken)).toThrow('keychain locked');
   });
 });
 
@@ -136,10 +123,7 @@ describe('v1.25.7 PATCH: resolveProviderApiKey pendingKey precedence', () => {
     //   5. Input value should be the typed key, not the stored key
     const stored = 'sk-deepseek-old';
     const typed = 'sk-cp-minimax-xxx';
-    const inputValue = resolveInitialApiKey(
-      { apiKey: typed, providerApiKeySecretId: SETTINGS.providerApiKeySecretId },
-      backendWith(stored),
-    );
+    const inputValue = resolveInitialApiKey(typed, SETTINGS, backendWith(stored));
     expect(inputValue).toBe(typed);
 
     //   6. User clicks Fetch Models — resolver should use typed key

@@ -126,33 +126,55 @@ export function applySettingsMigrations(
     applied.push('v1.23.0-startup-notice');
   }
 
-  // v1.25.3 #182 migration: move the legacy plaintext `apiKey` out of
-  // data.json into Obsidian SecretStorage. Pure-function side: detect,
-  // stash the plaintext on a transient field, mark the migration done.
-  // The actual SecretStorage write happens in `main.ts loadSettings`
-  // after this helper returns — applySettingsMigrations must stay pure
-  // (no IO).
+  // Hardening Phase 3 (F-03): scrub the plaintext provider API key out of
+  // `data.json`. Replaces the v1.25.3 #182 / v1.25.4 #339 two-phase
+  // migration, which moved the key into the OS keychain but deliberately
+  // LEFT the plaintext on disk whenever the keychain write failed (and
+  // kept the field as a live resolver fallback either way). The
+  // fallback is what made the leak permanent: `data.json` lives in the
+  // vault, so the key rode along into git, iCloud, Syncthing and every
+  // backup. There is no fallback and no `apiKey` field any more.
   //
-  // v1.25.4 #339: Phase 1 (this function) only stashes the legacy key
-  // and does NOT clear settings.apiKey any more. The wipe is deferred
-  // to commitSettingsMigrationV1_25_3() which main.ts calls ONLY after
-  // the SecretStorage write succeeds. This prevents the "both stores
-  // empty" failure mode on IO failure.
-  if (savedData && !savedData._migrated_v1_25_3_secret_storage) {
-    const legacy = typeof savedData.apiKey === 'string' ? savedData.apiKey.trim() : '';
+  // Pure side: stash the plaintext for the caller, delete the field, drop
+  // the superseded marker, set ours. The keychain write and the user-facing
+  // Notice happen in `main.ts loadSettings`, which owns the IO — this
+  // function must stay pure. Deliberately NOT gated on
+  // `_migrated_v1_25_3_secret_storage`, which every install since v1.25.3
+  // already carries.
+  //
+  // The DELETE is unconditional — deliberately NOT gated on our own
+  // marker. A marker-gated scrub only removes the field the first time it
+  // is seen, which is the wrong shape for the guarantee this phase makes:
+  // the whole point is that no persisted key slot survives, including one
+  // a later upstream merge, a downgrade-then-upgrade cycle, or a
+  // sync conflict re-introduces alongside a marker that says the scrub
+  // already ran. Marker-gated, `{ _migrated_…: true, apiKey: 'sk-…' }`
+  // loaded straight through into `this.settings`, and the next
+  // `saveSettings()` wrote it back to disk.
+  //
+  // Idempotence is preserved where it matters — the WRITE. `applied` is
+  // pushed (and `main.ts` therefore calls `saveData` and shows the rotate
+  // Notice) only when this load actually had something to remove, so a
+  // steady-state load is still silent and does no IO.
+  if (savedData) {
+    const untrustedSaved = savedData as Record<string, unknown>;
+    const hadPlaintextField = Object.prototype.hasOwnProperty.call(untrustedSaved, 'apiKey');
+    const hadSupersededMarker = Object.prototype.hasOwnProperty.call(untrustedSaved, '_migrated_v1_25_3_secret_storage');
+    const alreadyScrubbed = settings._migrated_harden_plaintext_api_key_removed === true;
+    const legacy = typeof untrustedSaved.apiKey === 'string'
+      ? untrustedSaved.apiKey.trim()
+      : '';
     if (legacy.length > 0) {
-      // Stash for main.ts to read. NOT a settings field — main.ts is
-      // expected to delete this after the SecretStorage write succeeds.
-      (settings as unknown as { _legacyApiKeyForSecretStorage?: string })._legacyApiKeyForSecretStorage = legacy;
-      // v1.25.4 #339: DO NOT clear settings.apiKey here — phase 2
-      // (commitSettingsMigrationV1_25_3) does that only after the IO
-      // write succeeds. Keeping the plaintext ensures the resolver's
-      // "fall back to settings.apiKey" path works if IO fails.
-      applied.push('v1.25.3-secret-storage');
+      // Stash for main.ts to read. NOT a settings field — main.ts deletes
+      // it before the shared saveData() below can persist it.
+      (settings as unknown as { _legacyPlaintextApiKey?: string })._legacyPlaintextApiKey = legacy;
     }
-    // Mark even when no plaintext exists, so the helper's behavior is
-    // deterministic across all v1.25.3+ loads.
-    settings._migrated_v1_25_3_secret_storage = true;
+    delete untrustedSettings.apiKey;
+    delete untrustedSettings._migrated_v1_25_3_secret_storage;
+    settings._migrated_harden_plaintext_api_key_removed = true;
+    if (!alreadyScrubbed || hadPlaintextField || hadSupersededMarker) {
+      applied.push('harden-plaintext-api-key-removed');
+    }
   }
 
   // Hardening Phase 2.A (F-06): the optional third-party document-conversion
@@ -183,22 +205,6 @@ export function applySettingsMigrations(
 }
 
 /**
- * v1.25.4 #339: Phase 2 of the v1.25.3 secret-storage migration. Call
- * ONLY after the SecretStorage `setSecret(...)` write has succeeded.
- *
- * Wipes `settings.apiKey` (the plaintext is now safely in OS keychain)
- * and sets the final marker. Idempotent — safe to call multiple times
- * (second wipe is a no-op since apiKey is already '').
- *
- * This is deliberately a separate function from applySettingsMigrations
- * so main.ts owns the orchestration (phase 1 = stash, IO = setSecret,
- * phase 2 = wipe) and the pure-function contract stays intact.
- */
-export function commitSettingsMigrationV1_25_3(settings: LLMWikiSettings): void {
-  settings.apiKey = '';
-}
-
-/**
  * Hardening Phase 2.A (F-06): blank the secret slot that held the removed
  * document-conversion backend's API token.
  *
@@ -212,5 +218,36 @@ export function scrubRemovedConversionBackendSecret(secretStorage: SecretSlotWri
   const existing = secretStorage.getSecret(REMOVED_CONVERSION_SECRET_ID);
   if (typeof existing !== 'string' || existing.length === 0) return false;
   secretStorage.setSecret(REMOVED_CONVERSION_SECRET_ID, '');
+  return true;
+}
+
+/**
+ * Hardening Phase 3 (F-03): adopt the plaintext key that the scrub took
+ * off disk into the OS keychain.
+ *
+ * Split out of `applySettingsMigrations` for the same reason as the
+ * conversion-backend scrub: that function is pure and this touches the
+ * keychain. The caller (`main.ts loadSettings`) passes the value the
+ * scrub stashed.
+ *
+ * Writes ONLY when the slot is empty. A populated slot is the newer,
+ * authoritative copy — the plaintext on disk is by definition the stale
+ * one (every key typed since v1.25.3 went to the keychain first), so
+ * overwriting would downgrade a working key to whatever a years-old
+ * `data.json` happened to carry.
+ *
+ * Returns true when the key was adopted, false when the slot already
+ * held one. Either way the caller deletes the plaintext and tells the
+ * user to rotate: the key has been on disk, in a synced folder, and must
+ * be treated as disclosed.
+ */
+export function adoptScrubbedPlaintextApiKey(
+  secretStorage: SecretSlotWriter,
+  secretId: string,
+  legacyKey: string,
+): boolean {
+  const existing = secretStorage.getSecret(secretId);
+  if (typeof existing === 'string' && existing.trim().length > 0) return false;
+  secretStorage.setSecret(secretId, legacyKey);
   return true;
 }

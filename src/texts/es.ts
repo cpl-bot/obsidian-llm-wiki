@@ -46,10 +46,12 @@ export const ES_TEXTS = {
     apiKeyName: 'API Key',
     apiKeyDesc: 'Clave API. Se guarda en el gestor de credenciales del sistema, no en data.json.',
     apiKeyPlaceholder: 'Introduce la API Key',
-    // v1.25.4 #339: SecretStorage migration repair + failure Notice
-    apiKeyMigrateToSecretStorageButton: 'Migrar SecretStorage',
-    apiKeyMigratedToSecretStorageSuccess: 'API Key restaurada de SecretStorage a configuración.',
+    // v1.25.4 #339: SecretStorage write-failure Notice (Settings tab flush)
     apiKeyMigrationFailedNotice: 'Error al guardar la API Key en SecretStorage: {}',
+    // Hardening Phase 3 (F-03): fail-closed keychain contract.
+    keychainUnavailableNotice: 'Llavero no disponible: las funciones LLM quedan desactivadas hasta que pueda leerse: {}',
+    plaintextApiKeyScrubbedNotice: 'API Key en texto plano eliminada de data.json: rota esta clave.',
+    unsupportedPlatform: 'LLM Wiki no admite Windows. El plugin no se ha cargado.',
     codexAuthName: 'Inicio de sesión del plan ChatGPT',
     codexAuthDesc: 'Acceso experimental a Codex mediante OAuth usando la asignación de tu plan ChatGPT. La facturación de la API de OpenAI Platform se mantiene separada.',
     codexAuthSignedOut: 'Sesión no iniciada',

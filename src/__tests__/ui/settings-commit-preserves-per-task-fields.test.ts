@@ -57,13 +57,17 @@ function makeTab(
   };
   // tempSettings: edited by setFieldValue (which fires cascadeUnifiedModelChange
   // on the live-edit path); commitTempSettings is a pure write-through spread
-  // into plugin.settings. apiKey stays at DEFAULT_SETTINGS default ('') so the
-  // flushApiKey short-circuit is exercised unless the caller explicitly sets
-  // overrides.apiKey to a non-empty value (commit-failure path).
+  // into plugin.settings.
   (tab as unknown as { tempSettings: unknown }).tempSettings = {
     ...DEFAULT_SETTINGS,
     ...overrides,
   };
+  // Hardening Phase 3 (F-03): the typed key is a field of the tab, not of
+  // the settings object. `Object.create(prototype)` skips class field
+  // initializers, so seed it explicitly — empty by default, which exercises
+  // the flushApiKey short-circuit; the commit-failure test sets it.
+  tab.pendingApiKey = typeof overrides.pendingApiKey === 'string' ? overrides.pendingApiKey : '';
+  delete (tab as unknown as { tempSettings: Record<string, unknown> }).tempSettings.pendingApiKey;
   // Stub getText so flushApiKey's catch branch can run without pulling in
   // the full TEXTS table (the test pins write-through semantics, not UX).
   (tab as unknown as { getText: unknown }).getText = () => 'stub';
@@ -120,7 +124,7 @@ describe('Issue #456: commitTempSettings preserves per-task fields', () => {
         ingestModel: 'new-ingest',
         lintModel: 'new-lint',
         queryModel: 'new-query',
-        apiKey: 'sk-typed-pending',
+        pendingApiKey: 'sk-typed-pending',
       },
       { setSecretThrows: true },
     );
@@ -133,7 +137,10 @@ describe('Issue #456: commitTempSettings preserves per-task fields', () => {
     expect(saved.ingestModel).toBe('old-ingest');
     expect(saved.lintModel).toBe('old-lint');
     expect(saved.queryModel).toBe('old-query');
-    // The pending typed key MUST NOT have leaked into plugin.settings.
-    expect(saved.apiKey).toBe('');
+    // The pending typed key MUST NOT have leaked into plugin.settings —
+    // and since hardening Phase 3 (F-03) there is not even a field for it
+    // to leak into. It stayed in the tab's in-memory buffer for a retry.
+    expect('apiKey' in saved).toBe(false);
+    expect(tab.pendingApiKey).toBe('sk-typed-pending');
   });
 });

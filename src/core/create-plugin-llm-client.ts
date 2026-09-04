@@ -23,12 +23,14 @@ export function createLLMClient(
   settings: LLMWikiSettings,
   codexAuth?: CodexAuthManager,
   codexVersion?: string,
-  // v1.25.3 #182: when provided, the SDK factory prefers the live key
-  // from Obsidian SecretStorage over the (now-empty) settings.apiKey.
-  // Pass `plugin.app.secretStorage` from production code; tests that
-  // don't have one can omit it (resolver falls back to settings.apiKey).
+  // v1.25.3 #182: the SDK factory reads the live key from Obsidian
+  // SecretStorage. Pass `plugin.app.secretStorage` — hardening Phase 3
+  // (F-03) removed the on-disk fallback AND made an absent store fail
+  // closed (minAppVersion 1.11.4 guarantees `app.secretStorage` exists),
+  // so omitting it now throws `ProviderSecretStorageError` for every
+  // provider that needs a bearer key.
   secretStorage?: ProviderSecretStorage | null,
-  // v1.25.7 PATCH: forward the in-memory typed key (tab.tempSettings.apiKey
+  // v1.25.7 PATCH: forward the in-memory typed key (tab.pendingApiKey
   // in the Test Connection flow) so the freshly-typed key wins over the
   // stale SecretStorage value. Production callers pass undefined.
   pendingApiKey?: string,
@@ -38,7 +40,6 @@ export function createLLMClient(
 ): LLMClient {
   const client: LLMClient = createLLMClientFromSettingsSync({
     provider: settings.provider,
-    apiKey: settings.apiKey,
     providerApiKeySecretId: settings.providerApiKeySecretId,
     secretStorage: secretStorage ?? null,
     baseUrl: settings.baseUrl,

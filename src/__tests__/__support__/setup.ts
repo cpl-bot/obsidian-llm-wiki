@@ -99,6 +99,9 @@ vi.mock('obsidian', () => ({
     isMacOS: false,
     isMobile: false,
     isDesktopApp: true,
+    // Hardening Phase 3 (F-03/3.7): main.ts refuses to load on Windows.
+    // Default false so the whole suite runs; the gate's own test flips it.
+    isWin: false,
   },
   // MarkdownRenderer
   MarkdownRenderer: {

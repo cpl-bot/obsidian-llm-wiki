@@ -815,7 +815,7 @@ Body`;
 
 describe('enforceFrontmatterConstraints (Issue #85 v6 — preserve LLM intent)', () => {
   const baseSettings: LLMWikiSettings = {
-    provider: 'anthropic', apiKey: '', openAICodexSecretId: '', providerApiKeySecretId: 'karpathywiki-provider-api-key', baseUrl: '', model: 'claude-sonnet-4-6',
+    provider: 'anthropic', openAICodexSecretId: '', providerApiKeySecretId: 'karpathywiki-provider-api-key', baseUrl: '', model: 'claude-sonnet-4-6',
     wikiFolder: 'wiki', language: 'en', wikiLanguage: 'en',
     maxConversationHistory: 30, extractionGranularity: 'standard',
     enableSchema: true, autoWatchSources: false, autoWatchMode: 'notify',

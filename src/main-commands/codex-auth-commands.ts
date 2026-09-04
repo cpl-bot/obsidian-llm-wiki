@@ -1,4 +1,5 @@
 import { Notice, Platform } from 'obsidian';
+import { redactSecrets } from '../core/redact';
 import type { LLMClient, LLMWikiSettings } from '../types';
 import type { CodexAuthManager, DeviceLoginPrompt } from '../llm-sdk/openai-codex/auth-manager';
 import type { CodexCredentialStore } from '../llm-sdk/openai-codex/credential-store';
@@ -103,7 +104,9 @@ export const codexAuthCommands = {
   },
   showOpenAICodexModelRefreshFailure(this: CodexAuthCommandsHost, error: unknown): void {
     const detail = error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error';
-    new Notice(getText(this.settings.language, 'codexModelsRefreshFailed').replace('{}', detail), NOTICE_ERROR);
+    // Hardening Phase 3 (F-03/3.5): `detail` is an OAuth/HTTP error
+    // message and this flow is the one that handles bearer tokens.
+    new Notice(getText(this.settings.language, 'codexModelsRefreshFailed').replace('{}', redactSecrets(detail)), NOTICE_ERROR);
   },
   async signOutOpenAICodex(this: CodexAuthCommandsHost): Promise<void> {
     if (!this.codexAuthManager) throw new Error('Codex auth manager is not initialized');

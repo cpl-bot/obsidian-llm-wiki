@@ -19,6 +19,7 @@
 // createMessage / createMessageWithOutput pattern via shared helpers below.
 
 import { LLMClient } from './types';
+import { redactSecrets } from './core/redact';
 import { capMaxTokens } from './core/token-cap';
 import { recordTaskUsage } from './core/llm-task-usage';
 import { resolveTaskPolicy, thinkingEffort, type TaskPolicyMap, type ThinkingEffort } from './core/task-policy';
@@ -190,7 +191,11 @@ function applyTaskPolicy(
 // pre-#451: `(typed)` / `(stream)` disambiguate the breadcrumb.
 function logLlmCall(task: string | undefined, model: string, maxTokens: number, kind: LlmCallKind): void {
   const suffix = kind === 'plain' ? '' : ` (${kind})`;
-  console.debug(`[llm] task=${task ?? 'untagged'} model=${model} max_tokens=${maxTokens}${suffix}`);
+  // Hardening Phase 3 (F-03/3.5): `model` is a free-form user-supplied
+  // string on custom providers. Nothing should ever paste a key into the
+  // model box, but this is the one seam every LLM call passes through, so
+  // it is the cheapest place to be sure.
+  console.debug(redactSecrets(`[llm] task=${task ?? 'untagged'} model=${model} max_tokens=${maxTokens}${suffix}`));
 }
 
 // Timed around the whole call, not on success: a call that throws still

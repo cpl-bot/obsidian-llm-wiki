@@ -54,19 +54,23 @@ const SECRET_ID = 'karpathywiki-provider-api-key';
 // code under test). PluginSettingTab's constructor signature requires
 // (app, plugin); we pass throwaway objects that only expose what
 // commitTempSettings / flushApiKey actually read.
+//
+// Hardening Phase 3 (F-03): the typed key moved off the settings object to
+// `tab.pendingApiKey`, so `typedKey` seeds that buffer instead of a
+// `tempSettings.apiKey` field — and the assertions that used to prove the
+// key was wiped OUT of the settings object are now stronger by
+// construction: there is no field for it to be in.
 function makeTab(
   secretStorage: FakeStorage,
-  tempSettingsApiKey: string,
-  pluginSettingsApiKey = '',
+  typedKey: string,
 ): {
   tab: LLMWikiSettingTab;
   secretStorage: FakeStorage;
-  pluginSettings: { apiKey: string };
-  tempSettings: { apiKey: string };
+  pluginSettings: Record<string, unknown>;
 } {
   const tab = Object.create(LLMWikiSettingTab.prototype) as LLMWikiSettingTab;
-  const tempSettings = { ...DEFAULT_SETTINGS, apiKey: tempSettingsApiKey, providerApiKeySecretId: SECRET_ID };
-  const pluginSettings = { ...DEFAULT_SETTINGS, apiKey: pluginSettingsApiKey, providerApiKeySecretId: SECRET_ID };
+  const tempSettings = { ...DEFAULT_SETTINGS, providerApiKeySecretId: SECRET_ID };
+  const pluginSettings = { ...DEFAULT_SETTINGS, providerApiKeySecretId: SECRET_ID };
   // App stub — only .secretStorage is read by commitTempSettings/flushApiKey.
   (tab as unknown as { app: unknown }).app = { secretStorage };
   (tab as unknown as { plugin: unknown }).plugin = {
@@ -74,8 +78,9 @@ function makeTab(
     initializeLLMClient: vi.fn(),
   };
   (tab as unknown as { tempSettings: unknown }).tempSettings = tempSettings;
+  tab.pendingApiKey = typedKey;
   (tab as unknown as { cascadeUnifiedModelChange: unknown }).cascadeUnifiedModelChange = vi.fn();
-  return { tab, secretStorage, pluginSettings: pluginSettings as { apiKey: string }, tempSettings: tempSettings as { apiKey: string } };
+  return { tab, secretStorage, pluginSettings: pluginSettings as unknown as Record<string, unknown> };
 }
 
 describe('v1.25.8 HOTFIX: commitTempSettings must flush before spread', () => {
@@ -85,19 +90,22 @@ describe('v1.25.8 HOTFIX: commitTempSettings must flush before spread', () => {
     const ok = tab.commitTempSettings();
     expect(ok).toBe(true);
     expect(secretStorage.values.get(SECRET_ID)).toBe('sk-minimax-new');
-    expect(pluginSettings.apiKey).toBe('');
+    // The committed settings object carries no key at all — not even an
+    // empty one — so nothing downstream can serialize it.
+    expect('apiKey' in pluginSettings).toBe(false);
+    expect(tab.pendingApiKey).toBe('');
   });
 
-  it('returns false and preserves tempSettings.apiKey when flush throws (so caller skips saveSettings)', () => {
+  it('returns false and preserves the typed key when flush throws (so caller skips saveSettings)', () => {
     const secretStorage = backendThrows();
-    const { tab, tempSettings } = makeTab(secretStorage, 'sk-user-typed');
+    const { tab } = makeTab(secretStorage, 'sk-user-typed');
     const ok = tab.commitTempSettings();
     expect(ok).toBe(false);
-    // Key preserved for retry
-    expect(tempSettings.apiKey).toBe('sk-user-typed');
+    // Key preserved in memory for retry — and only in memory.
+    expect(tab.pendingApiKey).toBe('sk-user-typed');
   });
 
-  it('returns true and does no SecretStorage IO when tempSettings.apiKey is empty', () => {
+  it('returns true and does no SecretStorage IO when the typed buffer is empty', () => {
     const secretStorage = backend('sk-existing-stays');
     const { tab } = makeTab(secretStorage, '');
     let ioCount = 0;
@@ -109,7 +117,7 @@ describe('v1.25.8 HOTFIX: commitTempSettings must flush before spread', () => {
     expect(secretStorage.values.get(SECRET_ID)).toBe('sk-existing-stays');  // preserved
   });
 
-  it('skips SecretStorage write for whitespace-only tempSettings.apiKey', () => {
+  it('skips SecretStorage write for a whitespace-only typed buffer', () => {
     const secretStorage = backend('sk-existing-stays');
     const { tab } = makeTab(secretStorage, '   ');
     let ioCount = 0;
@@ -136,9 +144,9 @@ describe('v1.25.8 HOTFIX: commitTempSettings must flush before spread', () => {
 
   it('end-to-end: failure path → caller skips saveSettings → SecretStorage unchanged', () => {
     const secretStorage = backendThrows();
-    const { tab, tempSettings } = makeTab(secretStorage, 'sk-minimax-NEW');
+    const { tab } = makeTab(secretStorage, 'sk-minimax-NEW');
     const ok = tab.commitTempSettings();
     expect(ok).toBe(false);
-    expect(tempSettings.apiKey).toBe('sk-minimax-NEW');  // preserved for retry
+    expect(tab.pendingApiKey).toBe('sk-minimax-NEW');  // preserved for retry
   });
 });

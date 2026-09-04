@@ -16,6 +16,7 @@
  */
 
 import { Notice, TFile } from 'obsidian';
+import { redactError } from '../core/redact';
 import type { App } from 'obsidian';
 import type { LLMWikiSettings, LLMClient, IngestReport } from '../types';
 import type { WikiEngine } from '../wiki/wiki-engine';
@@ -94,8 +95,13 @@ export const ingestCommands = {
       this.showProgressFor(ProgressScope.IngestManual,
         getText(this.settings.language, 'ingestSingleFileStart').replace('{filename}', file.basename));
       this.wikiEngine.ingestSource(file, { interactive: true }).catch(e => {
-        console.error('Single ingest failed:', e);
-        const errMsg = e instanceof Error ? e.message : String(e);
+        // Hardening Phase 3 (F-03/3.5): an ingest failure is usually a
+        // provider error, whose message carries whatever the provider
+        // echoed back — including, on a misconfigured gateway, the
+        // Authorization header. Both the console line and the Notice go
+        // through the redactor.
+        console.error('Single ingest failed:', redactError(e));
+        const errMsg = redactError(e);
         new Notice(TEXTS[this.settings.language].errorIngestFailed + errMsg, NOTICE_ERROR);
         this.dismissProgress();
       });
@@ -260,8 +266,8 @@ export const ingestCommands = {
           this.ingestQueue.complete(jobId, true);
         }
       } catch (error) {
-        console.error(`(${i + 1}/${ingestCount}) ingestion failed: ${file.path}`, error);
-        const errMsg = error instanceof Error ? error.message : String(error);
+        console.error(`(${i + 1}/${ingestCount}) ingestion failed: ${file.path}`, redactError(error));
+        const errMsg = redactError(error);
         new Notice(texts.errorIngestFailed + file.basename + ': ' + errMsg, NOTICE_ERROR);
         if (jobId) this.ingestQueue.complete(jobId, false, errMsg);
       }

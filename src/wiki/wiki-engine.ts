@@ -713,7 +713,6 @@ export class WikiEngine {
         // sees `forcePdfSupport` (typed, not `as never`).
         settings: {
           provider: this.settings.provider,
-          apiKey: this.settings.apiKey,
           baseUrl: this.settings.baseUrl,
           model: this.settings.model,
           forcePdfSupport: this.settings.forcePdfSupport,

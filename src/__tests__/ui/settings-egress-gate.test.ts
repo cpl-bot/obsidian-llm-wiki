@@ -13,6 +13,7 @@ import { renderProviderSection } from '../../ui/settings-sections/provider-secti
 import { registerEgressSettings } from '../../core/egress-policy';
 import type { LLMWikiSettingTab } from '../../ui/settings';
 import type { LLMWikiSettings } from '../../types';
+import { emptySecretStorage } from '../__support__/secret-storage';
 
 const { buttonClicks, fetchModelsMock, settingNames, notices, requestUrlMock, textChangeHandlers, createdEls } =
   vi.hoisted(() => ({
@@ -85,7 +86,7 @@ function makeContainer(): HTMLElement {
 function createTab(overrides: Partial<LLMWikiSettings>): LLMWikiSettingTab {
   return {
     tempSettings: { ...DEFAULT_SETTINGS, ...overrides },
-    plugin: { app: { secretStorage: null }, codexAuthManager: null, bedrockAuthManager: null },
+    plugin: { app: { secretStorage: emptySecretStorage() }, codexAuthManager: null, bedrockAuthManager: null },
     codexAuthBusy: false,
     codexDevicePrompt: null,
     getText: (key: string) => key,

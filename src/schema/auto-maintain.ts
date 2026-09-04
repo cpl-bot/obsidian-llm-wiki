@@ -750,10 +750,20 @@ export class AutoMaintainManager {
       return { ok: false, error: 'LLM client not configured. Open Settings → LLM Provider.' };
     }
     // ollama / lmstudio accept empty API key (same gate as initializeLLMClient)
-    if (!resolveProviderApiKey(
-      { apiKey: this.settings.apiKey, providerApiKeySecretId: this.settings.providerApiKeySecretId },
-      this.app.secretStorage,
-    ) && !isLocalNoKeyProvider(this.settings.provider)) {
+    // Hardening Phase 3 (F-03): the resolver throws when the OS keychain
+    // is unreadable. probeLlm's contract is "never throws", and the
+    // distinction matters to the reader of the welcome note: a missing key
+    // is something they can fix in Settings, an unreadable keychain is not.
+    let resolvedKey: string;
+    try {
+      resolvedKey = resolveProviderApiKey(
+        { providerApiKeySecretId: this.settings.providerApiKeySecretId },
+        this.app.secretStorage,
+      );
+    } catch {
+      return { ok: false, error: 'OS keychain unavailable — the API key could not be read.' };
+    }
+    if (!resolvedKey && !isLocalNoKeyProvider(this.settings.provider)) {
       return { ok: false, error: 'API key not configured.' };
     }
     if (!this.settings.model) {

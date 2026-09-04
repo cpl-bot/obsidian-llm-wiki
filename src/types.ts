@@ -190,7 +190,16 @@ export interface OpenAICodexModelCatalogEntry {
 
 export interface LLMWikiSettings {
   provider: string;
-  apiKey: string;
+  /**
+   * Hardening Phase 3 (F-03): `apiKey: string` used to live here. It was
+   * the plaintext mirror of the provider key inside `data.json` — a file
+   * that sits in the vault and therefore follows it into git, iCloud,
+   * Syncthing and every backup. The field is deliberately NOT declared
+   * any more, so there is no persisted slot for a future upstream merge
+   * to quietly repopulate; `src/core/settings-migrations.ts` scrubs the
+   * key off disk on first load. The live key lives only in
+   * `providerApiKeySecretId`'s OS-keychain slot.
+   */
   openAICodexSecretId: string;
   /**
    * v1.25.3 #182: stable ID for the provider API key in Obsidian
@@ -318,7 +327,14 @@ export interface LLMWikiSettings {
   // `apiKey` from data.json into Obsidian SecretStorage, then clears
   // the plaintext field. Idempotent — set true after the migration
   // runs so the second load is a no-op.
-  _migrated_v1_25_3_secret_storage?: boolean;
+  /**
+   * Hardening Phase 3 (F-03): set once the plaintext `apiKey` field has
+   * been scrubbed off disk (and moved into the keychain when the slot
+   * was free). Supersedes `_migrated_v1_25_3_secret_storage`, whose only
+   * job was the same move — that marker is deleted by the scrub because
+   * its migration left the plaintext behind on the failure path.
+   */
+  _migrated_harden_plaintext_api_key_removed?: boolean;
   // Hardening (Phase 2.A): the third-party document-conversion backend was
   // removed. The migration blanks its secret slot and deletes the legacy
   // backend keys from data.json. Idempotent — set true once the scrub runs.
@@ -1179,7 +1195,6 @@ export const PREDEFINED_PROVIDERS: Record<string, ProviderConfig> = {
 
 export const DEFAULT_SETTINGS: LLMWikiSettings = {
   provider: 'anthropic',
-  apiKey: '',
   openAICodexSecretId: 'karpathywiki-openai-codex',
   // v1.25.3 #182: stable secretId for the provider API key in
   // Obsidian SecretStorage. Plugin namespace + semantic role makes

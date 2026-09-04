@@ -30,16 +30,18 @@
  *     the live value (UX nicety preserved).
  */
 
-import { Platform, Setting } from 'obsidian';
+import { Notice, Platform, Setting } from 'obsidian';
 import type { LLMWikiSettingTab } from '../settings';
 import type { LLMWikiSettings } from '../../types';
 import { PREDEFINED_PROVIDERS } from '../../types';
-import { BEDROCK_REGIONS, BEDROCK_DEFAULT_REGION, NATIVE_PDF_PROVIDER_IDS, MAX_BATCH_DELAY_MS } from '../../constants';
+import { BEDROCK_REGIONS, BEDROCK_DEFAULT_REGION, NATIVE_PDF_PROVIDER_IDS, MAX_BATCH_DELAY_MS, NOTICE_ERROR } from '../../constants';
 import { renderRangeSlider, egressReasonTextKey } from '../settings-helpers';
 import { assertAllowedEgress, EgressDeniedError } from '../../core/egress-policy';
 import { getCodexAuthUiState } from '../openai-codex-auth-controls';
 import { getBedrockAuthUiState } from '../bedrock-auth-controls';
 import { resolveInitialApiKey } from '../../llm-sdk/provider-api-key-resolver';
+import { isProviderSecretStorageError } from '../../llm-sdk/provider-secret-store';
+import { redactSecrets } from '../../core/redact';
 
 export function renderProviderSection(tab: LLMWikiSettingTab, containerEl: HTMLElement): void {
   const { tempSettings } = tab;
@@ -114,7 +116,7 @@ export function renderProviderSection(tab: LLMWikiSettingTab, containerEl: HTMLE
     // writes — only the final value is persisted. This preserves the
     // pre-PR2 in-memory-edit-then-flush-on-save UX.
     //
-    // v1.25.7 PATCH: respect the in-memory buffer (tempSettings.apiKey)
+    // v1.25.7 PATCH: respect the in-memory buffer (tab.pendingApiKey)
     // as the FIRST source of truth. Without this precedence swap, the
     // pending edit typed after a provider switch gets silently overwritten
     // by the OLD SecretStorage value on every tab.display() re-render
@@ -129,17 +131,30 @@ export function renderProviderSection(tab: LLMWikiSettingTab, containerEl: HTMLE
       .setDesc(tab.getText('apiKeyDesc'))
       .addText(text => {
         // v1.25.7 PATCH: delegate to resolveInitialApiKey so the input
-        // honors the in-memory tempSettings.apiKey buffer across re-renders
+        // honors the in-memory tab.pendingApiKey buffer across re-renders
         // instead of clobbering the user's pending edit with the stale
         // SecretStorage value left over from the previously-active provider.
-        const initial = resolveInitialApiKey(tempSettings, tab.plugin.app.secretStorage);
+        //
+        // Hardening Phase 3 (F-03): an unreadable keychain throws instead of
+        // painting a blank box. A blank box here reads as "your key is
+        // gone" and invites the user to paste it again into a keychain that
+        // cannot store it, so say what actually happened and leave the
+        // field empty.
+        let initial: string;
+        try {
+          initial = resolveInitialApiKey(tab.pendingApiKey, tempSettings, tab.plugin.app.secretStorage);
+        } catch (error: unknown) {
+          if (!isProviderSecretStorageError(error)) throw error;
+          initial = '';
+          new Notice(tab.getText('keychainUnavailableNotice').replace('{}', redactSecrets(error.message)), NOTICE_ERROR);
+        }
         text.setPlaceholder(tab.getText('apiKeyPlaceholder'))
           .setValue(initial)
           .onChange((value) => {
             // In-memory only — the actual setSecret happens on tab close.
-            // tempSettings.apiKey carries the pending value until the
+            // tab.pendingApiKey carries the pending value until the
             // tab's hide() runs flushApiKey() against ProviderSecretStore.
-            tempSettings.apiKey = value;
+            tab.pendingApiKey = value;
             tempSettings.llmReady = false;
           });
         text.inputEl.type = 'password';

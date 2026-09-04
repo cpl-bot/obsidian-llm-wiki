@@ -1,14 +1,16 @@
-import { Plugin, Notice } from 'obsidian';
+import { Plugin, Notice, Platform } from 'obsidian';
 
 import {
   LLMWikiSettings,
   LLMClient,
   IngestReport,
 } from './types';
-import { NOTICE_NORMAL, NOTICE_ABORT } from './constants';
+import { NOTICE_NORMAL, NOTICE_ABORT, NOTICE_ERROR } from './constants';
 import { preloadLLMClientModules } from './llm-sdk/create-llm-client';
 import { isProviderConfigured } from './core/provider-auth';
 import { resolveProviderApiKey } from './llm-sdk/provider-api-key-resolver';
+import { isProviderSecretStorageError } from './llm-sdk/provider-secret-store';
+import { redactError, redactSecrets } from './core/redact';
 import { createLLMClient } from './core/create-plugin-llm-client';
 import { CodexAuthManager } from './llm-sdk/openai-codex/auth-manager';
 import { BedrockAuthManager } from './llm-sdk/bedrock-sso/credential-manager';
@@ -23,14 +25,14 @@ import { setActivePluginId } from './core/plugin-runtime-id';
 // load so sync `createLLMClient` works without blocking. Failure is
 // non-fatal: falls back to legacy llm-client at createLLMClient time.
 const aiSdkModulesLoaded: Promise<void> = preloadLLMClientModules().catch((err) => {
-  console.warn('[v1.23.0 LLM migration] Failed to preload AI-SDK modules:', err);
+  console.warn('[v1.23.0 LLM migration] Failed to preload AI-SDK modules:', redactError(err));
 });
 
 export async function initializeLLMClientAfterModules(modulesLoaded: Promise<void>, initialize: () => void): Promise<void> {
   try {
     await modulesLoaded;
   } catch (error) {
-    console.warn('[v1.23.0 LLM migration] Failed to preload AI-SDK modules:', error);
+    console.warn('[v1.23.0 LLM migration] Failed to preload AI-SDK modules:', redactError(error));
   }
   initialize();
 }
@@ -38,7 +40,7 @@ export async function initializeLLMClientAfterModules(modulesLoaded: Promise<voi
 export { createLLMClient };
 import { TEXTS } from './texts';
 import { getText } from './core/i18n';
-import { applySettingsMigrations, commitSettingsMigrationV1_25_3, scrubRemovedConversionBackendSecret } from './core/settings-migrations';
+import { applySettingsMigrations, adoptScrubbedPlaintextApiKey, scrubRemovedConversionBackendSecret } from './core/settings-migrations';
 import { normalizeVocabularyCsv } from './core/tag-vocab';
 import { detectStaleWikiFolders } from './core/query-history-migration-check';
 import { BatchProgress } from './core/status-bar';
@@ -65,8 +67,6 @@ import type { IngestMethods } from './main-commands/ingest-commands';
 import { registerWikiCommands } from './main-commands/command-registry';
 import { codexAuthCommands } from './main-commands/codex-auth-commands';
 import type { CodexAuthCommandsMethods } from './main-commands/codex-auth-commands';
-import { secretStorageCommands } from './main-commands/secret-storage-commands';
-import type { SecretStorageCommandsMethods } from './main-commands/secret-storage-commands';
 
 // eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging -- C-PR3: intentional interface+class merge for mixin pattern
 export class LLMWikiPlugin extends Plugin {
@@ -89,7 +89,30 @@ export class LLMWikiPlugin extends Plugin {
   progressNotice: Notice | null = null;
   ingestStatusBar: HTMLElement | null = null;
   batchProgress: BatchProgress | null = null;
+  /**
+   * Hardening Phase 3 (F-03): one-shot guard for the keychain Notice.
+   * `initializeLLMClient` runs on every settings save, so an unreadable
+   * keychain would otherwise fire a Notice per keystroke-flush.
+   */
+  private keychainNoticeShown = false;
   async onload() {
+    // Hardening Phase 3 (F-03/3.7): platform gate, first statement, before
+    // `loadData()` touches the vault. The plaintext `data.json` fallback
+    // this phase removed existed for exactly one reason — Windows 10
+    // Credential Manager failing under Obsidian (#339). With the fallback
+    // gone the hardened build has no safe behaviour to offer that platform,
+    // so it refuses to run rather than degrading into "your key is gone"
+    // on every load. Target platforms are macOS (Keychain) and Linux
+    // (Secret Service); see README "Secret storage prerequisites".
+    //
+    // The Notice is English-only by construction: `settings.language` is
+    // read from data.json, and reading it is precisely what this gate
+    // prevents.
+    if (Platform.isWin) {
+      new Notice(getText('en', 'unsupportedPlatform'), NOTICE_ERROR);
+      return;
+    }
+
     // Hardened-fork Phase 7: record this install's actual manifest.id
     // before anything touches the plugin's own folder (e.g. the PDF cache
     // in core/pdf-cache.ts). Must run before any such access — see
@@ -239,39 +262,45 @@ export class LLMWikiPlugin extends Plugin {
     const savedData = await this.loadData() as Partial<LLMWikiSettings> | null;
     const { settings, applied } = applySettingsMigrations(savedData);
 
-    // v1.25.3 #182: forward the legacy plaintext API key (if any) into
-    // Obsidian SecretStorage. applySettingsMigrations is pure and cannot
-    // touch IO, so it stashes the legacy value on a transient field;
-    // main.ts owns the actual SecretStorage write and the cleanup.
+    // Hardening Phase 3 (F-03): the plaintext `apiKey` field is scrubbed
+    // out of `data.json` on first load. `applySettingsMigrations` is pure
+    // and cannot touch IO, so it stashes the value on a transient field
+    // and deletes the key; this block owns the keychain write, the
+    // user-facing Notice, and the cleanup of the transient field.
     //
-    // v1.25.4 #339: two-phase migration. Phase 1 (in applySettingsMigrations)
-    // only stashes the legacy key but NO LONGER wipes settings.apiKey.
-    // Phase 2 (commitSettingsMigrationV1_25_3) runs here ONLY after the
-    // IO write succeeds. On failure, plaintext survives in memory and
-    // on disk — no data loss.
-    let migrationWriteFailed = false;
-    if (applied.includes('v1.25.3-secret-storage')) {
-      const legacy = (settings as unknown as { _legacyApiKeyForSecretStorage?: string })._legacyApiKeyForSecretStorage;
-      if (typeof legacy === 'string' && legacy.length > 0) {
-        try {
-          this.app.secretStorage.setSecret(settings.providerApiKeySecretId, legacy);
-          // Phase 2: IO succeeded → wipe plaintext (now safely in OS keychain)
-          commitSettingsMigrationV1_25_3(settings);
-          console.debug('[main.loadSettings] Legacy apiKey migrated to SecretStorage');
-        } catch (error) {
-          // Phase 1 ran but IO failed. Phase 2 NOT called — settings.apiKey
-          // still has the plaintext, so the resolver falls through to it.
-          // Marker stays set (phase 1 idempotent), and on next load the
-          // migration re-detects the plaintext from disk and re-retries.
-          console.error('[main.loadSettings] Failed to migrate apiKey into SecretStorage; plaintext retained:', error);
-          migrationWriteFailed = true;
-        }
+    // Ordering matters: the field is already gone from `settings` by the
+    // time we get here, so the scrub cannot be undone by a keychain
+    // failure. That is the intended trade — the key has been sitting in a
+    // synced file and must be rotated regardless of where it ends up, so
+    // "removed but not adopted" is strictly better than "left on disk".
+    // No saveData() call: the shared `applied.length > 0` write below
+    // persists the whole pass in one serialization.
+    const legacyPlaintextKey = (settings as unknown as { _legacyPlaintextApiKey?: string })._legacyPlaintextApiKey;
+    delete (settings as unknown as { _legacyPlaintextApiKey?: string })._legacyPlaintextApiKey;
+    if (applied.includes('harden-plaintext-api-key-removed') && typeof legacyPlaintextKey === 'string' && legacyPlaintextKey.length > 0) {
+      try {
+        const adopted = adoptScrubbedPlaintextApiKey(
+          this.app.secretStorage,
+          settings.providerApiKeySecretId,
+          legacyPlaintextKey,
+        );
+        console.debug(adopted
+          ? '[main.loadSettings] Plaintext API key adopted into SecretStorage and removed from data.json'
+          : '[main.loadSettings] Plaintext API key removed from data.json; keychain slot already held a key');
+      } catch (error) {
+        // Drop the marker before the shared saveData() below persists it,
+        // so disk never records a keychain write that did not happen —
+        // mirrors the Phase 2.A conversion-backend scrub. The plaintext
+        // itself stays deleted (the scrub is unconditional), so the next
+        // load has nothing left to adopt; what the dropped marker buys is
+        // an honest record, not a second attempt at the key. The user was
+        // told to rotate on this load either way.
+        delete settings._migrated_harden_plaintext_api_key_removed;
+        console.error('[main.loadSettings] Failed to adopt the plaintext API key into SecretStorage; key removed from data.json anyway:', redactError(error));
       }
-      // Delete the transient field regardless; it must never persist to data.json.
-      delete (settings as unknown as { _legacyApiKeyForSecretStorage?: string })._legacyApiKeyForSecretStorage;
-      // On write failure the marker is still set (phase 1 ran), so the
-      // migration does NOT re-run on the next load (idempotent). The
-      // plaintext lives on in settings.apiKey and data.json — no data loss.
+      // Same Notice on every path: the key touched disk inside a synced
+      // vault, so it is disclosed whether or not the keychain took it.
+      new Notice(getText(settings.language, 'plaintextApiKeyScrubbedNotice'), NOTICE_ERROR);
     }
 
     this.settings = settings;
@@ -295,7 +324,7 @@ export class LLMWikiPlugin extends Plugin {
         // the marker records a scrub that never happened and the stale
         // token would sit in the keychain forever.
         delete this.settings._migrated_harden_conversion_backend_removed;
-        console.error('[main.loadSettings] Failed to clear the removed conversion backend token; retrying on next load:', error);
+        console.error('[main.loadSettings] Failed to clear the removed conversion backend token; retrying on next load:', redactError(error));
       }
     }
 
@@ -309,7 +338,7 @@ export class LLMWikiPlugin extends Plugin {
       console.debug('loadSettings: watchedFolders was not an array, reset to []');
     }
 
-    if (applied.length > 0 && !migrationWriteFailed) {
+    if (applied.length > 0) {
       console.debug(`loadSettings: applied migrations: ${applied.join(', ')}`);
       await this.saveData(this.settings);
     }
@@ -321,13 +350,14 @@ export class LLMWikiPlugin extends Plugin {
 
     if (savedData && !('llmReady' in savedData)) {
       const hasCodexCredential = new CodexCredentialStore(this.app.secretStorage, this.settings.openAICodexSecretId).hasCredential();
-      // v1.25.3 #182: resolve the live key from SecretStorage so the
-      // gate correctly considers a key that lives in OS keychain rather
-      // than the (now-empty) settings.apiKey.
-      const resolvedKey = resolveProviderApiKey(
-        { apiKey: this.settings.apiKey, providerApiKeySecretId: this.settings.providerApiKeySecretId },
-        this.app.secretStorage,
-      );
+      // v1.25.3 #182: resolve the live key from SecretStorage — the OS
+      // keychain is the only source there has ever been a second one of.
+      // Hardening Phase 3 (F-03): an unreadable keychain resolves to null,
+      // which is NOT "no key" — the readiness answer is simply unknown, so
+      // leave `llmReady` alone rather than persisting a false negative that
+      // would survive the keychain coming back.
+      const resolvedKey = this.resolveKeyOrNotify();
+      if (resolvedKey === null) return;
       const bedrockPresence = this.bedrockCredentialPresence();
       const hasConfig = isProviderConfigured({
         provider: this.settings.provider,
@@ -386,14 +416,52 @@ export class LLMWikiPlugin extends Plugin {
     }
   }
 
+  /**
+   * Hardening Phase 3 (F-03): the single keychain read seam for the plugin
+   * object, with the UI boundary attached.
+   *
+   * Returns the resolved key (`''` = no key configured, a normal state) or
+   * `null` when the keychain could not be read at all. `null` is where the
+   * fail-closed contract becomes visible to the user: LLM features stay
+   * off and a Notice says why, instead of the old behaviour of silently
+   * reading the plaintext mirror out of `data.json`.
+   *
+   * The Notice fires once per plugin load — `initializeLLMClient` runs on
+   * every settings save, and a broken keychain is a standing condition,
+   * not an event.
+   */
+  private resolveKeyOrNotify(): string | null {
+    try {
+      return resolveProviderApiKey(
+        { providerApiKeySecretId: this.settings.providerApiKeySecretId },
+        this.app.secretStorage,
+      );
+    } catch (error: unknown) {
+      if (!isProviderSecretStorageError(error)) throw error;
+      console.error('[main] SecretStorage read failed; LLM features disabled:', redactError(error));
+      if (!this.keychainNoticeShown) {
+        this.keychainNoticeShown = true;
+        new Notice(
+          getText(this.settings.language, 'keychainUnavailableNotice').replace('{}', redactSecrets(error.message)),
+          NOTICE_ERROR,
+        );
+      }
+      return null;
+    }
+  }
+
   initializeLLMClient(): void {
     const hasCodexCredential = this.codexAuthManager?.hasCredential() === true;
-    // v1.25.3 #182: resolve from SecretStorage so the gate sees the
-    // live key (post-migration `settings.apiKey` is normally '').
-    const resolvedKey = resolveProviderApiKey(
-      { apiKey: this.settings.apiKey, providerApiKeySecretId: this.settings.providerApiKeySecretId },
-      this.app.secretStorage,
-    );
+    // v1.25.3 #182: resolve from SecretStorage — the only place the key
+    // has ever lived since v1.25.3, and since hardening Phase 3 (F-03) the
+    // only place it CAN live. A null answer means the keychain itself is
+    // unreadable: fail closed with no client rather than falling back to
+    // anything on disk.
+    const resolvedKey = this.resolveKeyOrNotify();
+    if (resolvedKey === null) {
+      this.llmClient = null;
+      return;
+    }
     const bedrockPresence = this.bedrockCredentialPresence();
     if (!isProviderConfigured({
       provider: this.settings.provider,
@@ -410,12 +478,13 @@ export class LLMWikiPlugin extends Plugin {
     }
     try {
       // v1.25.3 #182: pass `app.secretStorage` so the SDK factory reads
-      // the live key from OS keychain rather than the empty
-      // settings.apiKey (post-migration).
+      // the live key from the OS keychain.
       this.llmClient = createLLMClient(this.settings, this.codexAuthManager ?? undefined, this.manifest.version, this.app.secretStorage, undefined, this.bedrockAuthManager ?? undefined);
       console.debug('LLM Client initialized:', this.settings.provider);
     } catch (error) {
-      console.error('LLM Client initialization failed:', error);
+      // Hardening Phase 3 (F-03/3.5): the SDK factory's throw can carry a
+      // provider error body.
+      console.error('LLM Client initialization failed:', redactError(error));
       this.llmClient = null;
     }
   }
@@ -477,11 +546,11 @@ export class LLMWikiPlugin extends Plugin {
 // method signatures on the LLMWikiPlugin instance type.
 // eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging -- C-PR3 mixin pattern
 export interface LLMWikiPlugin extends PdfCacheMethods, ConnectionCommandsMethods,
-  SchemaCommandsMethods, QueryLintMethods, IngestMethods, CodexAuthCommandsMethods, SecretStorageCommandsMethods {}
+  SchemaCommandsMethods, QueryLintMethods, IngestMethods, CodexAuthCommandsMethods {}
 
 // v1.25.1 Phase C-PR3: prototype injection — copies runtime
 // implementations from each mixin module onto the class prototype.
 Object.assign(LLMWikiPlugin.prototype, pdfCacheCommands, connectionCommands,
-  schemaCommands, queryLintCommands, ingestCommands, codexAuthCommands, secretStorageCommands);
+  schemaCommands, queryLintCommands, ingestCommands, codexAuthCommands);
 
 export default LLMWikiPlugin;

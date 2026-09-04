@@ -52,7 +52,15 @@ export function renderTestConnectionSection(tab: LLMWikiSettingTab, containerEl:
         // stale SecretStorage value). See connection-commands.ts for the
         // matching signature change. Production callers (initializeLLMClient
         // etc.) pass undefined.
-        const result = await tab.plugin.testLLMConnection(testSettings.apiKey);
+        //
+        // Hardening Phase 3 (F-03): `tab.pendingApiKey` is a plain field on
+        // the settings tab, NOT part of `tempSettings` — so `testSettings`
+        // (and therefore anything applySettings hands to saveData) carries
+        // no key at all. The transient key travels as this argument only,
+        // and commitTempSettings zeroes the buffer once the keychain has
+        // it. `settings-no-plaintext-key.test.ts` pins that no `sk-`
+        // prefixed string can reach a saveData payload across this flow.
+        const result = await tab.plugin.testLLMConnection(tab.pendingApiKey);
         tab.tempSettings.llmReady = result.success;
 
         // Reset UI button + notice at one place (v1.25.8 simplify pass —
@@ -87,18 +95,20 @@ export function renderTestConnectionSection(tab: LLMWikiSettingTab, containerEl:
         }
         // v1.25.8 HOTFIX: commitTempSettings internally flushes
         // SecretStorage. On flush failure roll back plugin.settings to
-        // oldSettings so a later saveData() can't persist the typed
-        // apiKey as plaintext (v1.25.3 #182 invariant). flushApiKey
-        // already surfaced the apiKeyMigrationFailedNotice.
+        // oldSettings so the rest of the tab state stays consistent with
+        // what is on disk. flushApiKey already surfaced the
+        // apiKeyMigrationFailedNotice and kept the typed key in memory
+        // for a retry.
         const commitSucceeded = tab.commitTempSettings();
         if (!commitSucceeded) {
           // Roll back plugin.settings AND persist it: testLLMConnection
           // already fired a fire-and-forget `void this.saveSettings()`
-          // (line 128) that captured `testSettings.apiKey` as a plaintext
-          // reference. Without an explicit overwrite, the async saveData
-          // could persist the typed key into data.json as plaintext,
-          // violating the v1.25.3 #182 invariant. flushApiKey already
-          // surfaced the apiKeyMigrationFailedNotice.
+          // whose payload must match the settings we are keeping. Since
+          // hardening Phase 3 (F-03) that payload cannot contain a key
+          // under any ordering — there is no `apiKey` field to serialize —
+          // but the rollback still matters for llmReady and the per-task
+          // model fields the probe mutates. flushApiKey already surfaced
+          // the apiKeyMigrationFailedNotice.
           applySettings(oldSettings);
           await tab.plugin.saveSettings();
           button.setButtonText(tab.getText('testButton'));
