@@ -1,0 +1,46 @@
+name: gitleaks
+
+# Secret scanning (HARDENING-PLAN Phase 6.4 — the other half of F-10). The
+# repository holds no secrets today and the only CI credential is the
+# per-run `GITHUB_TOKEN`, but a provider API key pasted into a test fixture,
+# a settings snapshot, or a debugging commit is exactly the mistake this
+# project's threat model is about: the plugin's entire security posture rests
+# on the key never touching disk in plaintext.
+#
+# `fetch-depth: 0` is required — gitleaks scans history, not just the working
+# tree, and a shallow clone would hide a key that was committed and then
+# "removed" in a later commit. A secret in history is still a leaked secret.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    # Weekly, Monday 04:47 UTC. Offset from the CodeQL run so the two do not
+    # contend for the same scheduler slot.
+    - cron: '47 4 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    name: Scan history for secrets
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0 # full history — see header
+
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # GITLEAKS_LICENSE is required by this action for organisation-owned
+          # repositories only; it is not needed for a personal fork. If this
+          # repository is ever moved under an organisation the job will fail
+          # with a licence error rather than silently skipping the scan.
+          GITLEAKS_CONFIG: .gitleaks.toml
