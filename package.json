@@ -18,7 +18,9 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "typecheck:tools": "tsc -p tools/dev-instrument/tsconfig.json --noEmit",
-    "gate:1": "pnpm lint && pnpm typecheck && pnpm build && pnpm test && pnpm css-lint"
+    "check:lockfile": "node scripts/check-lockfile-registry.mjs",
+    "prepare": "node scripts/ensure-esbuild.mjs",
+    "gate:1": "pnpm lint && pnpm typecheck && pnpm build && pnpm test && pnpm css-lint && pnpm check:lockfile"
   },
   "keywords": [
     "obsidian",
