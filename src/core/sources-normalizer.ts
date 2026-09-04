@@ -17,6 +17,7 @@
 
 import { computeSlug } from './slug';
 import { isInFolderScope } from './folder-scope';
+import type { VaultWriter } from './vault-writer';
 
 /**
  * The minimum `app.vault` surface used by `normalizeSourcesInFolder`.
@@ -27,7 +28,6 @@ import { isInFolderScope } from './folder-scope';
 interface VaultLike {
   getMarkdownFiles: () => Array<{ path: string }>;
   read: (file: { path: string }) => Promise<string>;
-  process: (file: { path: string }, fn: (data: string) => string | Promise<string>) => Promise<unknown>;
 }
 
 /**
@@ -230,7 +230,11 @@ export function fixPollutedSources(
 export async function normalizeSourcesInFolder(
   app: { vault: VaultLike },
   wikiFolder: string,
-  preserveCase: boolean
+  preserveCase: boolean,
+  /** Phase 5 (F-08) vault write-gate. The scan is already confined to
+   *  `wikiFolder`, so the gate never refuses a write this function would
+   *  otherwise make — it is here so the rewrite cannot outlive that filter. */
+  writer: VaultWriter
 ): Promise<{ filesCleaned: number; entriesCleaned: number }> {
   let filesCleaned = 0;
   let entriesCleaned = 0;
@@ -244,7 +248,7 @@ export async function normalizeSourcesInFolder(
       polluted += 1;
       const { fixed, content: fixedContent } = fixPollutedSources(content, wikiFolder, preserveCase);
       if (fixed > 0) {
-        await app.vault.process(file, () => fixedContent);
+        await writer.process(file, () => fixedContent);
         filesCleaned += 1;
         entriesCleaned += fixed;
       }

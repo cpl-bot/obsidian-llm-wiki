@@ -35,6 +35,7 @@ import { canonicalizeSectionHeaders, stripUnknownSections } from '../../core/sec
 import { correctRelatedLinkPrefixes } from '../../core/related-link-corrector';
 import { parseFrontmatter, enforceFrontmatterConstraints } from '../../core/frontmatter';
 import { injectMentionsSection } from '../../core/mentions-injector';
+import type { VaultWriter } from '../../core/vault-writer';
 import { renderTemplate } from '../../core/template-renderer';
 import { applySectionLabels, getSectionLabels } from '../system-prompts';
 import { resolvePagePath, type PathResolutionContext } from './path-resolution';
@@ -48,6 +49,8 @@ import { isConversationSource, contextualizeError } from './contextualize';
  */
 export interface CreatePageContext extends PathResolutionContext {
   settings: LLMWikiSettings;
+  /** Phase 5 (F-08) vault write-gate — forwarded to `mergePage`. */
+  vaultWriter: VaultWriter;
   getClient(): LLMClient | null;
   buildSystemPrompt(mode: 'full' | 'compact' | 'merge' | 'entity' | 'concept' | 'index'): Promise<string>;
   createOrUpdateFile(path: string, content: string): Promise<void>;

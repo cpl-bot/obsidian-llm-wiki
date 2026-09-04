@@ -22,6 +22,8 @@ import {
   resolvePagePath,
   type PathResolutionContext,
 } from '../../../wiki/page-factory/path-resolution';
+import { VaultWriter } from '../../../core/vault-writer';
+import { testScopeFor } from '../../__support__/vault-writer';
 import type { LLMWikiSettings } from '../../../types';
 import { PathResolutionLLMSchema } from '../../../llm-sdk/output-schemas';
 
@@ -44,6 +46,7 @@ interface MockFile {
 
 function makeCtx(files: MockFile[], capture: { prompt?: string }): PathResolutionContext {
   return {
+    vaultWriter: new VaultWriter({ scope: testScopeFor('wiki') }),
     settings: { wikiFolder: 'wiki', slugCase: 'preserve' } as LLMWikiSettings,
     app: {
       vault: {

@@ -10,6 +10,7 @@ import { TOKENS_SCHEMA_SUGGESTION } from '../constants';
 import { renderTemplate } from '../core/template-renderer';
 import { SchemaSuggestionLLMSchema } from '../llm-sdk/output-schemas';
 import { callLlm } from '../core/llm-dispatch';
+import { createVaultWriter, type VaultWriter } from '../core/vault-writer';
 
 const SCHEMA_FILENAME = 'schema/config.md';
 const SUGGESTIONS_FILENAME = 'schema/suggestions.md';
@@ -256,17 +257,23 @@ export class SchemaManager {
   private app: App;
   private settings: LLMWikiSettings;
   private getLLMClient: () => LLMClient | null;
+  /** Phase 5 (F-08): every schema write goes through this gate. */
+  private readonly vaultWriter: VaultWriter;
   private cachedBody: string | null = null;
   private cacheValid = false;
 
   constructor(
     app: App,
     settings: LLMWikiSettings,
-    getLLMClient: () => LLMClient | null
+    getLLMClient: () => LLMClient | null,
+    /** Phase 5 (F-08) vault write-gate. Defaults to a writer scoped to the
+     *  same settings, so every construction path is gated. */
+    vaultWriter?: VaultWriter
   ) {
     this.app = app;
     this.settings = settings;
     this.getLLMClient = getLLMClient;
+    this.vaultWriter = vaultWriter ?? createVaultWriter(app, settings);
   }
 
   private get client() {
@@ -386,7 +393,7 @@ ${selectedBody}
     // Ensure schema folder exists
     const schemaFolder = `${this.settings.wikiFolder}/schema`;
     try {
-      await this.app.vault.createFolder(schemaFolder);
+      await this.vaultWriter.createFolder(schemaFolder);
     } catch {
       // Already exists
     }
@@ -401,7 +408,7 @@ auto_suggestion_count: 0
 
 ${body}`;
 
-    await this.app.vault.create(path, content);
+    await this.vaultWriter.create(path, content);
     this.cachedBody = body;
     this.cacheValid = true;
 
@@ -423,7 +430,7 @@ ${body}`;
     // Ensure parent folders exist (handles empty vault or custom wikiFolder)
     const schemaFolder = `${this.settings.wikiFolder}/schema`;
     try {
-      await this.app.vault.createFolder(schemaFolder);
+      await this.vaultWriter.createFolder(schemaFolder);
     } catch {
       // Already exists or path invalid
     }
@@ -431,9 +438,9 @@ ${body}`;
     const existing = this.app.vault.getAbstractFileByPath(path);
 
     if (existing instanceof TFile) {
-      await this.app.vault.process(existing, () => content);
+      await this.vaultWriter.process(existing, () => content);
     } else {
-      await this.app.vault.create(path, content);
+      await this.vaultWriter.create(path, content);
     }
 
     this.cachedBody = body;
@@ -553,10 +560,10 @@ ${suggestion.suggestions}
 `;
 
     if (existing instanceof TFile) {
-      await this.app.vault.process(existing, (current) => current + '\n' + entry);
+      await this.vaultWriter.process(existing, (current) => current + '\n' + entry);
     } else {
       const header = `# Schema Suggestions\n\n> Suggestions for improving your Wiki Schema. Review and decide whether to apply them to \`schema/config.md\`.\n\n---\n\n`;
-      await this.app.vault.create(path, header + entry);
+      await this.vaultWriter.create(path, header + entry);
     }
   }
 }

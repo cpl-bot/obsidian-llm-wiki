@@ -19,6 +19,7 @@
 
 import { App, TFile } from 'obsidian';
 import { parseFrontmatter } from './frontmatter';
+import type { VaultWriter } from './vault-writer';
 
 /** True iff the page's frontmatter explicitly contains `generation_complete: false`.
  *  Note: parseFrontmatter returns all unknown keys as strings (no boolean
@@ -63,15 +64,19 @@ export async function findIncompletePages(
  * Archive (trash) the given files. Returns the count successfully cleaned.
  * Failures on individual files are logged and skipped — one bad page must not
  * block cleanup of the rest.
+ *
+ * Phase 5 (F-08): takes the `VaultWriter` rather than the `App`, so a page
+ * that somehow resolved to a path outside the wiki folder is refused instead
+ * of trashed.
  */
 export async function cleanIncompletePages(
-  app: App,
+  writer: VaultWriter,
   files: TFile[],
 ): Promise<number> {
   let cleaned = 0;
   for (const f of files) {
     try {
-      await app.fileManager.trashFile(f);
+      await writer.trash(f);
       cleaned++;
       console.debug(`[incomplete-page-cleaner] trashed ${f.path}`);
     } catch (e) {

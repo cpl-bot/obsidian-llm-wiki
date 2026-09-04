@@ -69,7 +69,7 @@ export class ContradictionManager {
   ): Promise<void> {
     const contradictionsDir = `${this.ctx.settings.wikiFolder}/contradictions`;
     try {
-      await this.ctx.app.vault.createFolder(contradictionsDir);
+      await this.ctx.vaultWriter.createFolder(contradictionsDir);
     } catch {
       // folder already exists
     }

@@ -3,6 +3,7 @@ import { runProgrammaticPhase } from '../../../wiki/lint/phases/programmatic';
 import { LintPhaseContext, ScannerPage } from '../../../wiki/lint/types';
 import { LLMWikiSettings } from '../../../types';
 import type { Graph } from '../../../core/monte-carlo-ppr';
+import { createTestVaultWriter, recordStore, testScopeFor } from '../../__support__/vault-writer';
 
 function makeContext(settings?: Partial<LLMWikiSettings>): LintPhaseContext {
   return {
@@ -16,6 +17,7 @@ function makeContext(settings?: Partial<LLMWikiSettings>): LintPhaseContext {
       customConceptTags: '',
       ...settings,
     } as LLMWikiSettings,
+    vaultWriter: createTestVaultWriter(recordStore({}), testScopeFor('wiki')).writer,
     llmClient: () => null, // programmatic phase does not consume LLM
     wikiEngine: { updateStatusBar: () => {} } as unknown as LintPhaseContext['wikiEngine'],
     checkCancelled: () => {},
