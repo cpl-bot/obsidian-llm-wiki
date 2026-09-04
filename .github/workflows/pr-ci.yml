@@ -18,8 +18,19 @@ name: Gate 1 (Five-Gate)
 #   - pnpm-specific `overrides` (flat format per `feedback_pnpm_vs_npm_overrides_incompatibility`)
 #     are not honored by npm
 #   - pnpm cache key (`pnpm-lock.yaml` hash) keeps CI fast
+# The install is script-free by policy: `.npmrc` sets `ignore-scripts=true` and
+# `pnpm-workspace.yaml` re-enables exactly one package via
+# `onlyBuiltDependencies: [esbuild]`, so the platform binary esbuild needs is
+# still fetched while no other package in the tree gets to execute code at
+# install time (HARDENING-PLAN Phase 1, task 1.4 — F-02/F-05).
 # The Bot alignment step at release time remains the final word on plugin
 # version per "Bot alignment (pre-release)" under §"Gate 1: Five-Gate automated".
+#
+# Every `uses:` below is pinned to a commit SHA, not a tag (HARDENING-PLAN
+# Phase 6.1 — F-07). Tags are mutable: the 2025 `tj-actions/changed-files`
+# compromise was published by moving existing tags onto a hostile commit, and
+# every workflow that trusted `@v4` ran it. The trailing `# vX.Y.Z` comment is
+# the human-readable version; `.github/dependabot.yml` bumps both together.
 on:
   pull_request:
     branches: [main]
@@ -31,19 +42,20 @@ jobs:
   gate-1:
     name: Gate 1 / Five-Gate
     runs-on: ubuntu-latest
+    # No job-level `permissions:` override — this job only reads the checkout.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
         with:
           version: 10.14.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '24.x'
           cache: 'pnpm'
 
-      - name: Install (lockfile-pinned)
+      - name: Install (lockfile-pinned, install scripts disabled)
         run: pnpm install --frozen-lockfile
 
       # Supply-chain gates (HARDENING-PLAN Phase 1, tasks 1.5-1.6).
@@ -93,3 +105,12 @@ jobs:
           pnpm build
           pnpm test
           pnpm css-lint
+
+      # Bundle tripwires (HARDENING-PLAN Phase 2.A / Phase 4.5). These read
+      # the `main.js` the step above produced, so they cannot run earlier.
+
+      - name: Bundle tripwire — MinerU removed (F-06)
+        run: pnpm check:bundle-mineru
+
+      - name: Bundle tripwire — no unaccounted hostname (F-04)
+        run: pnpm check:bundle-hosts

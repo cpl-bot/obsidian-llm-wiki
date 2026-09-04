@@ -1,0 +1,56 @@
+# Dependabot keeps the SHA pins in `.github/workflows/*.yml` current
+# (HARDENING-PLAN Phase 6.1 — F-07).
+#
+# SHA-pinning an action freezes it at a commit, which is the point: a moved
+# tag cannot silently change what runs. The cost is that security fixes in
+# those actions no longer arrive on their own. Dependabot pays that cost by
+# opening a PR that rewrites both the SHA and the trailing `# vX.Y.Z` comment,
+# so every bump goes through review instead of through a tag the upstream
+# owner can move at any time.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci
+    labels:
+      - dependencies
+      - github-actions
+    groups:
+      # One PR for all action bumps: they are reviewed together anyway, and a
+      # single PR means a single CI run over the whole workflow surface.
+      actions:
+        patterns:
+          - "*"
+
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: chore
+      prefix-development: chore
+    labels:
+      - dependencies
+    open-pull-requests-limit: 5
+    groups:
+      # Minor and patch bumps land as one reviewable PR. Majors are deliberately
+      # excluded from the group so each one arrives on its own and gets a real
+      # migration review.
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # The AI SDK stack and zod move fast and break across majors; the
+      # HARDENING-PLAN schedules those upgrades as their own work item
+      # ("ai/@ai-sdk/zod major upgrades (1-2d)") rather than as a dependency
+      # PR. Minor and patch updates still flow through the group above.
+      - dependency-name: "ai"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@ai-sdk/*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "zod"
+        update-types: ["version-update:semver-major"]
