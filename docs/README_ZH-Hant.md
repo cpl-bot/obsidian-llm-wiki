@@ -33,7 +33,7 @@
 | **交付與安裝** | ✅ **5 分鐘** — 一鍵 Obsidian 外掛：社群外掛市集 → 安裝 → 選 Provider → 攝入 | ❌ 30 分鐘以上 — 編譯/下載 Tauri 二進位檔，設定 CLI | ❌ 15 分鐘 — 需要 Claude Code 訂閱 + 安裝技能 | ❌ 30 分鐘以上 — pip 安裝 + Python SDK + 本地伺服器 |
 | **架構與依賴** | ✅ **零依賴** — 無向量 DB、無嵌入模型、無外部程序（刻意設計，採用 PPR 檢索 `[[wiki-link]]` 圖譜） | 🟡 內建 Python 執行環境 + sigma.js + sqlite；嵌入模型可選，預設關閉 | 🟡 依賴 Claude Code 環境 — 非自包含；無嵌入 | ❌ 需要 Python + 嵌入模型 + 向量 DB（強制） |
 | **國際化（UI + Wiki 輸出）** | ✅ 11 種語言（UI/Wiki 互相獨立） | 🟡 2 種（EN / 中文） | ❌ 僅英文 | ❌ 僅英文 |
-| **LLM Provider** | ✅ 16 種以上（Anthropic、OpenAI、Bedrock、Gemini、DeepSeek、Qwen、Grok、Kimi、GLM、MiniMax、Step、Hunyuan、MiMo、Gemma、Codex OAuth、Ollama、LM Studio、OpenRouter、Anthropic 相容等） | 🟡 OpenAI 相容 | 🟡 透過 Claude Code 訂閱 | 🟡 透過 Claude Code / Codex 訂閱 | 🟡 OpenAI 相容 |
+| **LLM Provider** | ✅ 16 種以上（Anthropic、OpenAI、Gemini、DeepSeek、Qwen、Grok、Kimi、GLM、MiniMax、Step、Hunyuan、MiMo、Gemma、Codex OAuth、Ollama、LM Studio、OpenRouter、Anthropic 相容等） | 🟡 OpenAI 相容 | 🟡 透過 Claude Code 訂閱 | 🟡 透過 Claude Code / Codex 訂閱 | 🟡 OpenAI 相容 |
 | **檢索與查詢管線** | ✅ **5 階段級聯** — Lex → LLM 關鍵詞 → 子字串掃描 → LLM KB 回退 → PPR 擴展（在第一個足夠信號處截斷）。Personalized PageRank（Haveliwala 2002）+ Monte Carlo（Fogaras 2005） | 🟡 僅 2 跳衰減（4 信號啟發式：Adamic-Adar + 2 跳） | ❌ 僅 Louvain 社群偵測 | ❌ 僅 k-hop 預覽（無 LLM 增強） | ❌ 基於區塊的 BM25 + 語義（無圖譜） |
 | **圖譜視覺化** | ✅ Obsidian 原生圖譜檢視（內建，零額外體積） | ❌ 桌面應用中自訂 sigma.js + graphology | 🟡 vis.js graph.html（獨立檔案） | ❌ 自訂 sigma.js 離線 HTML | ❌ 唯讀瀏覽器檢視器 |
 | **Wiki 誠實度** | ✅ 當查詢沒有匹配的 Wiki 來源時顯示「Stage FALLBACK」提示 | ❌ 無對應功能 | ❌ 無對應功能 | ❌ 無對應功能 | ❌ 無對應功能 |
@@ -43,7 +43,7 @@
 
 - **🪟 Obsidian 就是執行環境。** 不需要終端機、獨立應用、Docker 或 Python。從社群外掛市集安裝，按一下「攝入」，Wiki 從第一秒就存在你的 vault 中。Obsidian 原生的圖譜檢視會呈現你的 `[[wiki-link]]` 圖譜——內建功能，完全不增加套件體積。
 - **🧭 簡潔且自包含。** 零依賴。不需要嵌入模型、向量資料庫或 pip 套件——單一外掛就能讀取筆記、與 LLM 溝通、並寫入 Wiki 頁面。一切都在 Obsidian 內部運作。
-- **🔌 任何你已付費的模型都能用。** Anthropic、Bedrock、OpenAI、ChatGPT Plan (Codex OAuth)、Gemini、DeepSeek、Qwen、Grok、Kimi、GLM、MiniMax、Step、Hunyuan、MiMo、Gemma、Ollama、LM Studio、OpenRouter、Anthropic 相容、自訂端點——十六種以上的 Provider，沒有一個需要嵌入端點。
+- **🔌 任何你已付費的模型都能用。** Anthropic、OpenAI、ChatGPT Plan (Codex OAuth)、Gemini、DeepSeek、Qwen、Grok、Kimi、GLM、MiniMax、Step、Hunyuan、MiMo、Gemma、Ollama、LM Studio、OpenRouter、Anthropic 相容、自訂端點——十六種以上的 Provider，沒有一個需要嵌入端點。
 
 ---
 
@@ -124,7 +124,7 @@
 
 三條入口，每次擷取都能切換：
 
-1. **☁️ 原生支援 PDF 的雲端 Provider** — Anthropic、OpenAI、Google Gemini 與 AWS Bedrock（Anthropic + OpenAI 變體）可直接把 PDF 當作 file part 讀取。除了選定 Provider 之外不需任何設定。
+1. **☁️ 原生支援 PDF 的雲端 Provider** — Anthropic、OpenAI 與 Google Gemini 可直接把 PDF 當作 file part 讀取。除了選定 Provider 之外不需任何設定。
 2. **🖥️ Apple Silicon 本機 OCR** — [oMLX](https://github.com/jundot/omlx) 內建 Microsoft Markitdown 作為 PDF→Markdown 後端。在 oMLX 中啟用 Markitdown，載入 [Baidu Unlimited-OCR](https://huggingface.co/baidu/Unlimited-OCR)（3B / 570M 活躍參數，2026-06 開源）作為視覺模型，把外掛指向 oMLX 作為 Custom OpenAI-Compatible Provider，開啟 **Force PDF Support**，再選擇 oMLX 正在服務的多模態模型。PDF 全程不離開你的機器。
 3. **🔌 Force PDF Support** — 對於其他任何接受 file part 的 OpenAI/Anthropic 相容端點，外掛會嘗試呼叫（設定 → LLM Configuration → Advanced）。成敗由端點決定；失敗會以本地化 Notice 呈現。
 
@@ -210,7 +210,7 @@
 
 ### 爲什麼不使用嵌入
 
-我們在 [Issue #175](https://github.com/green-dalii/obsidian-llm-wiki/issues/175) 中刻意拒絕了嵌入路徑。圖譜訊號已經存在——每個 `[[wiki-link]]` 都是一條手工維護的「這些內容相關」的邊，而且我們支援的大多數 Provider（Ollama、LM Studio、Anthropic、Bedrock、Kimi、GLM、MiniMax）根本沒有 `/v1/embeddings` 端點。加入嵌入模型意味著每次頁面下載、每個 Provider 適配器，而檢索品質上沒有任何提升。
+我們在 [Issue #175](https://github.com/green-dalii/obsidian-llm-wiki/issues/175) 中刻意拒絕了嵌入路徑。圖譜訊號已經存在——每個 `[[wiki-link]]` 都是一條手工維護的「這些內容相關」的邊，而且我們支援的大多數 Provider（Ollama、LM Studio、Anthropic、Kimi、GLM、MiniMax）根本沒有 `/v1/embeddings` 端點。加入嵌入模型意味著每次頁面下載、每個 Provider 適配器，而檢索品質上沒有任何提升。
 
 ---
 
@@ -233,7 +233,6 @@
 | **Tencent Hunyuan** | Hy3 系列 | OpenAI 相容；開源權重 MoE |
 | **Xiaomi MiMo** | MiMo V2.5 系列 | MIT 開源；平價方案 |
 | **Google Gemma** | Gemma 4 系列 | 開源權重；262K 上下文 |
-| **AWS Bedrock** | Anthropic + OpenAI 變體 | VPC / 合規路徑；**API key + SSO + IAM**（v1.27.0, #425） |
 | **ChatGPT Plan (Codex OAuth)** | Codex Responses API | 瀏覽器/裝置代碼登入；SecretStorage |
 | **本地：Ollama、LM Studio、OpenRouter、Anthropic 相容** | 任何 OpenAI/Anthropic 協定模型 | Custom OpenAI-Compatible + Anthropic-Compatible（Token Plan / Coding Plan） |
 
@@ -246,23 +245,13 @@
 - **🔌 嵌入端點無關緊要**——我們不使用嵌入。沒有 `/v1/embeddings` 的 Provider 完全沒問題（我們支援的 16 種以上 Provider 大多都沒提供）。
 - **🦙 本機用於查詢，雲端用於擷取**——2000 頁 vault 的擷取通常需要長上下文雲端模型；262K 的本機模型可涵蓋大多數查詢。
 
-關於 PDF 擷取，請見核心特性中的 [文件 / PDF / 圖片擷取](#-文件--pdf--圖片擷取)——Anthropic、OpenAI、Bedrock 與 Gemini 可原生把 PDF 當作 file part 讀取；其餘接受 file part 的端點則由 **Force PDF Support** 涵蓋。
+關於 PDF 擷取，請見核心特性中的 [文件 / PDF / 圖片擷取](#-文件--pdf--圖片擷取)——Anthropic、OpenAI、Gemini 可原生把 PDF 當作 file part 讀取；其餘接受 file part 的端點則由 **Force PDF Support** 涵蓋。
 
 ### Anthropic vs OpenAI vs Codex OAuth——三者是不同的 Provider
 
-- **Anthropic**（及其 Bedrock 變體）——單獨計費的 Anthropic Platform API Key。
+- **Anthropic** ——單獨計費的 Anthropic Platform API Key。
 - **OpenAI**——單獨計費的 OpenAI Platform API Key。
 - **ChatGPT Plan (Codex OAuth)**——實驗性的獨立 Provider，在瀏覽器或裝置代碼登入後使用符合資格的 Codex 方案額度；可用性取決於 OpenAI Codex 的驗證和額度政策，而非僅憑方案名稱。這是第三方 Codex 相容功能，並非 OpenAI 合作項目或通用 ChatGPT API。
-
-### AWS Bedrock——三種驗證模式 (v1.27.0, #425)
-
-設定 → Provider → Bedrock（Anthropic / OpenAI）現在可從三種驗證模式中擇一；選定後，該 Provider 欄位只會索取該模式實際需要的輸入項：
-
-- **API key**——原本的 Stage-1 bearer 路徑；行為與 v1.26.4 逐位元組完全相同，也是已經在付費使用 Bedrock API key 的使用者的建議選項。
-- **SSO**——IAM Identity Center 裝置流程。點擊 *Sign in with AWS SSO*，在瀏覽器貼上驗證 URL 代碼，外掛便會透過 SecretStorage 中的 `karpathywiki-bedrock-sso` 取得 SSO token，將其換取為臨時角色憑證，並以自行實作的 SigV4 為每一次請求簽章（不引入 AWS SDK）。當 SSO 身分各只暴露一組時，帳號 ID 與角色名稱會自動偵測；否則請在 Provider 設定中手動填入。
-- **IAM**——供沒有 SSO 的環境（CI、排程批次作業）使用的靜態存取金鑰。儲存於 SecretStorage 中的 `karpathywiki-bedrock-iam`；記憶體內快取會依存取金鑰做記憶化，讓 SigV4 簽章維持在有效期限之內。
-
-三種模式共用同一套 Obsidian SecretStorage 紀律（憑證絕不出現在 `data.json`、日誌或文件中），也共用同一條零 AWS SDK、自行實作的 OIDC + SigV4 路徑。Bedrock 區域與驗證模式互相獨立，在同一個 Provider 欄位中設定。
 
 > 📖 **完整選擇表**（雲端 + 本地 + PDF OCR + Codex OAuth + 量化 + 硬體分級）→ [docs/MODEL-GUIDE.md](https://github.com/green-dalii/obsidian-llm-wiki/blob/main/docs/MODEL-GUIDE.md)
 
@@ -284,7 +273,7 @@
 
 ### 可以攝入 PDF、圖片和 Office 文件嗎？
 
-✅ 可以。Anthropic、OpenAI、Bedrock 與 Gemini 可原生讀取 PDF；其餘端點由 **Force PDF Support** 涵蓋，Apple Silicon 使用者更可全程在本機完成轉換。三條路徑見 [文件 / PDF / 圖片擷取](#-文件--pdf--圖片擷取)。圖片與 Office 文件不會直接擷取——請先轉成 Markdown 或 PDF。
+✅ 可以。Anthropic、OpenAI、Gemini 可原生讀取 PDF；其餘端點由 **Force PDF Support** 涵蓋，Apple Silicon 使用者更可全程在本機完成轉換。三條路徑見 [文件 / PDF / 圖片擷取](#-文件--pdf--圖片擷取)。圖片與 Office 文件不會直接擷取——請先轉成 Markdown 或 PDF。
 
 ### 我的資料會被傳送到任何地方嗎？
 

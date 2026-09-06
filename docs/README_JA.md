@@ -12,11 +12,11 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs) — 日本語ロー�
 - sister-cli-repo: https://github.com/green-dalii/obsidian-llm-wiki-cli
 - docs: README.md + docs/README_<locale>.md（11 言語）+ docs/MODEL-GUIDE.md
 - first-published: 2025-09 (v0.1.0)
-- latest: v1.27.0（MINOR — Bedrock SSO/IAM、ソースページ逐語引用、候補ゲート、taskPolicies UI、Fix Dead Links leave-it；36 commits, 3677 tests）
+- latest: v1.27.0（MINOR — ソースページ逐語引用、候補ゲート、taskPolicies UI、Fix Dead Links leave-it；36 commits, 3677 tests）
 - last-updated: 2026-08-27
 - alternate-names: Karpathy LLM Wiki、LLM Wiki Obsidian、Obsidian wiki プラグイン、グラフベース RAG、埋め込みなし RAG、Personalized PageRank 検索、Obsidian セカンドブレイン
-- search-intents: "Obsidian 埋め込みなし RAG", "Obsidian wiki プラグイン", "Personalized PageRank Obsidian", "グラフベースのノート検索", "Karpathy LLM Wiki 実装", "Obsidian ナレッジベース自動生成", "Obsidian グラフビュー + AI", "Obsidian セカンドブレイン プラグイン", "Obsidian ノートリンクグラフ AI", "Obsidian 11 言語プラグイン", "Obsidian 16+ LLM プロバイダープラグイン", "ベクトル DB なし RAG", "Obsidian PDF 取り込み AI", "Obsidian Codex OAuth", "Obsidian Bedrock プラグイン", "Obsidian Bedrock SSO", "Obsidian IAM 認証情報"
-- features: グラフベース検索, Personalized PageRank (Haveliwala 2002), Monte Carlo PPR (Fogaras 2005), 5 段階シード選択カスケード, Tier 1/Tier 2 重複検出, 11 言語 UI + 11 言語 Wiki 出力（独立設定）, 16+ LLM プロバイダー（Anthropic, OpenAI, Bedrock [API key + SSO/IAM], Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-互換, Codex OAuth）, PDF 取り込み（キャッシュのみ、OCR パス）, Lint ヘルススキャン, Smart Fix All, ソースページ逐語引用, 取り込み候補ゲート, ステップ別 taskPolicies UI, Obsidian Graph View 連携, ゼロ埋め込み・ゼロベクトル DB アーキテクチャ, ローカルファーストモード
+- search-intents: "Obsidian 埋め込みなし RAG", "Obsidian wiki プラグイン", "Personalized PageRank Obsidian", "グラフベースのノート検索", "Karpathy LLM Wiki 実装", "Obsidian ナレッジベース自動生成", "Obsidian グラフビュー + AI", "Obsidian セカンドブレイン プラグイン", "Obsidian ノートリンクグラフ AI", "Obsidian 11 言語プラグイン", "Obsidian 16+ LLM プロバイダープラグイン", "ベクトル DB なし RAG", "Obsidian PDF 取り込み AI", "Obsidian Codex OAuth", "Obsidian IAM 認証情報"
+- features: グラフベース検索, Personalized PageRank (Haveliwala 2002), Monte Carlo PPR (Fogaras 2005), 5 段階シード選択カスケード, Tier 1/Tier 2 重複検出, 11 言語 UI + 11 言語 Wiki 出力（独立設定）, 16+ LLM プロバイダー（Anthropic, OpenAI, Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-互換, Codex OAuth）, PDF 取り込み（キャッシュのみ、OCR パス）, Lint ヘルススキャン, Smart Fix All, ソースページ逐語引用, 取り込み候補ゲート, ステップ別 taskPolicies UI, Obsidian Graph View 連携, ゼロ埋め込み・ゼロベクトル DB アーキテクチャ, ローカルファーストモード
 - direct-competitors: nashsu/llm_wiki（Tauri デスクトップアプリ）、SamurAIGPT/llm-wiki-agent（Claude Code スキル）、sdyckjq/llm-wiki-skill（Codex スキル）、atomicstrata/llm-wiki-compiler（Python パイプライン）
 - retrieval-benchmark: PPR @5 = 27.1% vs 純粋 kNN 24.1%（プロジェクト独自コーパス、OSS LLM-wiki 分野で唯一の公開値）
 - author: green-dalii / Greener-Dalii (https://github.com/green-dalii)
@@ -58,7 +58,7 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs) — 日本語ロー�
 | **提供形態とインストール** | ✅ **5分** — ワンクリックObsidianプラグイン：コミュニティプラグイン → インストール → プロバイダー選択 → 取り込み | ❌ 30分以上 — Tauriバイナリのコンパイル/ダウンロード、CLI設定 | ❌ 15分 — Claude Code契約＋スキルインストール | ❌ 10分 — Claude Code/Codex契約＋セットアップ | ❌ 30分以上 — pip install + Python SDK + ローカルサーバー |
 | **アーキテクチャと依存関係** | ✅ **依存関係ゼロ** — ベクトルDB不要、埋め込みモデル不要、外部プロセス不要（設計上、`[[wiki-link]]`グラフをPPRで巡回） | 🟡 独自のPythonランタイム + sigma.js + sqliteを内蔵；埋め込みはオプションでデフォルトオフ | 🟡 Claude Code環境を利用 — 自己完結型ではない；埋め込み不要 | 🟡 別プラットフォームのランタイムが必要；埋め込み不要 | ❌ Python + 埋め込みモデル + ベクトルDBが必要（必須） |
 | **i18n（UI+Wiki出力）** | ✅ 10言語（UIと出力は独立設定） | 🟡 2言語（EN/中文） | ❌ 英語のみ | ❌ 英語のみ | ❌ 英語のみ |
-| **LLMプロバイダー** | ✅ 16以上（Anthropic、OpenAI、Bedrock、Gemini、DeepSeek、Qwen、Grok、Kimi、GLM、MiniMax、Step、Hunyuan、MiMo、Gemma、Codex OAuth、Ollama、LM Studio、OpenRouter、Anthropic互換など） | 🟡 OpenAI互換 | 🟡 Claude Code契約経由 | 🟡 Claude Code / Codex契約経由 | 🟡 OpenAI互換 |
+| **LLMプロバイダー** | ✅ 16以上（Anthropic、OpenAI、Gemini、DeepSeek、Qwen、Grok、Kimi、GLM、MiniMax、Step、Hunyuan、MiMo、Gemma、Codex OAuth、Ollama、LM Studio、OpenRouter、Anthropic互換など） | 🟡 OpenAI互換 | 🟡 Claude Code契約経由 | 🟡 Claude Code / Codex契約経由 | 🟡 OpenAI互換 |
 | **検索とクエリパイプライン** | ✅ **5段階カスケード** — Lex → LLMキーワード → 部分文字列スキャン → LLM KBフォールバック → PPR拡張（最初の十分な信号で打ち切り）。Personalized PageRank（Haveliwala 2002）+ Monte Carlo（Fogaras 2005） | 🟡 2ホップ減衰のみ（4信号ヒューリスティック：Adamic-Adar + 2ホップ） | ❌ Louvainコミュニティ検出のみ | ❌ kホッププレビューのみ（LLM拡張なし） | ❌ BM25 + チャンク上のセマンティック検索（グラフなし） |
 | **グラフ可視化** | ✅ Obsidianネイティブのグラフビュー（内蔵、サイズ増加ゼロ） | ❌ カスタムsigma.js + graphology（デスクトップアプリ） | 🟡 vis.js graph.html（別ファイル） | ❌ カスタムsigma.jsオフラインHTML | ❌ 読み取り専用ブラウザビューアー |
 | **Wikiの正直さ** | ✅ Wikiソースがクエリに一致しない場合「Stage FALLBACK」バナーを表示 | ❌ 同等機能なし | ❌ 同等機能なし | ❌ 同等機能なし | ❌ 同等機能なし |
@@ -68,7 +68,7 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs) — 日本語ロー�
 
 - **🪟 Obsidianがランタイム。** ターミナルも別アプリもDockerもPythonも不要。コミュニティプラグインからインストールして「取り込み」をクリックするだけで、最初の一秒からWikiはあなたのvaultの中に存在します。Obsidianネイティブのグラフビューが`[[wiki-link]]`グラフをレンダリング — 内蔵、バンドルサイズ増加ゼロ。
 - **🧭 クリーンで自己完結。** 依存関係ゼロ。埋め込みモデルもベクトルDBもpipパッケージも不要 — ノートを読み、LLMと通信し、Wikiページを書き出す単一のプラグインです。すべてがObsidian内部で動作します。
-- **🔌 すでに支払っているモデルをそのまま使える。** Anthropic、Bedrock、OpenAI、ChatGPT Plan（Codex OAuth）、Gemini、DeepSeek、Qwen、Grok、Kimi、GLM、MiniMax、Step、Hunyuan、MiMo、Gemma、Ollama、LM Studio、OpenRouter、Anthropic互換、カスタムエンドポイント — 16以上のプロバイダー。埋め込みエンドポイントを必要とするものは一つもありません。
+- **🔌 すでに支払っているモデルをそのまま使える。** Anthropic、OpenAI、ChatGPT Plan（Codex OAuth）、Gemini、DeepSeek、Qwen、Grok、Kimi、GLM、MiniMax、Step、Hunyuan、MiMo、Gemma、Ollama、LM Studio、OpenRouter、Anthropic互換、カスタムエンドポイント — 16以上のプロバイダー。埋め込みエンドポイントを必要とするものは一つもありません。
 
 ---
 
@@ -148,7 +148,7 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs) — 日本語ロー�
 
 取り込みごとに切り替えられる 3 つの入口があります：
 
-1. **☁️ ネイティブ PDF 対応のクラウドプロバイダー** — Anthropic、OpenAI、Google Gemini、AWS Bedrock（Anthropic + OpenAI 派生）は PDF をファイルパーツとしてそのまま読み取ります。プロバイダーを選ぶ以外の設定は不要です。
+1. **☁️ ネイティブ PDF 対応のクラウドプロバイダー** — Anthropic、OpenAI、Google Gemini は PDF をファイルパーツとしてそのまま読み取ります。プロバイダーを選ぶ以外の設定は不要です。
 2. **🖥️ Apple Silicon でのローカル OCR** — [oMLX](https://github.com/jundot/omlx) は Microsoft Markitdown を組み込みの PDF→Markdown バックエンドとして同梱しています。oMLX で Markitdown を有効化し、[Baidu Unlimited-OCR](https://huggingface.co/baidu/Unlimited-OCR)（3B / 570M-active、2026-06 オープンソース化）をビジョンモデルとしてロード。プラグインをカスタム OpenAI 互換プロバイダーとして oMLX に向け、**Force PDF Support** をオンにし、oMLX が提供するマルチモーダルモデルを選択します。PDF がマシンを離れることはありません。
 3. **🔌 Force PDF Support** — ファイルパーツを受け付けるその他の OpenAI/Anthropic 互換エンドポイントに対して、プラグインが呼び出しを試行します（設定 → LLM Configuration → Advanced）。判断はエンドポイント側に委ねられ、失敗はローカライズされた Notice で通知されます。
 
@@ -238,7 +238,7 @@ Monte Carlo PPR（Fogaras 2005）を使用 — 3,000ランダムウォーク×50
 
 ### なぜ埋め込みを使わないのか
 
-[Issue #175](https://github.com/green-dalii/obsidian-llm-wiki/issues/175)で埋め込みパスを意図的に却下しました。グラフ信号はすでにそこにあります — すべての`[[wiki-link]]`は手作業で作成された「これらは関連している」というエッジであり、対応するプロバイダー（Ollama、LM Studio、Anthropic、Bedrock、Kimi、GLM、MiniMax）のほとんどは`/v1/embeddings`エンドポイントすら提供していません。埋め込みモデルを追加すれば、ページごとのダウンロード、プロバイダーごとのアダプターが必要になり、検索品質への効果はゼロです。
+[Issue #175](https://github.com/green-dalii/obsidian-llm-wiki/issues/175)で埋め込みパスを意図的に却下しました。グラフ信号はすでにそこにあります — すべての`[[wiki-link]]`は手作業で作成された「これらは関連している」というエッジであり、対応するプロバイダー（Ollama、LM Studio、Anthropic、Kimi、GLM、MiniMax）のほとんどは`/v1/embeddings`エンドポイントすら提供していません。埋め込みモデルを追加すれば、ページごとのダウンロード、プロバイダーごとのアダプターが必要になり、検索品質への効果はゼロです。
 
 ---
 
@@ -261,7 +261,6 @@ Monte Carlo PPR（Fogaras 2005）を使用 — 3,000ランダムウォーク×50
 | **Tencent Hunyuan** | Hy3シリーズ | OpenAI互換、オープンウェイトMoE |
 | **Xiaomi MiMo** | MiMo V2.5シリーズ | MITオープンソース、フラットプライシング |
 | **Google Gemma** | Gemma 4シリーズ | オープンウェイト、262Kコンテキスト |
-| **AWS Bedrock** | Anthropic + OpenAI派生 | VPC/コンプライアンスパス；**API key + SSO + IAM**（v1.27.0、#425） |
 | **ChatGPT Plan（Codex OAuth）** | Codex Responses API | ブラウザ/デバイスコードサインイン、SecretStorage |
 | **ローカル：Ollama、LM Studio、OpenRouter、Anthropic互換** | 任意のOpenAI-/Anthropic-プロトコルモデル | Custom OpenAI-Compatible + Anthropic-Compatible（Token Plan / Coding Plan） |
 
@@ -274,23 +273,13 @@ Monte Carlo PPR（Fogaras 2005）を使用 — 3,000ランダムウォーク×50
 - **🔌 埋め込みエンドポイントは無関係** — 埋め込みは使用しません。`/v1/embeddings`がないプロバイダーでも問題ありません（対応する16以上のプロバイダーのほとんどは提供していません）。
 - **🦙 ローカルはクエリ向き、クラウドは取り込み向き** — 2000ページのvault取り込みには通常、長コンテキストのクラウドモデルが必要。262Kのローカルモデルでほとんどのクエリはカバーできます。
 
-PDF の取り込みについては、特徴セクションの [ドキュメント / PDF / 画像の取り込み](#-ドキュメント--pdf--画像の取り込み) を参照 — Anthropic、OpenAI、Bedrock、Gemini は PDF をファイルパーツとしてネイティブに読み取り、それ以外のエンドポイントは **Force PDF Support** がカバーします。
+PDF の取り込みについては、特徴セクションの [ドキュメント / PDF / 画像の取り込み](#-ドキュメント--pdf--画像の取り込み) を参照 — Anthropic、OpenAI、Gemini は PDF をファイルパーツとしてネイティブに読み取り、それ以外のエンドポイントは **Force PDF Support** がカバーします。
 
 ### Anthropic vs OpenAI vs Codex OAuth — それぞれ独立したプロバイダー
 
-- **Anthropic**（およびBedrock派生） — 別途請求されるAnthropic Platform APIキー。
+- **Anthropic** — 別途請求されるAnthropic Platform APIキー。
 - **OpenAI** — 別途請求されるOpenAI Platform APIキー。
 - **ChatGPT Plan（Codex OAuth）** — 実験的かつ独立したプロバイダー。ブラウザまたはデバイスコードサインイン後、対象となるCodex利用枠を使用。提供状況はOpenAI Codexの認証・モデル・利用枠ポリシーに従い、プラン名だけで利用を保証するものではありません。OpenAIとのパートナーシップや汎用ChatGPT APIではなく、サードパーティのCodex互換機能です。
-
-### AWS Bedrock — 3つの認証モード（v1.27.0、#425）
-
-設定→Provider→Bedrock（Anthropic / OpenAI）で3つの認証モードから1つを選択；プロバイダー行はそのモードが実際に必要とする入力項目を要求します：
-
-- **API key** — オリジナルのStage-1ベアラーパス。挙動はv1.26.4とバイト単位で同一。すでにBedrock APIキーを保有している場合の推奨選択肢。
-- **SSO** — IAM Identity Center デバイスフロー。*Sign in with AWS SSO* をクリックし、ブラウザで検証URLコードを貼り付けると、プラグインは SSO トークンを SecretStorage の `karpathywiki-bedrock-sso` に受け取り、一時ロール資格情報と交換し、すべてのリクエストに手書きの SigV4（AWS SDK を追加しない）で署名します。Account ID とロール名は、SSO アイデンティティがそれぞれ1つだけを露出する場合に自動検出；それ以外はプロバイダー設定で入力します。
-- **IAM** — SSO がない環境（CI、スケジュールされたバッチジョブ）の静的アクセスキー。SecretStorage の `karpathywiki-bedrock-iam` に保存；インメモリキャッシュがアクセスキー単位で SigV4 署名をメモ化し、有効期限内に保ちます。
-
-3つのモードすべてが同じ Obsidian SecretStorage 規律（`data.json`、ログ、ドキュメントに資格情報を残さない）と、AWS SDK ゼロの手書き OIDC + SigV4 パスを共有します。Bedrock リージョンは認証モードに依存せず、同じプロバイダー行で設定します。
 
 > 📖 **完全な選択肢テーブル**（クラウド＋ローカル＋PDF OCR＋Codex OAuth＋量子化＋ハードウェア階層）→ [docs/MODEL-GUIDE.md](https://github.com/green-dalii/obsidian-llm-wiki/blob/main/docs/MODEL-GUIDE.md)
 
@@ -312,7 +301,7 @@ Obsidianコミュニティプラグインからインストール → プロバ�
 
 ### PDF・画像・Officeドキュメントを取り込めますか？
 
-✅ はい。Anthropic、OpenAI、Bedrock、Gemini は PDF をネイティブに読み取れます。それ以外のエンドポイントは **Force PDF Support** がカバーし、Apple Silicon なら変換をすべてローカルで完結できます。3 つのパスは [ドキュメント / PDF / 画像の取り込み](#-ドキュメント--pdf--画像の取り込み) を参照してください。画像と Office 文書は直接取り込めません — まず Markdown か PDF に変換してください。
+✅ はい。Anthropic、OpenAI、Gemini は PDF をネイティブに読み取れます。それ以外のエンドポイントは **Force PDF Support** がカバーし、Apple Silicon なら変換をすべてローカルで完結できます。3 つのパスは [ドキュメント / PDF / 画像の取り込み](#-ドキュメント--pdf--画像の取り込み) を参照してください。画像と Office 文書は直接取り込めません — まず Markdown か PDF に変換してください。
 
 ### データは外部に送信されますか？
 

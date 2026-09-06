@@ -35,7 +35,7 @@ Du schreibst Notizen. Sie liegen in Ordnern. Zusammenhänge zu finden bedeutet, 
 | **Lieferung & Installation** | ✅ **5 Min.** — One-Click-Obsidian-Plugin: Community Plugins → Installieren → Provider wählen → Ingest | ❌ 30 Min.+ — Tauri-Binary kompilieren/herunterladen, CLI konfigurieren | ❌ 15 Min. — benötigt Claude-Code-Abo + Skill-Installation | ❌ 10 Min. — benötigt Claude-Code-/Codex-Abo + Skill-Einrichtung | ❌ 30 Min.+ — pip install + Python SDK + lokaler Server |
 | **Architektur & Abhängigkeiten** | ✅ **Keine Abhängigkeiten** — keine Vektor-DB, kein Embedding-Modell, keine externen Prozesse (PPR über `[[wiki-link]]`-Graph, bewusst so gewählt) | 🟡 Eigenes Python-Runtime + sigma.js + sqlite; Embeddings optional, standardmäßig aus | 🟡 Nutzt Claude-Code-Umgebung — nicht eigenständig; keine Embeddings | 🟡 Erfordert separate Plattform-Laufzeitumgebung; keine Embeddings | ❌ Erfordert Python + Embedding-Modell + Vektor-DB (zwingend) |
 | **i18n (UI + Wiki-Ausgabe)** | ✅ 10 Sprachen (unabhängige UI/Ausgabe) | 🟡 2 (EN / 中文) | ❌ Nur Englisch | ❌ Nur Englisch | ❌ Nur Englisch |
-| **LLM-Anbieter** | ✅ 16+ (inkl. Anthropic, OpenAI, Bedrock, Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Codex OAuth, Ollama, LM Studio, OpenRouter, Anthropic-Compatible) | 🟡 OpenAI-kompatibel | 🟡 Abo über Claude Code | 🟡 Abo über Claude Code / Codex | 🟡 OpenAI-kompatibel |
+| **LLM-Anbieter** | ✅ 16+ (inkl. Anthropic, OpenAI, Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Codex OAuth, Ollama, LM Studio, OpenRouter, Anthropic-Compatible) | 🟡 OpenAI-kompatibel | 🟡 Abo über Claude Code | 🟡 Abo über Claude Code / Codex | 🟡 OpenAI-kompatibel |
 | **Suche & Query-Pipeline** | ✅ **5-Stufen-Kaskade** — Lex → LLM-Keywords → Substring-Scan → LLM-KB-Fallback → PPR-Expansion (bricht bei erstem ausreichendem Signal ab). Personalized PageRank (Haveliwala 2002) + Monte Carlo (Fogaras 2005) | 🟡 Nur 2-Hop-Decay (4-Signal-Heuristik: Adamic-Adar + 2-Hop) | ❌ Nur Louvain-Community-Erkennung | ❌ Nur k-Hop-Vorschauen (keine LLM-Erweiterung) | ❌ BM25 + semantisch über Chunks (kein Graph) |
 | **Graph-Visualisierung** | ✅ Obsidians nativer Graph View (integriert, null zusätzliche Größe) | ❌ Benutzerdefiniertes sigma.js + graphology in Desktop-App | 🟡 vis.js graph.html (separate Datei) | ❌ Benutzerdefiniertes sigma.js offline HTML | ❌ Read-only-Browser-Viewer |
 | **Wiki-Ehrlichkeit** | ✅ „Stage FALLBACK"-Banner, wenn keine Wiki-Quelle zur Abfrage passt | ❌ Kein Äquivalent | ❌ Kein Äquivalent | ❌ Kein Äquivalent | ❌ Kein Äquivalent |
@@ -45,7 +45,7 @@ Du schreibst Notizen. Sie liegen in Ordnern. Zusammenhänge zu finden bedeutet, 
 
 - **🪟 Obsidian ist die Laufzeitumgebung.** Kein Terminal, keine separate App, kein Docker, kein Python. Aus Community-Plugins installieren, auf Ingest klicken, das Wiki lebt von der ersten Sekunde an in deinem Vault. Obsidians nativer Graph View rendert deinen `[[wiki-link]]`-Graphen — integriert, null zusätzliche Bundle-Größe.
 - **🧭 Sauber und autark.** Keine Abhängigkeiten. Kein Embedding-Modell, keine Vektor-Datenbank, kein pip-Paket — ein einziges Plugin, das deine Notizen liest, mit einem LLM spricht und Wiki-Seiten schreibt. Alles lebt innerhalb von Obsidian.
-- **🔌 Jedes Modell, für das du bereits bezahlst.** Anthropic, Bedrock, OpenAI, ChatGPT Plan (Codex OAuth), Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-kompatibel, eigener Endpunkt — sechzehn-plus Anbieter, keiner davon benötigt einen Embedding-Endpunkt.
+- **🔌 Jedes Modell, für das du bereits bezahlst.** Anthropic, OpenAI, ChatGPT Plan (Codex OAuth), Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-kompatibel, eigener Endpunkt — sechzehn-plus Anbieter, keiner davon benötigt einen Embedding-Endpunkt.
 
 ---
 
@@ -125,7 +125,7 @@ Das war's. Das Plugin ändert nichts an deinen ursprünglichen Notizen — es er
 
 Drei On-Ramps, pro Ingest umschaltbar:
 
-1. **☁️ Cloud-Provider mit nativem PDF** — Anthropic, OpenAI, Google Gemini und AWS Bedrock (Anthropic + OpenAI-Varianten) lesen PDFs ohne weitere Einrichtung als Datei-Parts.
+1. **☁️ Cloud-Provider mit nativem PDF** — Anthropic, OpenAI und Google Gemini lesen PDFs ohne weitere Einrichtung als Datei-Parts.
 2. **🖥️ Lokale OCR auf Apple Silicon** — [oMLX](https://github.com/jundot/omlx) integriert Microsoft Markitdown als eingebautes PDF→Markdown-Backend. Aktiviere Markitdown in oMLX, lade [Baidu Unlimited-OCR](https://huggingface.co/baidu/Unlimited-OCR) (3B / 570M-aktiv, Open-Source seit 2026-06) als Vision-Modell, richte das Plugin auf oMLX als benutzerdefinierten OpenAI-kompatiblen Provider aus, aktiviere **Force PDF Support** und wähle das multimodale Modell, das oMLX bereitstellt. Die PDF verlässt niemals deinen Rechner.
 3. **🔌 Force PDF Support** — für jeden anderen OpenAI/Anthropic-kompatiblen Endpunkt, der Datei-Parts akzeptiert, versucht das Plugin den Aufruf (Einstellungen → LLM Configuration → Advanced). Der Endpunkt entscheidet; Fehler erscheinen als lokalisierter Hinweis.
 
@@ -215,7 +215,7 @@ Wir verwenden Monte-Carlo-PPR (Fogaras 2005) — 3.000 zufällige Walks × 50 Sc
 
 ### Warum keine Embeddings
 
-Wir haben den Embedding-Pfad in [Issue #175](https://github.com/green-dalii/obsidian-llm-wiki/issues/175) bewusst abgelehnt. Das Graph-Signal ist bereits vorhanden — jeder `[[wiki-link]]` ist eine handkuratierte „diese sind verwandt"-Kante, und die meisten unserer unterstützten Anbieter (Ollama, LM Studio, Anthropic, Bedrock, Kimi, GLM, MiniMax) haben gar keinen `/v1/embeddings`-Endpunkt. Das Hinzufügen eines Embedding-Modells würde einen Download pro Seite, einen Adapter pro Anbieter und null Nutzen für die Suchqualität bedeuten.
+Wir haben den Embedding-Pfad in [Issue #175](https://github.com/green-dalii/obsidian-llm-wiki/issues/175) bewusst abgelehnt. Das Graph-Signal ist bereits vorhanden — jeder `[[wiki-link]]` ist eine handkuratierte „diese sind verwandt"-Kante, und die meisten unserer unterstützten Anbieter (Ollama, LM Studio, Anthropic, Kimi, GLM, MiniMax) haben gar keinen `/v1/embeddings`-Endpunkt. Das Hinzufügen eines Embedding-Modells würde einen Download pro Seite, einen Adapter pro Anbieter und null Nutzen für die Suchqualität bedeuten.
 
 ---
 
@@ -238,7 +238,6 @@ Wir haben den Embedding-Pfad in [Issue #175](https://github.com/green-dalii/obsi
 | **Tencent Hunyuan** | Hy3-Serie | OpenAI-kompatibel; Open-Weight MoE |
 | **Xiaomi MiMo** | MiMo V2.5-Serie | MIT Open-Source; Flat-Pricing |
 | **Google Gemma** | Gemma 4-Serie | Open-Weight; 262K Kontext |
-| **AWS Bedrock** | Anthropic + OpenAI-Varianten | VPC/Compliance-Pfad; **API key + SSO + IAM** (v1.27.0, #425) |
 | **ChatGPT Plan (Codex OAuth)** | Codex Responses API | Browser-/Gerätecode-Anmeldung; SecretStorage |
 | **Lokal: Ollama, LM Studio, OpenRouter, Anthropic-Compatible** | Jedes OpenAI-/Anthropic-Protokoll-Modell | Custom OpenAI-Compatible + Anthropic-Compatible (Token Plan / Coding Plan) |
 
@@ -253,19 +252,9 @@ Dieses Plugin füttert dem LLM pro Abfrage den gesamten Wiki-Kontext — daher g
 
 ### Anthropic vs. OpenAI vs. Codex OAuth — es sind unterschiedliche Anbieter
 
-- **Anthropic** (und seine Bedrock-Variante) — separat abgerechneter Anthropic-Platform-API-Key.
+- **Anthropic** — separat abgerechneter Anthropic-Platform-API-Key.
 - **OpenAI** — separat abgerechneter OpenAI-Platform-API-Key.
 - **ChatGPT Plan (Codex OAuth)** — experimenteller, eigenständiger Anbieter, der nach Browser- oder Gerätecode-Anmeldung berechtigtes Codex-Kontingent nutzt; die Verfügbarkeit folgt den OpenAI-Codex-Authentifizierungs- und Kontingentrichtlinien, nicht dem Plannamen. Drittanbieter-Codex-Kompatibilität, keine OpenAI-Partnerschaft oder allgemeine ChatGPT-API.
-
-### AWS Bedrock — drei Auth-Modi (v1.27.0, #425)
-
-Einstellungen → Provider → Bedrock (Anthropic / OpenAI) wählt jetzt einen von drei Auth-Modi; die Provider-Zeile fragt dann nach den Inputs, die dieser Modus tatsächlich braucht:
-
-- **API key** — der ursprüngliche Stage-1-Bearer-Pfad; das Verhalten ist byte-für-byte identisch zu v1.26.4 und die empfohlene Wahl für Nutzer, die bereits einen Bedrock-API-Key bezahlen.
-- **SSO** — IAM Identity Center Device Flow. Klicke *Sign in with AWS SSO*, füge den Verifikations-URL-Code im Browser ein, das Plugin erhält ein SSO-Token über `karpathywiki-bedrock-sso` in SecretStorage, tauscht es gegen temporäre Rollen-Anmeldeinformationen und signiert jede Anfrage mit handgeschriebenem SigV4 (kein AWS-SDK hinzugefügt). Account-ID und Rollenname werden automatisch erkannt, wenn die SSO-Identität genau eine von jeder exponiert; sonst trage sie in den Provider-Einstellungen ein.
-- **IAM** — statische Access-Keys für Umgebungen ohne SSO (CI, geplante Batch-Jobs). Gespeichert in `karpathywiki-bedrock-iam` in SecretStorage; der In-Memory-Cache memoisiert per Access-Key, um SigV4-Signing innerhalb der Ablauffrist zu halten.
-
-Alle drei Modi teilen dieselbe Obsidian-SecretStorage-Disziplin (keine Anmeldeinformationen in `data.json`, Logs oder Docs) und denselben Zero-AWS-SDK-Pfad aus handgeschriebenem OIDC + SigV4. Die Bedrock-Region ist unabhängig vom Auth-Modus und wird in derselben Provider-Zeile konfiguriert.
 
 > 📖 **Vollständige Auswahltabelle** (Cloud + Lokal + PDF-OCR + Codex OAuth + Quantisierung + Hardware-Stufen) → [docs/MODEL-GUIDE.md](https://github.com/green-dalii/obsidian-llm-wiki/blob/main/docs/MODEL-GUIDE.md)
 
@@ -287,7 +276,7 @@ Aus Obsidian Community-Plugins installieren → Provider wählen → **Test Conn
 
 ### Kann ich PDFs, Bilder und Office-Dokumente ingestieren?
 
-✅ Ja. Anthropic, OpenAI, Bedrock und Gemini lesen PDFs nativ; **Force PDF Support** deckt jeden anderen Endpunkt ab, der File-Parts akzeptiert, und auf Apple Silicon läuft die Konvertierung vollständig lokal. Die drei Pfade stehen unter [Dokument- / PDF- / Bild-Ingest](#-dokument---pdf---bild-ingest). Bilder und Office-Dokumente werden nicht direkt ingestiert — konvertiere sie vorher nach Markdown oder PDF.
+✅ Ja. Anthropic, OpenAI, Gemini lesen PDFs nativ; **Force PDF Support** deckt jeden anderen Endpunkt ab, der File-Parts akzeptiert, und auf Apple Silicon läuft die Konvertierung vollständig lokal. Die drei Pfade stehen unter [Dokument- / PDF- / Bild-Ingest](#-dokument---pdf---bild-ingest). Bilder und Office-Dokumente werden nicht direkt ingestiert — konvertiere sie vorher nach Markdown oder PDF.
 
 ### Werden meine Daten an Dritte gesendet?
 
