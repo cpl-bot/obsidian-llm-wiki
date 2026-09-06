@@ -11,12 +11,12 @@
 //   - 'openai'                 → OpenAISdkClient (official)
 //   - everything else          → OpenAICompatSdkClient (8 OpenAI-compatible baseURLs)
 //
-// B1 strategy: the three SDK modules are loaded via dynamic import.
-// `createLLMClientFromSettings` is async; `createLLMClientFromSettingsSync`
-// is a sync shim that uses pre-loaded modules (loaded eagerly by
-// `preloadLLMClientModules` on plugin startup). This keeps the call
-// sites in main.ts / wiki-engine.ts / query-engine.ts unchanged
-// (they all expect a sync `LLMClient` instance).
+// B1 strategy: the three SDK modules are statically imported (see the note
+// on the import block below — the dynamic form only defeated tree shaking).
+// `createLLMClientFromSettings` stays async and `createLLMClientFromSettingsSync`
+// stays a sync shim over the slot `preloadLLMClientModules` publishes on
+// plugin startup, so the call sites in main.ts / wiki-engine.ts /
+// query-engine.ts are unchanged (they all expect a sync `LLMClient`).
 
 import { LLMClient } from '../types';
 // Static, not `await import(...)`. `main.ts` calls `preloadLLMClientModules()`

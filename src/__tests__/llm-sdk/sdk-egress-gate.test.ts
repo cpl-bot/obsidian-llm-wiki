@@ -204,11 +204,12 @@ describe('egress gate under the AI SDK (provider adapters, production fetch defa
   // (`obsidianFetchBridge` / `streamWithFallback`) are what the SDK gets.
   // That still leaves one seam untested: the factory itself. `main.ts` never
   // calls `new OpenAICompatSdkClient(...)`; it goes through
-  // `createLLMClientFromSettings` / `...Sync`, which is also where the
-  // Bedrock branch DOES pass explicit fetch overrides. A future edit that
-  // handed some provider an unbridged fetch there would leave every
-  // assertion above green. So drive the real factory too, for both the
-  // denied and the allowed direction.
+  // `createLLMClientFromSettings` / `...Sync`, and that factory is free to
+  // hand a client an explicit `fetch` / `streamFetch` (a removed provider
+  // surface used to do exactly that). A future edit that passed some
+  // provider an unbridged fetch there would leave every assertion above
+  // green. So drive the real factory too, for both the denied and the
+  // allowed direction.
   describe('clients built by the production factory are bridged the same way', () => {
     /** `createLLMClientFromSettings` shape used by `main.ts`, key passed as pending. */
     function factorySettings(provider: string, baseUrl: string) {
