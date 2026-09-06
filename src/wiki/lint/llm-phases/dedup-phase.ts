@@ -364,8 +364,6 @@ export async function runDedupPhase(
     //          there, but the no-op comes from the SDK, not the
     //          backend. OpenRouter is the documented exception (uses
     //          a different key — no-op fallback).
-    //        - OpenAI Codex SDK (openai-codex-sdk-client.ts:152-154):
-    //          `reasoningEffort: 'low'` is a no-op for Codex Responses.
     //      The setting only affects thinking-capable models where the
     //      user almost certainly wanted it off for this task class.
     //

@@ -1,10 +1,8 @@
 /**
  * #425 Bedrock Stage 2 — pure UI-control helpers for the Bedrock SSO
- * auth section. Mirrors openai-codex-auth-controls.ts so the settings
- * tab stays thin and the async/abort/busy semantics stay unit-tested.
+ * auth section. Keeps the settings tab thin and the async/abort/busy
+ * semantics unit-tested.
  */
-
-import { runCodexSignOut, type CodexSignOutInput } from './openai-codex-auth-controls';
 
 export interface BedrockAuthUiInput {
   isBusy: boolean;
@@ -76,6 +74,24 @@ export async function runBedrockDeviceAuth(input: BedrockDeviceAuthInput): Promi
   }
 }
 
+/**
+ * Minimal view of the window object used to hand a URL to the user's
+ * browser. Hardening Phase 2.B: this helper and its `noopener,noreferrer`
+ * hardening moved here verbatim from the removed OAuth module's controls,
+ * which used to be its home; the SSO device flow is now the only caller.
+ */
+export interface ExternalNavigationTarget {
+  open(url: string, target: string, features: string): unknown;
+}
+
+/**
+ * `noopener,noreferrer` is not cosmetic: without `noopener` the opened page
+ * gets a live `window.opener` handle back into the Obsidian renderer.
+ */
+export function openExternalUrl(target: ExternalNavigationTarget, url: string): void {
+  target.open(url, '_blank', 'noopener,noreferrer');
+}
+
 export interface BedrockClipboard {
   writeText(value: string): Promise<void>;
 }
@@ -84,10 +100,51 @@ export async function copyBedrockUserCode(code: string, clipboard: BedrockClipbo
   await clipboard.writeText(code);
 }
 
+export interface BedrockSignOutInput extends BedrockAsyncControlInput {
+  isBusy(): boolean;
+  isSignedIn(): boolean;
+  confirm(): Promise<boolean>;
+  signOut(): Promise<void>;
+}
+
 /**
- * Sign-out flow is semantically identical to Codex's (async ConfirmModal,
- * busy lock against double-click) — delegate instead of duplicating.
+ * Drive one sign-out: busy lock → async confirm → sign out.
+ *
+ * Hardening Phase 2.B: this used to delegate to the removed OAuth
+ * module's identical helper. The behaviour is unchanged — the body was
+ * moved here verbatim when that module was deleted.
+ *
+ * v1.25.2 PATCH: `confirm()` returns a Promise — Obsidian `ConfirmModal`
+ * is intrinsically async, so we await it before deciding to sign out.
+ * Busy is locked immediately so a second click during the modal wait
+ * does not call `confirm` a second time. The first click drives the
+ * action; the second click is dropped.
  */
-export async function runBedrockSignOut(input: CodexSignOutInput): Promise<void> {
-  await runCodexSignOut(input);
+export async function runBedrockSignOut(input: BedrockSignOutInput): Promise<void> {
+  if (input.isBusy()) return;
+  input.setBusy(true);
+  input.render();
+  let confirmed = false;
+  try {
+    confirmed = await input.confirm();
+  } catch (error) {
+    input.setBusy(false);
+    input.render();
+    input.showError(error);
+    return;
+  }
+  if (!confirmed) {
+    input.setBusy(false);
+    input.render();
+    return;
+  }
+  try {
+    await input.signOut();
+  } catch (error) {
+    input.showError(error);
+  } finally {
+    if (!input.isSignedIn()) input.setReady(false);
+    input.setBusy(false);
+    input.render();
+  }
 }

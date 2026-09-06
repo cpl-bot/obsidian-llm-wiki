@@ -10,9 +10,6 @@ import { createLLMClientFromSettings } from '../../llm-sdk/create-llm-client';
 import { OpenAISdkClient } from '../../llm-sdk/openai-sdk-client';
 import { AnthropicSdkClient } from '../../llm-sdk/anthropic-sdk-client';
 import { OpenAICompatSdkClient } from '../../llm-sdk/openai-compat-sdk-client';
-import { OpenAICodexSdkClient } from '../../llm-sdk/openai-codex-sdk-client';
-import { CodexAuthManager } from '../../llm-sdk/openai-codex/auth-manager';
-import { memoryCredentialStore } from './openai-codex-test-helpers';
 import { emptySecretStorage } from '../__support__/secret-storage';
 
 /** Reads the private `apiKey` the factory handed the SDK client. */
@@ -20,22 +17,8 @@ function privateApiKey(client: unknown): string {
   return (client as { apiKey: string }).apiKey;
 }
 
-function fakeAuthManager(): CodexAuthManager {
-  return new CodexAuthManager({ store: memoryCredentialStore(), refresh: async (credential) => credential });
-}
-
 describe('createLLMClientFromSettings (async)', () => {
   describe('official providers', () => {
-    it('creates OpenAICodexSdkClient only with an auth manager', async () => {
-      const codexAuth = fakeAuthManager();
-      const client = await createLLMClientFromSettings({ provider: 'openai-codex', providerApiKeySecretId: 'karpathywiki-provider-api-key', secretStorage: emptySecretStorage(), codexAuth });
-      expect(client).toBeInstanceOf(OpenAICodexSdkClient);
-    });
-
-    it('rejects openai-codex without its auth manager', async () => {
-      await expect(createLLMClientFromSettings({ provider: 'openai-codex', providerApiKeySecretId: 'karpathywiki-provider-api-key', secretStorage: emptySecretStorage() })).rejects.toThrow('Codex auth manager is required');
-    });
-
     it('returns AnthropicSdkClient for provider="anthropic"', async () => {
       const c = await createLLMClientFromSettings({ provider: 'anthropic', providerApiKeySecretId: '', secretStorage: emptySecretStorage() });
       expect(c).toBeInstanceOf(AnthropicSdkClient);
@@ -146,13 +129,5 @@ describe('createLLMClientFromSettingsSync (preloaded)', () => {
     expect(() =>
       createLLMClientFromSettingsSync({ provider: 'openai', providerApiKeySecretId: 'karpathywiki-provider-api-key', secretStorage: emptySecretStorage() })
     ).toThrow(/SDK modules not preloaded/);
-  });
-
-  it('creates the preloaded Codex client only with its auth manager', async () => {
-    const { createLLMClientFromSettingsSync, preloadLLMClientModules } = await import('../../llm-sdk/create-llm-client');
-    await preloadLLMClientModules();
-    const codexAuth = fakeAuthManager();
-    expect(createLLMClientFromSettingsSync({ provider: 'openai-codex', codexAuth, providerApiKeySecretId: 'karpathywiki-provider-api-key', secretStorage: emptySecretStorage() })).toBeInstanceOf(OpenAICodexSdkClient);
-    expect(() => createLLMClientFromSettingsSync({ provider: 'openai-codex', providerApiKeySecretId: 'karpathywiki-provider-api-key', secretStorage: emptySecretStorage() })).toThrow('Codex auth manager is required');
   });
 });

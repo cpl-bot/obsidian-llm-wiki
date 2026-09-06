@@ -63,7 +63,7 @@ describe('createLLMClient — Bedrock region forwarding (#425 prerequisite)', ()
       bedrockRegion: 'ap-northeast-1',
     } as unknown as LLMWikiSettings;
 
-    createLLMClient(settings, undefined, 'test-version', secretStorage, 'pending-key');
+    createLLMClient(settings, secretStorage, 'pending-key');
 
     expect(createLLMClientFromSettingsSync).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -71,7 +71,6 @@ describe('createLLMClient — Bedrock region forwarding (#425 prerequisite)', ()
         baseUrl: 'https://example.invalid',
         bedrockRegion: 'ap-northeast-1',
         secretStorage,
-        codexVersion: 'test-version',
       }),
       'pending-key',
     );
@@ -90,7 +89,7 @@ describe('createLLMClient — Bedrock region forwarding (#425 prerequisite)', ()
       bedrockSsoRoleName: 'PowerUserAccess',
     } as unknown as LLMWikiSettings;
 
-    createLLMClient(settings, undefined, undefined, null, undefined, manager);
+    createLLMClient(settings, null, undefined, manager);
 
     expect(createLLMClientFromSettingsSync).toHaveBeenCalledWith(
       expect.objectContaining({

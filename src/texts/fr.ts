@@ -51,6 +51,7 @@ export const FR_TEXTS = {
     // Hardening Phase 3 (F-03): fail-closed keychain contract.
     keychainUnavailableNotice: 'Trousseau indisponible — les fonctions LLM sont désactivées tant qu\'il ne peut pas être lu : {}',
     plaintextApiKeyScrubbedNotice: 'Clé API en clair supprimée de data.json — faites tourner cette clé.',
+    removedOAuthProviderNotice: 'Le fournisseur de connexion par abonnement ChatGPT a été supprimé dans cette version ; le fournisseur a été réinitialisé et ses identifiants stockés effacés. Choisissez un fournisseur et un modèle dans les Paramètres.',
     unsupportedPlatform: 'LLM Wiki ne prend pas en charge Windows. Le plugin n\'a pas été chargé.',
     codexAuthName: 'Connexion au forfait ChatGPT',
     codexAuthDesc: 'Accès expérimental à Codex via OAuth utilisant le quota de votre forfait ChatGPT. La facturation de l’API OpenAI Platform reste séparée.',

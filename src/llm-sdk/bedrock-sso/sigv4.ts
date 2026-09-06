@@ -56,8 +56,7 @@ export interface SigV4Result {
 const encoder = new TextEncoder();
 
 function assertCryptoSubtle(): SubtleCrypto {
-  // Bare `crypto` resolves to the current realm's Web Crypto — the same
-  // access shape the openai-codex module ships (auth-core.ts).
+  // Bare `crypto` resolves to the current realm's Web Crypto.
   const subtle = crypto?.subtle;
   if (!subtle) {
     throw new Error('Web Crypto subtle is unavailable in this environment');

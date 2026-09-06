@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { applySettingsMigrations } from '../../core/settings-migrations';
+import { DEFAULT_SETTINGS } from '../../types';
 
 // Hardening Phase 2.A (F-06): the removed document-conversion backend's
 // vendor name is assembled from fragments, matching the production scrub in
@@ -11,9 +12,20 @@ const REMOVED_BACKEND_TOKEN_FIELD = `${REMOVED_BACKEND_VENDOR}ApiToken`;
 const REMOVED_BACKEND_TIMEOUT_FIELD = `${REMOVED_BACKEND_VENDOR}TaskTimeoutMinutes`;
 const REMOVED_BACKEND_SECRET_ID = `karpathywiki-${REMOVED_BACKEND_VENDOR}-api-token`;
 
+// Hardening Phase 2.B: same discipline for the removed ChatGPT-subscription
+// OAuth provider. `scripts/check-bundle-no-codex.mjs` treats the provider id
+// and its two hosts as the signal that the surface came back, so the fixtures
+// compose them here rather than spelling them out.
+const REMOVED_OAUTH_VENDOR = 'cod' + 'ex';
+const REMOVED_OAUTH_PROVIDER_ID = `openai-${REMOVED_OAUTH_VENDOR}`;
+const REMOVED_OAUTH_SECRET_ID = `karpathywiki-openai-${REMOVED_OAUTH_VENDOR}`;
+const REMOVED_OAUTH_SECRET_ID_FIELD = `openAI${REMOVED_OAUTH_VENDOR[0].toUpperCase()}${REMOVED_OAUTH_VENDOR.slice(1)}SecretId`;
+const REMOVED_OAUTH_MODELS_FIELD = `openAI${REMOVED_OAUTH_VENDOR[0].toUpperCase()}${REMOVED_OAUTH_VENDOR.slice(1)}Models`;
+const REMOVED_OAUTH_FETCHED_AT_FIELD = `${REMOVED_OAUTH_MODELS_FIELD}FetchedAt`;
+
 describe('applySettingsMigrations — historical (#199 regression guard)', () => {
-  it('uses the stable Codex secret ID for new settings', () => {
-    expect(applySettingsMigrations(null).settings.openAICodexSecretId).toBe('karpathywiki-openai-codex');
+  it('uses the stable provider-key secret ID for new settings', () => {
+    expect(applySettingsMigrations(null).settings.providerApiKeySecretId).toBe('karpathywiki-provider-api-key');
   });
 
   // Hardening Phase 3 (F-03). The v1.25.3 #182 / v1.25.4 #339 pair used to
@@ -63,20 +75,14 @@ describe('applySettingsMigrations — historical (#199 regression guard)', () =>
     expect((second.settings as unknown as { _legacyPlaintextApiKey?: string })._legacyPlaintextApiKey).toBeUndefined();
   });
 
-  it('repairs a blank legacy Codex secret ID', () => {
-    const { settings, applied } = applySettingsMigrations({ openAICodexSecretId: '' });
-    expect(settings.openAICodexSecretId).toBe('karpathywiki-openai-codex');
-    expect(applied).toContain('v1.25.0-codex-settings');
-  });
-
   it('never copies token-shaped fields into settings', () => {
-    const savedData = { provider: 'openai-codex', accessToken: 'access-secret', refreshToken: 'refresh-secret', idToken: 'id-secret' };
-    const { settings: migrated, applied } = applySettingsMigrations(savedData);
+    const savedData = { provider: 'openai', accessToken: 'access-secret', refreshToken: 'refresh-secret', idToken: 'id-secret' };
+    const { settings: migrated } = applySettingsMigrations(savedData as never);
     const settings = migrated as unknown as Record<string, unknown>;
     expect(settings.accessToken).toBeUndefined();
     expect(settings.refreshToken).toBeUndefined();
     expect(settings.idToken).toBeUndefined();
-    expect(applied).toContain('v1.25.0-codex-settings');
+    expect(JSON.stringify(settings)).not.toMatch(/access-secret|refresh-secret|id-secret/);
   });
 
   it('v1.23.0 migration overrides historical startupCheck:false to true (with silent Notice)', () => {
@@ -313,6 +319,129 @@ describe('scrubRemovedConversionBackendSecret', () => {
   });
 });
 
+// Hardening Phase 2.B: the ChatGPT-subscription OAuth provider was removed.
+// It ran a loopback HTTP listener on the user's machine and drove an OAuth
+// flow against two hosts unrelated to any documented API surface. Gate 3 of
+// AGENTS.md applies: a v1.27.0 `data.json` that had the provider configured
+// must still load, with every trace of the provider gone and the active
+// provider moved somewhere that can actually serve a request.
+//
+// The fixture below is the shape a v1.27.0 user with the provider signed in
+// and selected actually has on disk.
+describe('applySettingsMigrations — hardening scrub of the removed OAuth provider', () => {
+  const v1_27_0_data = () => ({
+    provider: REMOVED_OAUTH_PROVIDER_ID,
+    model: 'gpt-5.5',
+    availableModels: ['gpt-5.5', 'gpt-5.4'],
+    llmReady: true,
+    wikiFolder: 'wiki',
+    [REMOVED_OAUTH_SECRET_ID_FIELD]: REMOVED_OAUTH_SECRET_ID,
+    [REMOVED_OAUTH_MODELS_FIELD]: [{ slug: 'gpt-5.5', displayName: 'GPT-5.5' }],
+    [REMOVED_OAUTH_FETCHED_AT_FIELD]: 1750000000000,
+  }) as unknown as Partial<import('../../types').LLMWikiSettings>;
+
+  it('loads a v1.27.0 data.json without error and keeps unrelated settings', () => {
+    const { settings } = applySettingsMigrations(v1_27_0_data());
+
+    expect(settings.wikiFolder).toBe('wiki');
+  });
+
+  it('deletes every removed-provider key from the loaded settings', () => {
+    const { settings, applied } = applySettingsMigrations(v1_27_0_data());
+    const record = settings as unknown as Record<string, unknown>;
+
+    expect(record).not.toHaveProperty(REMOVED_OAUTH_SECRET_ID_FIELD);
+    expect(record).not.toHaveProperty(REMOVED_OAUTH_MODELS_FIELD);
+    expect(record).not.toHaveProperty(REMOVED_OAUTH_FETCHED_AT_FIELD);
+    expect(applied).toContain('harden-oauth-provider-removed');
+  });
+
+  it('falls back to the default provider when the removed one was active', () => {
+    const { settings, applied } = applySettingsMigrations(v1_27_0_data());
+
+    expect(settings.provider).toBe(DEFAULT_SETTINGS.provider);
+    expect(settings.provider).not.toBe(REMOVED_OAUTH_PROVIDER_ID);
+    // The cached slugs came from the removed provider's catalogue and mean
+    // nothing to the new one, so the selection goes with it.
+    expect(settings.model).toBe(DEFAULT_SETTINGS.model);
+    expect(settings.availableModels).toEqual([]);
+    expect(settings.llmReady).toBe(false);
+    // main.ts keys the one-time Notice off this entry.
+    expect(applied).toContain('harden-oauth-provider-reset');
+  });
+
+  it('leaves an unrelated active provider alone', () => {
+    const { settings, applied } = applySettingsMigrations({
+      provider: 'anthropic',
+      model: 'claude-sonnet-4-6',
+      [REMOVED_OAUTH_MODELS_FIELD]: [{ slug: 'gpt-5.5' }],
+    } as unknown as Partial<import('../../types').LLMWikiSettings>);
+
+    expect(settings.provider).toBe('anthropic');
+    expect(settings.model).toBe('claude-sonnet-4-6');
+    expect(settings as unknown as Record<string, unknown>).not.toHaveProperty(REMOVED_OAUTH_MODELS_FIELD);
+    expect(applied).not.toContain('harden-oauth-provider-reset');
+  });
+
+  it('sets the scrub marker so the migration is one-time', () => {
+    const { settings } = applySettingsMigrations(v1_27_0_data());
+
+    expect(settings._migrated_harden_codex_removed).toBe(true);
+  });
+
+  it('is a no-op on the second load (idempotent via the marker)', () => {
+    const firstPass = applySettingsMigrations(v1_27_0_data());
+
+    const secondPass = applySettingsMigrations(firstPass.settings);
+
+    expect(secondPass.applied).not.toContain('harden-oauth-provider-removed');
+    expect(secondPass.applied).not.toContain('harden-oauth-provider-reset');
+    expect(secondPass.settings._migrated_harden_codex_removed).toBe(true);
+    expect(secondPass.settings.provider).toBe(DEFAULT_SETTINGS.provider);
+    expect(secondPass.settings as unknown as Record<string, unknown>).not.toHaveProperty(REMOVED_OAUTH_SECRET_ID_FIELD);
+  });
+
+  it('keeps the marker itself, whose own key carries the vendor fragment', () => {
+    const { settings } = applySettingsMigrations(v1_27_0_data());
+
+    // The delete loop matches any key containing the fragment, and the
+    // marker key does too — it is set after the loop for exactly this reason.
+    expect(Object.keys(settings).filter((key) => key.toLowerCase().includes(REMOVED_OAUTH_VENDOR)))
+      .toEqual(['_migrated_harden_codex_removed']);
+  });
+
+  it('does not serialize the removed provider back to data.json', () => {
+    const { settings } = applySettingsMigrations(v1_27_0_data());
+
+    expect(JSON.stringify(settings)).not.toContain(REMOVED_OAUTH_PROVIDER_ID);
+  });
+});
+
+// The secret-slot blanking lives outside the pure migration (it touches the
+// OS keychain). main.ts calls it when the scrub fires.
+describe('scrubRemovedOAuthProviderSecret', () => {
+  it("blanks the stored credential in the removed provider's secret slot", async () => {
+    const { scrubRemovedOAuthProviderSecret } = await import('../../core/settings-migrations');
+    const setSecret = vi.fn();
+    const cleared = scrubRemovedOAuthProviderSecret({ getSecret: () => '{"refreshToken":"rt-live"}', setSecret });
+
+    expect(cleared).toBe(true);
+    expect(setSecret).toHaveBeenCalledTimes(1);
+    const [slotId, value] = setSecret.mock.calls[0] as [string, string];
+    expect(slotId).toBe(REMOVED_OAUTH_SECRET_ID);
+    expect(value).toBe('');
+  });
+
+  it('does not write when the slot is already empty (idempotent re-run)', async () => {
+    const { scrubRemovedOAuthProviderSecret } = await import('../../core/settings-migrations');
+    const setSecret = vi.fn();
+
+    expect(scrubRemovedOAuthProviderSecret({ getSecret: () => '', setSecret })).toBe(false);
+    expect(scrubRemovedOAuthProviderSecret({ getSecret: () => null, setSecret })).toBe(false);
+    expect(setSecret).not.toHaveBeenCalled();
+  });
+});
+
 /**
  * Hardening Phase 3 (F-03), review follow-up.
  *
@@ -355,7 +484,7 @@ describe('plaintext apiKey scrub is unconditional (hardening Phase 3)', () => {
       _migrated_v1_20_0_thinking: true,
       _migrated_v1_23_0_startup_notice: true,
       _migrated_harden_conversion_backend_removed: true,
-      openAICodexSecretId: 'karpathywiki-openai-codex',
+      _migrated_harden_codex_removed: true,
     } as never);
 
     expect(applied).not.toContain('harden-plaintext-api-key-removed');

@@ -1,18 +1,18 @@
 /**
  * Hardening Phase 3 (F-03), task 3.5 — review follow-up.
  *
- * The OAuth/SSO controls in the settings tab are the flows that actually
- * carry bearer tokens: the Codex device+browser login exchanges and
- * refreshes tokens against `auth.openai.com` / `chatgpt.com/backend-api`,
- * and the Bedrock SSO flow does the same against AWS OIDC. Their failures
- * are therefore the error bodies most likely to quote an `Authorization`
- * header back at us — and every one of them lands in a Notice that a user
- * screenshots into a bug report.
+ * The SSO controls in the settings tab are the flows that actually carry
+ * bearer tokens: the Bedrock SSO device login exchanges and refreshes
+ * tokens against AWS OIDC. Their failures are therefore the error bodies
+ * most likely to quote an `Authorization` header back at us — and every
+ * one of them lands in a Notice that a user screenshots into a bug report.
  *
- * `main-commands/codex-auth-commands.ts` was routed through the redactor
- * in this phase; the three sinks on the settings tab were not. These tests
- * exercise the real public methods, so they fail if the redaction is
- * removed from the private formatters they share.
+ * These tests exercise the real public methods, so they fail if the
+ * redaction is removed from the private formatter they share.
+ *
+ * Hardening Phase 2.B removed the second flow this file used to cover (the
+ * ChatGPT-subscription OAuth login and its model refresh) along with the
+ * provider itself.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -46,7 +46,6 @@ function makeTab(pluginOverrides: Record<string, unknown> = {}): LLMWikiSettingT
   };
   tab.tempSettings = settings;
   (tab as unknown as { display: () => void }).display = vi.fn();
-  (tab as unknown as { syncCodexModelsFromPlugin: () => void }).syncCodexModelsFromPlugin = vi.fn();
   return tab;
 }
 
@@ -55,34 +54,6 @@ beforeEach(() => {
 });
 
 describe('settings-tab auth failures are redacted before they reach a Notice', () => {
-  it('redacts a Codex browser-login failure', async () => {
-    const tab = makeTab({
-      loginOpenAICodexBrowser: vi.fn().mockRejectedValue(new Error(LEAKY_BODY)),
-    });
-
-    await tab.loginOpenAICodexBrowser();
-
-    const messages = notices().map((n) => n.message);
-    expect(messages).toHaveLength(1);
-    expect(messages[0]).not.toContain(LEAKED_SECRET);
-    // The diagnostic must survive the masking — a Notice that says only
-    // "***" is a worse bug report than one that leaks.
-    expect(messages[0]).toContain('token exchange rejected');
-  });
-
-  it('redacts a Codex model-refresh failure', async () => {
-    const tab = makeTab({
-      refreshOpenAICodexModels: vi.fn().mockRejectedValue(new Error(LEAKY_BODY)),
-    });
-
-    await tab.refreshOpenAICodexModels(true, false);
-
-    const messages = notices().map((n) => n.message);
-    expect(messages.length).toBeGreaterThan(0);
-    for (const message of messages) expect(message).not.toContain(LEAKED_SECRET);
-    expect(messages.join(' ')).toContain('token exchange rejected');
-  });
-
   it('redacts a Bedrock SSO device-login failure', async () => {
     const manager = {
       hasSsoToken: () => false,

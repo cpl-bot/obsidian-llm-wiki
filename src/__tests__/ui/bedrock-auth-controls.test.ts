@@ -84,7 +84,7 @@ describe('copy + sign-out delegation', () => {
     expect(clipboard.writeText).toHaveBeenCalledWith('ABCD-EFGH');
   });
 
-  it('sign-out keeps codex semantics: busy lock, confirm gate, error path', async () => {
+  it('sign-out: busy lock, confirm gate, error path', async () => {
     const calls: string[] = [];
     await runBedrockSignOut({
       isBusy: () => false,

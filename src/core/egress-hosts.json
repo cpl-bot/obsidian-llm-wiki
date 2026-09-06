@@ -7,8 +7,6 @@
     "api.minimaxi.com",
     "api.moonshot.cn",
     "api.openai.com",
-    "auth.openai.com",
-    "chatgpt.com",
     "generativelanguage.googleapis.com",
     "open.bigmodel.cn",
     "openrouter.ai"
@@ -22,7 +20,7 @@
   ],
   "_loopbackHosts": "http: is permitted only for these (Ollama / LM Studio / OAuth loopback listener).",
   "loopbackHosts": ["localhost", "127.0.0.1", "::1"],
-  "_knownDocHosts": "Hosts that appear as literals in the bundle but are NEVER fetched: documentation links, links opened in the user's browser, and placeholder examples. `ai-gateway.vercel.sh` is the `ai` SDK's built-in default gateway — it is deliberately listed HERE and NOT in `allowlist`, so the tripwire passes while the policy blocks any request to it. `d-xxxxxxxxx.awsapps.com` is the SSO-start-URL placeholder shown in the settings description; the SSO start URL is only ever sent as a field in the body of a request to oidc.<region>.amazonaws.com, never fetched.",
+  "_knownDocHosts": "Hosts that appear as literals in the bundle but are NEVER fetched: documentation links, links opened in the user's browser, and placeholder examples. `ai-gateway.vercel.sh` is the `ai` SDK's built-in default gateway — it is deliberately listed HERE and NOT in `allowlist`, so the tripwire passes while the policy blocks any request to it. `d-xxxxxxxxx.awsapps.com` is the SSO-start-URL placeholder shown in the settings description; the SSO start URL is only ever sent as a field in the body of a request to oidc.<region>.amazonaws.com, never fetched. `cookbook.openai.com` and `developers.openai.com` are @see links in the bundled @ai-sdk/openai JSDoc — they survived hardening Phase 2.B (which removed the ChatGPT-subscription OAuth provider and with it `chatgpt.com` and `auth.openai.com` from the allowlist) because the SDK, not that provider, is what mentions them.",
   "knownDocHosts": [
     "ai-gateway.vercel.sh",
     "ai-sdk.dev",

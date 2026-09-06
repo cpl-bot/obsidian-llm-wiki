@@ -1,7 +1,7 @@
 /**
  * #425 Bedrock Stage 2 — credential orchestration.
  *
- * One object the plugin owns (mirrors codexAuthManager): dispatches
+ * One object the plugin owns: dispatches
  * between static IAM keys and the SSO path, caches temporary
  * credentials in memory (never persisted) with a 2-minute expiry skew,
  * dedupes concurrent exchanges, orchestrates the device login, and
@@ -12,7 +12,7 @@
 import { BEDROCK_TEMP_CRED_SKEW_MS } from './constants';
 import { BedrockIamCredentialStore } from './credential-store';
 import { BedrockSsoCredentialStore } from './credential-store';
-import type { SecretStorageLike } from '../openai-codex/types';
+import type { SecretStorageLike } from '../provider-secret-store';
 import {
   completeDeviceAuthorization,
   registerClient,

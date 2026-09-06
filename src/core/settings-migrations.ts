@@ -9,7 +9,29 @@
 
 import { DEFAULT_SETTINGS, type LLMWikiSettings } from '../types';
 
-const LEGACY_CODEX_TOKEN_FIELDS = ['accessToken', 'refreshToken', 'idToken', 'access_token', 'refresh_token', 'id_token'] as const;
+/**
+ * Vendor fragment of the removed ChatGPT-subscription OAuth provider
+ * (hardening Phase 2.B), assembled at module load for the same reason as the
+ * Phase 2.A backend below: `scripts/check-bundle-no-codex.mjs` asserts the
+ * built `main.js` carries no trace of the provider id or its two hosts, and
+ * the scrub still has to recognise the provider's leftover settings keys and
+ * name its keychain slot. This is the only place in `src/` that composes them.
+ */
+const REMOVED_OAUTH_VENDOR = ['cod', 'ex'].join('');
+
+/** Provider id that selected the removed OAuth surface. */
+const REMOVED_OAUTH_PROVIDER_ID = `openai-${REMOVED_OAUTH_VENDOR}`;
+
+/** Keychain slot that held the removed provider's OAuth credential blob. */
+const REMOVED_OAUTH_SECRET_ID = `karpathywiki-openai-${REMOVED_OAUTH_VENDOR}`;
+
+/**
+ * Token-shaped top-level fields a pre-v1.25.0 `data.json` may still carry.
+ * These were the removed provider's OAuth tokens written straight to disk;
+ * the v1.25.0 migration moved them into the keychain but old files (and
+ * sync conflicts restoring one) can still present them.
+ */
+const REMOVED_OAUTH_TOKEN_FIELDS = ['accessToken', 'refreshToken', 'idToken', 'access_token', 'refresh_token', 'id_token'] as const;
 
 /**
  * Vendor name of the removed third-party document-conversion backend
@@ -64,13 +86,12 @@ export function applySettingsMigrations(
 ): MigrationResult {
   const applied: string[] = [];
   const settings: LLMWikiSettings = Object.assign({}, DEFAULT_SETTINGS, savedData || {});
-  const savedRecord = savedData;
-  const hasLegacyCodexToken = savedRecord !== null && LEGACY_CODEX_TOKEN_FIELDS.some((field) => Object.prototype.hasOwnProperty.call(savedRecord, field));
-  const needsCodexSettingsMigration = savedRecord !== null && (typeof savedRecord.openAICodexSecretId !== 'string' || savedRecord.openAICodexSecretId.trim().length === 0 || hasLegacyCodexToken);
-  if (!settings.openAICodexSecretId.trim()) settings.openAICodexSecretId = 'karpathywiki-openai-codex';
   const untrustedSettings = settings as unknown as Record<string, unknown>;
-  for (const field of LEGACY_CODEX_TOKEN_FIELDS) delete untrustedSettings[field];
-  if (needsCodexSettingsMigration) applied.push('v1.25.0-codex-settings');
+  // v1.25.0 (retained through Phase 2.B): token-shaped fields never reach
+  // `this.settings`, whatever an old or conflicted `data.json` carries. The
+  // provider that wrote them is gone, but the delete is not — a restored
+  // backup is exactly the case this guards.
+  for (const field of REMOVED_OAUTH_TOKEN_FIELDS) delete untrustedSettings[field];
 
   // v1.20.0 migration: reset disableThinking from old default (true) to
   // new default (false). Old behavior sent thinking.type='disabled' which
@@ -201,6 +222,44 @@ export function applySettingsMigrations(
     applied.push('harden-conversion-backend-removed');
   }
 
+  // Hardening Phase 2.B: the ChatGPT-subscription OAuth provider was removed.
+  // It ran a loopback HTTP listener on the user's machine to catch an OAuth
+  // callback and drove a device-code flow against two hosts unrelated to any
+  // documented API surface. Nothing of it ships any more, so its keys are
+  // scrubbed off disk rather than preserved — a downgrade-then-upgrade cycle
+  // must not resurrect a provider the build cannot serve.
+  //
+  // Pure side: delete the provider's keys, reset the active provider when it
+  // was the removed one, and set the marker. The paired keychain slot is
+  // blanked by `scrubRemovedOAuthProviderSecret()`, which the caller
+  // (`main.ts loadSettings`) runs because this function must stay IO-free.
+  // Idempotent via the marker: a second load is a no-op.
+  if (savedData && !settings._migrated_harden_codex_removed) {
+    // Match on the vendor fragment rather than a fixed key list: the provider
+    // owned `openAI<Vendor>SecretId`, `openAI<Vendor>Models`,
+    // `openAI<Vendor>ModelsFetchedAt` and `openAI<Vendor>UnavailableModels`,
+    // and a future upstream merge could add more under the same prefix.
+    // The marker is set AFTER this loop precisely because its own key
+    // carries the fragment too.
+    for (const key of Object.keys(untrustedSettings)) {
+      if (key.toLowerCase().includes(REMOVED_OAUTH_VENDOR)) delete untrustedSettings[key];
+    }
+    // The active provider cannot stay pointed at a provider that no longer
+    // exists — `PREDEFINED_PROVIDERS` has no entry for it, so every lookup
+    // would come back undefined. Fall back to the shipped default and drop
+    // the model selection with it: the cached model slugs came from the
+    // removed provider's catalogue and mean nothing to the new provider.
+    if (savedData.provider === REMOVED_OAUTH_PROVIDER_ID) {
+      settings.provider = DEFAULT_SETTINGS.provider;
+      settings.model = DEFAULT_SETTINGS.model;
+      settings.availableModels = [];
+      settings.llmReady = false;
+      applied.push('harden-oauth-provider-reset');
+    }
+    settings._migrated_harden_codex_removed = true;
+    applied.push('harden-oauth-provider-removed');
+  }
+
   return { settings, applied };
 }
 
@@ -218,6 +277,29 @@ export function scrubRemovedConversionBackendSecret(secretStorage: SecretSlotWri
   const existing = secretStorage.getSecret(REMOVED_CONVERSION_SECRET_ID);
   if (typeof existing !== 'string' || existing.length === 0) return false;
   secretStorage.setSecret(REMOVED_CONVERSION_SECRET_ID, '');
+  return true;
+}
+
+/**
+ * Hardening Phase 2.B: blank the secret slot that held the removed
+ * ChatGPT-subscription OAuth provider's credential blob (access token,
+ * refresh token, id token, account id).
+ *
+ * Split out of `applySettingsMigrations` for the same reason as the Phase 2.A
+ * scrub: that function is pure and this touches the OS keychain. Idempotent
+ * by construction — writing `''` over an already-empty slot is a no-op, and
+ * the caller gates on the migration marker anyway. Returns true when a
+ * non-empty credential was found and cleared, so the caller can log it.
+ *
+ * The refresh token in that slot is long-lived. Leaving it in the keychain
+ * after the code that could use it is gone would be a credential with no
+ * owner, so the scrub is not optional: if it throws, the caller drops the
+ * marker and the next load tries again.
+ */
+export function scrubRemovedOAuthProviderSecret(secretStorage: SecretSlotWriter): boolean {
+  const existing = secretStorage.getSecret(REMOVED_OAUTH_SECRET_ID);
+  if (typeof existing !== 'string' || existing.length === 0) return false;
+  secretStorage.setSecret(REMOVED_OAUTH_SECRET_ID, '');
   return true;
 }
 

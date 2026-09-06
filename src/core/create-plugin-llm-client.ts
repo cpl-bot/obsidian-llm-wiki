@@ -13,16 +13,12 @@
 
 import { wrapWithAdvancedSettings } from '../llm-client-wrapper';
 import { createLLMClientFromSettingsSync } from '../llm-sdk/create-llm-client';
-import { getText } from './i18n';
-import type { CodexAuthManager } from '../llm-sdk/openai-codex/auth-manager';
 import type { BedrockAuthManager } from '../llm-sdk/bedrock-sso/credential-manager';
 import type { ProviderSecretStorage } from '../llm-sdk/provider-secret-store';
 import type { LLMWikiSettings, LLMClient } from '../types';
 
 export function createLLMClient(
   settings: LLMWikiSettings,
-  codexAuth?: CodexAuthManager,
-  codexVersion?: string,
   // v1.25.3 #182: the SDK factory reads the live key from Obsidian
   // SecretStorage. Pass `plugin.app.secretStorage` — hardening Phase 3
   // (F-03) removed the on-disk fallback AND made an absent store fail
@@ -51,9 +47,6 @@ export function createLLMClient(
     bedrockSsoAccountId: settings.bedrockSsoAccountId?.trim() || undefined,
     bedrockSsoRoleName: settings.bedrockSsoRoleName?.trim() || undefined,
     bedrockAuthManager: bedrockAuth,
-    codexAuth,
-    codexVersion,
-    codexQuotaMessage: getText(settings.language, 'codexAuthQuota'),
   }, pendingApiKey);
 
   return wrapWithAdvancedSettings(client, {

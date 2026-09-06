@@ -1,6 +1,6 @@
 // Settings panel UI for LLM Wiki Plugin
 
-import { App, PluginSettingTab, Setting, Notice, Platform } from 'obsidian';
+import { App, PluginSettingTab, Setting, Notice } from 'obsidian';
 import LLMWikiPlugin from '../main';
 import { LLMWikiSettings } from '../types';
 import { ConfirmModal } from './modals/ConfirmModal-class';
@@ -19,10 +19,7 @@ import { renderTestConnectionSection } from './settings-sections/test-connection
 import { renderWikiConfigSection } from './settings-sections/wiki-config-section';
 import { renderAutoMaintainSection } from './settings-sections/auto-maintain-section';
 import { renderAdvancedSettingsSection } from './settings-sections/advanced-settings-section';
-import { copyCodexDeviceCode, runCodexDeviceAuth, runCodexModelRefresh, runCodexSignOut } from './openai-codex-auth-controls';
 import { copyBedrockUserCode, runBedrockDeviceAuth, runBedrockSignOut, type BedrockDevicePrompt } from './bedrock-auth-controls';
-import { applyCodexModelPolicy } from '../core/openai-codex-model-policy';
-import type { CodexDevicePrompt } from './openai-codex-auth-controls';
 import { BEDROCK_DEFAULT_REGION, NOTICE_NORMAL, NOTICE_ERROR } from '../constants';
 import { ProviderSecretStore } from '../llm-sdk/provider-secret-store';
 import { redactError, redactSecrets } from '../core/redact';
@@ -34,9 +31,6 @@ import { redactError, redactSecrets } from '../core/redact';
 export class LLMWikiSettingTab extends PluginSettingTab {
   plugin: LLMWikiPlugin;
   tempSettings: LLMWikiSettings;
-  public codexAuthBusy = false;
-  public codexDevicePrompt: CodexDevicePrompt | null = null;
-  private codexModelRefreshAttemptedAt = 0;
   // #425 Bedrock Stage 2 — SSO login state + in-memory IAM key buffers
   // (flushed to SecretStorage once on tab close, mirroring flushApiKey).
   public bedrockAuthBusy = false;
@@ -333,77 +327,13 @@ export class LLMWikiSettingTab extends PluginSettingTab {
     }
   }
 
-  /**
-   * Hardening Phase 3 (F-03/3.5), review follow-up: the Codex flow is the
-   * one that HANDLES bearer tokens — device-code exchange, refresh, and
-   * sign-out all talk to `auth.openai.com` / `chatgpt.com/backend-api`
-   * with an Authorization header. Its failures are exactly the messages
-   * that can quote that header back, and this string goes straight into a
-   * Notice. `main-commands/codex-auth-commands.ts` already redacts its
-   * twin; this was the one that did not.
-   */
-  private codexAuthError(error: unknown): string { return this.getText('codexAuthFailed').replace('{}', redactError(error)); }
-
-  public syncCodexModelsFromPlugin(): void {
-    this.tempSettings.openAICodexModels = (this.plugin.settings.openAICodexModels ?? []).map((entry) => ({ ...entry, supportedReasoningLevels: [...entry.supportedReasoningLevels], additionalSpeedTiers: [...entry.additionalSpeedTiers], serviceTiers: entry.serviceTiers.map((tier) => ({ ...tier })) }));
-    this.tempSettings.openAICodexModelsFetchedAt = this.plugin.settings.openAICodexModelsFetchedAt ?? 0;
-    this.tempSettings.openAICodexUnavailableModels = [...(this.plugin.settings.openAICodexUnavailableModels ?? [])];
-    applyCodexModelPolicy(this.tempSettings);
-  }
-
-  public async refreshOpenAICodexModels(force: boolean, showSuccess: boolean): Promise<void> { await runCodexModelRefresh({ refresh: () => this.plugin.refreshOpenAICodexModels(force), sync: () => { this.syncCodexModelsFromPlugin(); }, showSuccess: (count) => { if (showSuccess) new Notice(this.getText('codexModelsRefreshSuccess').replace('{}', String(count)), NOTICE_NORMAL); }, showError: (error) => { new Notice(this.getText('codexModelsRefreshFailed').replace('{}', redactError(error)), NOTICE_ERROR); }, setBusy: (value) => { this.codexAuthBusy = value; }, render: () => { this.display(); } }); }
-
-  public queueStaleCodexModelRefresh(): void {
-    const now = Date.now();
-    const lastSuccessful = this.plugin.settings.openAICodexModelsFetchedAt ?? 0;
-    if (this.codexAuthBusy || now - Math.max(lastSuccessful, this.codexModelRefreshAttemptedAt) < 5 * 60 * 1000) return;
-    this.codexModelRefreshAttemptedAt = now;
-    void this.refreshOpenAICodexModels(false, false);
-  }
-
-  public async loginOpenAICodexBrowser(): Promise<void> {
-    if (!Platform.isDesktopApp) return;
-    this.codexAuthBusy = true;
-    this.display();
-    try { await this.plugin.loginOpenAICodexBrowser(); this.syncCodexModelsFromPlugin(); this.tempSettings.llmReady = false; } catch (error) { new Notice(this.codexAuthError(error), NOTICE_ERROR); } finally { this.codexAuthBusy = false; this.display(); }
-  }
-
-  public async loginOpenAICodexDevice(): Promise<void> {
-    await runCodexDeviceAuth({ beginLogin: () => this.plugin.beginOpenAICodexDeviceLogin(), openExternal: (url) => this.plugin.openExternal(url), setPrompt: (prompt) => { this.codexDevicePrompt = prompt; }, showError: (error) => { new Notice(this.codexAuthError(error), NOTICE_ERROR); }, setBusy: (value) => { this.codexAuthBusy = value; }, setReady: (value) => { this.tempSettings.llmReady = value; }, render: () => { this.display(); } });
-    this.syncCodexModelsFromPlugin();
-  }
-
-  public async copyOpenAICodexDeviceCode(): Promise<void> {
-    if (!this.codexDevicePrompt) return;
-    try { await copyCodexDeviceCode(this.codexDevicePrompt.userCode, navigator.clipboard); } catch (error) { new Notice(this.codexAuthError(error), NOTICE_ERROR); }
-  }
-
-  private confirmOpenAICodexSignOut(): Promise<boolean> {
-    // v1.25.2 PATCH: replaced `window.confirm` with Obsidian `ConfirmModal`
-    // so we don't trip the 0.4.1 `no-alert` rule. Returns a Promise that
-    // resolves to the user's choice (true on confirm, false on cancel/Escape).
-    return new Promise<boolean>((resolve) => {
-      new ConfirmModal(this.app, {
-        title: this.getText('codexAuthSignOutButton'),
-        body: `${this.getText('codexAuthSignOutButton')}?`,
-        confirmText: this.getText('codexAuthSignOutButton'),
-        cancelText: this.getText('cancelButton'),
-        onChoice: (confirmed) => resolve(confirmed),
-      }).open();
-    });
-  }
-
-  public async signOutOpenAICodex(): Promise<void> {
-    await runCodexSignOut({ isBusy: () => this.codexAuthBusy, isSignedIn: () => this.plugin.codexAuthManager?.hasCredential() === true, confirm: () => this.confirmOpenAICodexSignOut(), signOut: () => this.plugin.signOutOpenAICodex(), showError: (error) => { new Notice(this.codexAuthError(error), NOTICE_ERROR); }, setBusy: (value) => { this.codexAuthBusy = value; }, setReady: (value) => { this.tempSettings.llmReady = value; }, render: () => { this.display(); } });
-    this.syncCodexModelsFromPlugin();
-  }
-
   // ===== #425 Bedrock Stage 2 — SSO auth controls =====
 
   /**
-   * Hardening Phase 3 (F-03/3.5), review follow-up: same reasoning as
-   * `codexAuthError` — the SSO device flow exchanges and refreshes AWS
-   * tokens, so its error bodies are credential-adjacent by construction.
+   * Hardening Phase 3 (F-03/3.5), review follow-up: the SSO device flow
+   * exchanges and refreshes AWS tokens, so its error bodies are
+   * credential-adjacent by construction and this string goes straight into
+   * a Notice.
    */
   private bedrockAuthError(error: unknown): string {
     return this.getText('bedrockSsoFailed').replace('{}', redactError(error));
@@ -634,7 +564,6 @@ export class LLMWikiSettingTab extends PluginSettingTab {
     //     users have muscle memory for.
     const { containerEl } = this;
     containerEl.empty();
-    if (this.tempSettings.provider === 'openai-codex') applyCodexModelPolicy(this.tempSettings);
 
     renderLanguageSection(this, containerEl);
     renderStatusSection(this, containerEl);

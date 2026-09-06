@@ -64,7 +64,7 @@ export interface SeedSelectorSettings {
  * v1.26.3 PATCH Phase B (Issue #443): typed-output path for seed
  * selection. Uses `createMessageWithOutput` if the client implements
  * it; falls back to `createMessage` + parseJsonResponse for legacy
- * clients (Anthropic / OpenAI / Codex / pre-Phase-B mocks).
+ * clients (Anthropic / OpenAI / pre-Phase-B mocks).
  *
  * Returns the parsed `seeds` array — empty array is a valid answer
  * (the prompt's task 4 says "no relevant pages → []"). Throws on
