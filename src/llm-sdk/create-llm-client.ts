@@ -11,14 +11,25 @@
 //   - 'openai'                 → OpenAISdkClient (official)
 //   - everything else          → OpenAICompatSdkClient (8 OpenAI-compatible baseURLs)
 //
-// B1 strategy: the three SDK modules are loaded via dynamic import.
-// `createLLMClientFromSettings` is async; `createLLMClientFromSettingsSync`
-// is a sync shim that uses pre-loaded modules (loaded eagerly by
-// `preloadLLMClientModules` on plugin startup). This keeps the call
-// sites in main.ts / wiki-engine.ts / query-engine.ts unchanged
-// (they all expect a sync `LLMClient` instance).
+// B1 strategy: the three SDK modules are statically imported (see the note
+// on the import block below — the dynamic form only defeated tree shaking).
+// `createLLMClientFromSettings` stays async and `createLLMClientFromSettingsSync`
+// stays a sync shim over the slot `preloadLLMClientModules` publishes on
+// plugin startup, so the call sites in main.ts / wiki-engine.ts /
+// query-engine.ts are unchanged (they all expect a sync `LLMClient`).
 
 import { LLMClient } from '../types';
+// Static, not `await import(...)`. `main.ts` calls `preloadLLMClientModules()`
+// at module scope, so all three were loaded on plugin start anyway and the
+// dynamic form deferred nothing; with no code splitting in this build it kept
+// nothing out of `main.js` either. What it did do is make esbuild *wrap* these
+// modules, and a wrapped module is exempt from tree shaking — the exemption
+// cascaded through them into `ai`, `@ai-sdk/*` and `zod`, holding a large
+// slice of otherwise-shakable code in the bundle. See the Gate 4 table in the
+// commit that removed the dynamic form.
+import { OpenAISdkClient } from './openai-sdk-client';
+import { AnthropicSdkClient } from './anthropic-sdk-client';
+import { OpenAICompatSdkClient } from './openai-compat-sdk-client';
 import { resolveProviderApiKey } from './provider-api-key-resolver';
 import type { ProviderSecretStorage } from './provider-secret-store';
 
@@ -59,10 +70,6 @@ export async function createLLMClientFromSettings(
   settings: ProviderSettings,
   pendingApiKey?: string,
 ): Promise<LLMClient> {
-  const { OpenAISdkClient } = await import('./openai-sdk-client');
-  const { AnthropicSdkClient } = await import('./anthropic-sdk-client');
-  const { OpenAICompatSdkClient } = await import('./openai-compat-sdk-client');
-
   const provider = settings.provider;
   // v1.25.3 #182: read the key through the resolver — SecretStorage is
   // the only source. Hardening Phase 3 (F-03): a keychain that cannot be
@@ -126,15 +133,14 @@ let preloadedModules: PreloadedSdkModules | null = null;
  * sync API contract).
  */
 export async function preloadLLMClientModules(): Promise<void> {
-  const [openai, anthropic, compat] = await Promise.all([
-    import('./openai-sdk-client'),
-    import('./anthropic-sdk-client'),
-    import('./openai-compat-sdk-client'),
-  ]);
+  // The modules are static imports now, so "preloading" is just publishing
+  // them to the sync factory's slot. The function stays async and stays the
+  // only writer of `preloadedModules`, so `createLLMClientFromSettingsSync`
+  // keeps throwing its init-order error when a caller skipped this step.
   preloadedModules = {
-    OpenAISdkClient: openai.OpenAISdkClient,
-    AnthropicSdkClient: anthropic.AnthropicSdkClient,
-    OpenAICompatSdkClient: compat.OpenAICompatSdkClient,
+    OpenAISdkClient,
+    AnthropicSdkClient,
+    OpenAICompatSdkClient,
   };
 }
 

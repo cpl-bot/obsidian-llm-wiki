@@ -405,6 +405,15 @@ describe('OpenAISdkClient', () => {
           // rely on result.reasoning.
         })(),
         text: chunks.join(''),
+        // AI SDK 7: the stream result exposes the per-step outputs on
+        // `finalStep` (a PromiseLike that settles when the stream
+        // completes) and deprecates the flat `reasoning` accessor.
+        // Production reads `finalStep`; both are on the mock.
+        finalStep: Promise.resolve({
+          text: chunks.join(''),
+          reasoning: reasoningText,
+          reasoningText,
+        }),
         reasoning: Promise.resolve(reasoningText),
         usage: Promise.resolve({ inputTokens: 10, outputTokens: 20, totalTokens: 30 }),
         finishReason: Promise.resolve('stop'),

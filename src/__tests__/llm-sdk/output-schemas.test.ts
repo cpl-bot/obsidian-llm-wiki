@@ -192,8 +192,8 @@ describe('output-schemas (Phase B expanded scope)', () => {
       // means a model that emits extras like `confidence` must not be
       // rejected. Combined with the Issue #463 fix, the test must
       // include the required `entities` + `concepts` arrays AND the
-      // unknown `confidence` field. `additionalProperties: true` at
-      // the top level is preserved by `.passthrough()`.
+      // unknown `confidence` field. A permissive `additionalProperties`
+      // at the top level is preserved by `.passthrough()`.
       const r = SourceAnalysisLLMSchema.parse({
         entities: [],
         concepts: [],
@@ -318,20 +318,31 @@ describe('output-schemas (Phase B expanded scope)', () => {
       expect(required as string[]).toContain('concepts');
     });
 
-    it('Issue #463: wire schema top-level retains additionalProperties: true (passthrough requirement)', async () => {
+    it('Issue #463: wire schema top-level keeps additionalProperties permissive (passthrough requirement)', async () => {
       // The fix MUST keep `.passthrough()` at the top level so models
       // can emit extra fields like `confidence`, `score`, or
       // whatever shape they choose. DocTpoint's 2026-08-16 measurement
       // confirmed `additionalProperties: false` is NOT required to
       // fix #463 — only `required` is. This test guards against
       // dropping passthrough in a future refactor.
+      //
+      // zod 4 changed only the ENCODING of "allow anything", not the
+      // meaning: `z.toJSONSchema` emits the empty schema `{}` where
+      // zod 3's `zod-to-json-schema` emitted `true`. In JSON Schema both
+      // are the always-true schema, so a strict-mode backend treats them
+      // identically. What must never appear is `false` — that is the
+      // #463 regression. Assert the property is present and permissive
+      // rather than pinning one of the two equivalent spellings.
       const output = Output.object({
         schema: SourceAnalysisLLMSchema,
         name: 'source_analysis',
       });
       const responseFormat = await output.responseFormat;
       const wireSchema = (responseFormat as unknown as { schema: Record<string, unknown> }).schema;
-      expect(wireSchema.additionalProperties).toBe(true);
+      const additional = wireSchema.additionalProperties;
+      expect(additional).not.toBe(false);
+      expect(additional === true || (typeof additional === 'object' && additional !== null
+        && Object.keys(additional).length === 0)).toBe(true);
     });
 
     it('Issue #463: wire schema source_title / summary / key_points / etc remain optional (no scope creep)', async () => {

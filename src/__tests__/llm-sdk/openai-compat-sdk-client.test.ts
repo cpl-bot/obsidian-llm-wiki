@@ -43,6 +43,10 @@ function makeResult(text: string): Awaited<ReturnType<typeof generateText>> {
   return {
     text,
     content: [],
+    // AI SDK 7 moved the per-step outputs onto `finalStep` (synchronous on
+    // a `generateText` result) and deprecated the flat accessors. The mock
+    // carries both so it matches the shape production now reads.
+    finalStep: { text, reasoning: [], reasoningText: undefined },
     reasoning: [],
     reasoningText: undefined,
     files: [],
@@ -89,6 +93,10 @@ function makeResultWithReasoning(
   const base = output !== undefined ? makeResultWithOutput(text, output) : makeResult(text);
   return {
     ...(base as object),
+    // AI SDK 7: production reads `finalStep.reasoning` (synchronous on a
+    // `generateText` result). The deprecated `reasoning` promise stays on
+    // the mock so the fixture still documents the pre-7 shape.
+    finalStep: { text, reasoning, reasoningText: undefined },
     reasoning: Promise.resolve(reasoning),
     reasoningText: undefined,
   } as unknown as Awaited<ReturnType<typeof generateText>>;
@@ -305,7 +313,11 @@ describe('OpenAICompatSdkClient', () => {
         ...(makeResultWithReasoning('', '*   Target: Update the "Burnout" wiki page…') as object),
         finishReason: 'length',
         usage: { inputTokens: 9000, outputTokens: 32767, totalTokens: 41767, reasoningTokens: 32765, cachedInputTokens: undefined },
-      } as Awaited<ReturnType<typeof generateText>>;
+        // AI SDK 7: `GenerateTextResult` gained `finalStep` / `content` /
+        // `reasoning` etc. as required members, so the spread-of-`object`
+        // literal no longer structurally overlaps. Same double cast the
+        // `makeResultWithReasoning` helper above already uses.
+      } as unknown as Awaited<ReturnType<typeof generateText>>;
       mockGenerateText.mockResolvedValue(runaway);
       const client = new OpenAICompatSdkClient({
         apiKey: 'sk-test',
@@ -325,7 +337,8 @@ describe('OpenAICompatSdkClient', () => {
         ...(makeResultWithReasoning('', 'endless format rumination…') as object),
         finishReason: 'length',
         usage: { inputTokens: 9000, outputTokens: 16000, totalTokens: 25000, reasoningTokens: 15997, cachedInputTokens: undefined },
-      } as Awaited<ReturnType<typeof generateText>>;
+        // AI SDK 7: see the sibling test above — double cast required.
+      } as unknown as Awaited<ReturnType<typeof generateText>>;
       mockGenerateText.mockResolvedValue(runaway);
       const client = new OpenAICompatSdkClient({
         apiKey: 'sk-test',

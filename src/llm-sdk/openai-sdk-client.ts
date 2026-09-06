@@ -29,7 +29,15 @@
 //   - Anthropic SDK provider via custom baseURL (Coding Plan / z.ai).
 //   - Streaming SSE parser — AI-SDK's textStream replaces it.
 
-import { type LanguageModel, APICallError, NoSuchModelError, InvalidPromptError } from 'ai';
+// Static, not `await import('ai')`. There is no code splitting in this build
+// (one `main.js`, `format: 'cjs'`) and `output-args.ts` already imports `ai`
+// statically, so the dynamic form never kept a byte out of the bundle. What it
+// did do is make esbuild *wrap* the `ai` module, and a wrapped module is
+// exempt from tree shaking — every export of `ai`, and of everything `ai`
+// re-exports, stayed live. Under `ai` 6 + zod 3 that was tolerable; under
+// `ai` 7 + zod 4 it cost ~450 KB. See the Gate 4 table in the commit that
+// removed the dynamic form.
+import { type LanguageModel, APICallError, NoSuchModelError, InvalidPromptError, generateText, streamText } from 'ai';
 import { redactSecrets } from '../core/redact';
 import { createOpenAI } from '@ai-sdk/openai';
 import { LLMClient } from '../types';
@@ -123,7 +131,6 @@ export class OpenAISdkClient implements LLMClient {
   private async probeBaseURL(baseURL: string): Promise<boolean> {
     try {
       const languageModel = this.getProvider('gpt-4o-mini', this.fetchImpl, baseURL);
-      const { generateText } = await import('ai');
       await generateText({
         model: languageModel,
         messages: [{ role: 'user', content: 'hi' }],
@@ -142,8 +149,6 @@ export class OpenAISdkClient implements LLMClient {
 
     try {
       const languageModel = this.getProvider(model, this.fetchImpl);
-      // Lazy import to keep generateText on the same module surface.
-      const { generateText } = await import('ai');
 
       const result = await generateText({
         model: languageModel,
@@ -188,7 +193,6 @@ export class OpenAISdkClient implements LLMClient {
         });
         // Retry with the resolved URL
         const retryLanguageModel = this.getProvider(model, this.fetchImpl, resolved);
-        const { generateText } = await import('ai');
         const result = await generateText({
           model: retryLanguageModel,
           ...(system ? { system } : {}),
@@ -226,7 +230,6 @@ export class OpenAISdkClient implements LLMClient {
         ReasoningStripProber.isReasoningFieldError(err.message ?? '')
       ) {
         const retryLanguageModel = this.getProvider(model, this.fetchImpl);
-        const { generateText } = await import('ai');
         const result = await generateText({
           model: retryLanguageModel,
           ...(system ? { system } : {}),
@@ -387,7 +390,6 @@ export class OpenAISdkClient implements LLMClient {
     // (Query Wiki) is consistent with non-streaming (Ingest / Lint).
     try {
       const languageModel = this.getProvider(model, this.streamFetchImpl);
-      const { streamText } = await import('ai');
 
       // v1.23.0 P2: AI-SDK v6 stream consumption fix.
       // See openai-compat-sdk-client.ts for full rationale — only consume
@@ -424,10 +426,14 @@ export class OpenAISdkClient implements LLMClient {
       console.debug(`[STREAM-CHUNK] [openai] total chunks forwarded: ${chunkCount} in ${Date.now() - streamStartTime}ms`);
 
       // Collect reasoning content (if any) from the post-stream Promise.
-      // AI-SDK v6 resolves `result.reasoning` after the stream completes.
+      // AI-SDK 7 moved the per-step outputs onto `finalStep` and deprecated
+      // the flat `result.reasoning` accessor; `finalStep` is a PromiseLike
+      // on the stream result and resolves once the stream completes, so the
+      // await point is unchanged. Single-step calls (this client never
+      // passes `tools`), so "final step" == "the whole generation".
       let reasoningContent = '';
       try {
-        const reasoning = await result.reasoning;
+        const reasoning = (await result.finalStep).reasoning;
         if (typeof reasoning === 'string' && reasoning) {
           reasoningContent = reasoning;
         } else if (Array.isArray(reasoning)) {
@@ -456,7 +462,6 @@ export class OpenAISdkClient implements LLMClient {
           originalError: mappedErr,
         });
         const retryLanguageModel = this.getProvider(model, this.streamFetchImpl, resolved);
-        const { streamText } = await import('ai');
 
         const result = streamText({
           model: retryLanguageModel,
@@ -479,7 +484,7 @@ export class OpenAISdkClient implements LLMClient {
 
         let reasoningContent = '';
         try {
-          const reasoning = await result.reasoning;
+          const reasoning = (await result.finalStep).reasoning;
           if (typeof reasoning === 'string' && reasoning) {
             reasoningContent = reasoning;
           } else if (Array.isArray(reasoning)) {
@@ -508,7 +513,6 @@ export class OpenAISdkClient implements LLMClient {
         ReasoningStripProber.isReasoningFieldError(err.message ?? '')
       ) {
         const retryLanguageModel = this.getProvider(model, this.streamFetchImpl);
-        const { streamText } = await import('ai');
         const result = streamText({
           model: retryLanguageModel,
           ...(system ? { system } : {}),
@@ -528,7 +532,7 @@ export class OpenAISdkClient implements LLMClient {
         }
         let reasoningContent = '';
         try {
-          const reasoning = await result.reasoning;
+          const reasoning = (await result.finalStep).reasoning;
           if (typeof reasoning === 'string' && reasoning) {
             reasoningContent = reasoning;
           } else if (Array.isArray(reasoning)) {
