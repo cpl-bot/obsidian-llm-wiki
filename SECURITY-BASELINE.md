@@ -147,3 +147,43 @@ if in doubt). `package-lock.json` mirror refs → **0**; `fast-uri` resolves to 
 | F-08 no write-gate | Phase 5 (#4) |
 | F-09 vestigial deps | Phase 1 (#1) |
 | F-10 process gaps | Phase 6 (#6) |
+
+---
+
+# Round-2 baseline — integration branch at `169267f` (2026-09-06)
+
+Follow-up PRs #8–#11 merged: release-workflow tightening, Phase 2.B removals (OpenAI Codex
+OAuth, AWS Bedrock SSO/IAM), and the deferred `ai` 7 / `@ai-sdk/*` 4 / `zod` 4 upgrade.
+
+## Build artefacts (`pnpm build`, production; two builds byte-identical)
+
+| Artefact | sha256 |
+|----------|--------|
+| `main.js` | `757207d48870855319c870ef92a65baa29fda216042a1c6e2882e98719b99a4e` |
+| `styles.css` | `9389fbb5c9d55ebb3e0ac92d2a6f88e4c5c7bcc48a7266a6032101521121498c` |
+
+`main.js`: 91,806 lines / 4,127,510 bytes. Bundle needles (`grep -ci`): `mineru` 0, `chatgpt.com` 0,
+`auth.openai.com` 0, `openai-codex` 0, `bedrock` 0, `amazonaws` 0, `awsapps` 0, `sigv4` 0,
+`zod/v3` 0, `settings.apiKey` 0 (the two case-insensitive hits are the scrub's `delete` and a comment).
+
+## Bundle hostnames (`check:bundle-hosts`: 22 hosts, all accounted for)
+
+Removed since the post-hardening baseline: `chatgpt.com`, `auth.openai.com`, the regional
+`oidc.` / `portal.sso.` / `bedrock-mantle.` prefixes and `d-xxxxxxxxx.awsapps.com`.
+`src/core/egress-hosts.json` now has empty `hostPatterns` and `knownRuntimePrefixes`.
+
+## Quality gate
+
+| Check | Result |
+|-------|--------|
+| `pnpm gate:1` (lint, typecheck, build, test, css-lint, lockfile, bundle: mineru / hosts / codex / bedrock) | green |
+| tests | **266 files / 3,996 tests** (post-hardening 281 / 4,135; −20 removed-feature test files, +5 new) |
+| `pnpm check:reproducible` | byte-identical |
+| `pnpm typecheck:tools` | clean |
+| `npm audit --audit-level=high` | 0 |
+| lockfile mirror refs | 0 |
+
+## Dependency versions
+
+`ai` 7.0.93 · `@ai-sdk/anthropic` 4.0.49 · `@ai-sdk/openai` 4.0.60 · `@ai-sdk/openai-compatible` 3.0.44 · `zod` ^4.5.4.
+New transitives: `@workflow/serde`, `undici` (lazy-required only by SDK download helpers this plugin never calls).

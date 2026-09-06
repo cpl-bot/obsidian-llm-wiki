@@ -1,6 +1,6 @@
 # Hardening work — status & resume guide
 
-**Last updated:** 2026-09-04 (checkpoint 2 — all phases merged; integration head `75d72b0`)
+**Last updated:** 2026-09-06 (checkpoint 3 — all phases + follow-ups merged; integration head `169267f`)
 **Plan:** [`HARDENING-PLAN.md`](./HARDENING-PLAN.md) · **Baseline:** [`../../SECURITY-BASELINE.md`](../../SECURITY-BASELINE.md)
 **Repo:** `cpl-bot/obsidian-llm-wiki` · **Integration branch:** `claude/multi-agent-plan-orchestration-uvvzcn`
 (this is the fork's `harden/main`; upstream `main` is untouched at `2bd4a6d` = v1.27.0)
@@ -16,7 +16,7 @@
   `Claude-Session` trailers.
 - Gate before every PR: `pnpm gate:1` (lint, typecheck, build, test, css-lint, `check:lockfile`,
   `check:bundle-mineru`, `check:bundle-hosts`; build **before** test) plus `pnpm check:reproducible`.
-  Pre-hardening baseline 267 files / 3792 tests; post-hardening 281 / 4135.
+  Pre-hardening baseline 267 files / 3792 tests; post-hardening 281 / 4135; after round 2 266 / 3996.
 - Every PR was reviewed by a second sub-agent (review-and-fix pattern: findings fixed on the
   branch as one `fix(harden/phase-N): address review findings` commit, summary posted as a PR
   review comment, then squash-merged into the integration branch).
@@ -36,6 +36,10 @@ Integration branch head: `3498bbf`. Post-hardening numbers are in `SECURITY-BASE
 | 5 Vault write-gate | [#4](https://github.com/cpl-bot/obsidian-llm-wiki/pull/4) | `cf768b8` | `VaultWriter` incl. `process`/`rename`, ESLint enforcement |
 | 6 CI supply chain | [#6](https://github.com/cpl-bot/obsidian-llm-wiki/pull/6) | `b1a7e89` | SHA-pinned actions, CodeQL + gitleaks, reproducible build, SBOM, `SECURITY.md` |
 | 7 Governance | [#5](https://github.com/cpl-bot/obsidian-llm-wiki/pull/5) | `0bfad53` | `UPSTREAM-MERGE.md`, id `karpathywiki-hardened`, runtime plugin id |
+| Follow-up: release workflow | [#8](https://github.com/cpl-bot/obsidian-llm-wiki/pull/8) | `7f3fe59` | semver-only tag trigger, tag==manifest guard, `gate:1` + reproducible check before release build |
+| 2.B: Codex OAuth removed | [#10](https://github.com/cpl-bot/obsidian-llm-wiki/pull/10) | `04c81d8` | loopback listener/device flow gone; scrub migration; `chatgpt.com`/`auth.openai.com` off allowlist; `check:bundle-codex` |
+| 2.B: Bedrock SSO/IAM removed | [#11](https://github.com/cpl-bot/obsidian-llm-wiki/pull/11) | `cdc744c` | SigV4/device flow gone; scrub migration; AWS patterns off allowlist; `check:bundle-bedrock` |
+| Follow-up: SDK majors | [#9](https://github.com/cpl-bot/obsidian-llm-wiki/pull/9) | `169267f` | `ai` 7, `@ai-sdk/*` 4, `zod` 4; static imports restore tree-shaking; wire-level egress + streamed-reasoning tests |
 
 Every PR was implemented by an Opus/Sonnet sub-agent, then independently reviewed by a
 second agent that fixed its findings on the branch before merge (review notes are on each PR).
@@ -73,29 +77,38 @@ The plan itself is finished; the code is fully merged. What remains falls into t
    CodeQL, gitleaks; no force-push; signed commits) — details in `SECURITY.md`.
 5. Decide whether the integration branch becomes the fork's default branch / is merged to `main`.
 
-### B. Optional follow-up PRs (each is one worktree + one Opus sub-agent + one review agent)
-1. **Phase 2.B discretionary removals** — pick per deployment: OpenAI Codex OAuth
-   (`src/llm-sdk/openai-codex/`, `codex-auth-commands.ts`, `openai-codex-auth-controls.ts`),
-   AWS Bedrock SSO/IAM (`src/llm-sdk/bedrock-sso/`, `bedrock-auth-controls.ts`), unused
-   providers, `AGENTS.md`/`CLAUDE.md`/`MEMORY.md`. After each removal shrink
-   `src/core/egress-hosts.json` so `check:bundle-hosts` keeps the allowlist minimal.
-2. **Release workflow tightening** — restrict `release.yml` to `v*` tags and run `pnpm gate:1`
-   before building (pre-existing gaps noted in the PR #6 review).
-3. **Dependency major upgrades** (`ai` 6→7, `@ai-sdk/*` 3→4, `zod` 3→4) — deliberately excluded
-   from Phase 1; do as a separate PR now that the hardening controls are in place.
-4. **First upstream merge** — follow `UPSTREAM-MERGE.md` when upstream ships > v1.27.0.
+### B. Optional follow-up PRs — status
+1. **Phase 2.B removals — DONE for Codex OAuth (#10) and Bedrock SSO/IAM (#11)** (plan default;
+   the operator expressed no preference). **Not done, deliberately:** removing unused providers
+   (Kimi/Moonshot, Z.ai/BigModel, MiniMax, DeepSeek, OpenRouter, Gemini) — needs to know which
+   providers are actually configured; and deleting `AGENTS.md`/`CLAUDE.md`/`MEMORY.md` — kept
+   because the sub-agent workflow relies on `AGENTS.md`, and `UPSTREAM-MERGE.md` already treats
+   upstream changes to them as untrusted. Either can be done later as one PR each (shrink
+   `src/core/egress-hosts.json` when removing providers).
+2. **Release workflow tightening — DONE (#8).**
+3. **Dependency major upgrades — DONE (#9).** Residual: ~371 KB of zod-4 locale catalogues is
+   inherent to how `@ai-sdk/*` import `zod/v4`; bundle is 4,127,510 bytes.
+4. **First upstream merge** — follow `UPSTREAM-MERGE.md` when upstream ships > v1.27.0. Note the
+   fork now diverges substantially (three providers/backends removed, SDK majors ahead of
+   upstream), so expect conflicts in `src/llm-sdk/`, `src/types.ts`, `src/texts/*`.
 
 ### C. Session bootstrap (for any of the above)
 ```bash
 git fetch origin && git checkout claude/multi-agent-plan-orchestration-uvvzcn && git pull
 pnpm install --frozen-lockfile && pnpm build      # tests read main.js
-pnpm gate:1 && pnpm check:reproducible           # expect 281 files / 4135 tests, byte-identical
+pnpm gate:1 && pnpm check:reproducible           # expect 266 files / 3996 tests, byte-identical
 git worktree add /home/user/wt/<topic> -b harden/<topic> claude/multi-agent-plan-orchestration-uvvzcn
 ```
 Then launch a sub-agent with the prompt skeleton below, review with a second agent, push the
 branch, open a PR against the integration branch, post the review summary, squash-merge.
 
 ## Session history
+- **Session 2 (checkpoint 3):** follow-ups merged in order #8 → #10 → #11 → #9, each implemented by
+  an Opus/Sonnet agent and reviewed-and-fixed by a second agent. Notable review catches: the same
+  marker-gated scrub hole in both 2.B migrations (fixed unconditional), per-task model ids left
+  pointing at removed providers, `openExternalUrl` opening an unvalidated OIDC URL, dynamic
+  `import('ai')` defeating tree-shaking (+447 KB recovered), a zod-4 provider-utils regression that
+  forced SDK-first upgrade order. Round-2 baseline recorded in `SECURITY-BASELINE.md`.
 - **Session 1 (checkpoint 1):** Phase 0 baseline; PRs #1–#4 opened (Phase 5 as draft).
 - **Session 1 (checkpoint 2, this update):** all reviews done, PRs #1–#7 merged in order
   #2 → #3 → #5 → #1 → #4 → #6 → #7; post-hardening baseline recorded in `SECURITY-BASELINE.md`.
