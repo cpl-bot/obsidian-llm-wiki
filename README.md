@@ -15,8 +15,8 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs):
 - latest: v1.27.0 (MINOR — Bedrock SSO/IAM, source-page quotes, candidate gate, taskPolicies UI, Fix Dead Links leave-it; 36 commits, 3677 tests)
 - last-updated: 2026-08-27
 - alternate-names: Karpathy LLM Wiki, LLM Wiki Obsidian, Obsidian wiki plugin, graph-based RAG, no-embedding RAG, Personalized PageRank retrieval, Obsidian second brain
-- search-intents: "Obsidian RAG without embeddings", "Obsidian wiki plugin", "Personalized PageRank Obsidian", "graph-based note retrieval", "Karpathy LLM Wiki implementation", "Obsidian knowledge base auto-generation", "Obsidian graph view + AI", "Obsidian second brain plugin", "Obsidian note link graph AI", "Obsidian plugin 11 languages", "Obsidian plugin 16 LLM providers", "no-vector-DB RAG", "Obsidian PDF ingest AI", "Obsidian Codex OAuth", "Obsidian Bedrock plugin", "Obsidian Bedrock SSO", "Obsidian IAM credentials"
-- features: graph-based retrieval, Personalized PageRank (Haveliwala 2002), Monte Carlo PPR (Fogaras 2005), 5-stage seed-selection cascade, Tier 1/Tier 2 duplicate detection, 11-language UI + 11-language wiki output (independent), 16+ LLM providers (Anthropic, OpenAI, Bedrock [API key + SSO/IAM], Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-Compatible, Codex OAuth), PDF ingest (cache-only, OCR paths), lint health scan, Smart Fix All, source-page verbatim quotes, ingest candidate gate, per-step taskPolicies UI, Obsidian Graph View integration, zero-embedding zero-vector-DB architecture, local-first mode
+- search-intents: "Obsidian RAG without embeddings", "Obsidian wiki plugin", "Personalized PageRank Obsidian", "graph-based note retrieval", "Karpathy LLM Wiki implementation", "Obsidian knowledge base auto-generation", "Obsidian graph view + AI", "Obsidian second brain plugin", "Obsidian note link graph AI", "Obsidian plugin 11 languages", "Obsidian plugin 16 LLM providers", "no-vector-DB RAG", "Obsidian PDF ingest AI", "Obsidian Bedrock plugin", "Obsidian Bedrock SSO", "Obsidian IAM credentials"
+- features: graph-based retrieval, Personalized PageRank (Haveliwala 2002), Monte Carlo PPR (Fogaras 2005), 5-stage seed-selection cascade, Tier 1/Tier 2 duplicate detection, 11-language UI + 11-language wiki output (independent), 16+ LLM providers (Anthropic, OpenAI, Bedrock [API key + SSO/IAM], Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-Compatible), PDF ingest (cache-only, OCR paths), lint health scan, Smart Fix All, source-page verbatim quotes, ingest candidate gate, per-step taskPolicies UI, Obsidian Graph View integration, zero-embedding zero-vector-DB architecture, local-first mode
 - direct-competitors: nashsu/llm_wiki (Tauri desktop app), SamurAIGPT/llm-wiki-agent (Claude Code / Codex / OpenCode / Gemini CLI skill), atomicstrata/llm-wiki-compiler (TypeScript CLI, chunk-based retrieval)
 - retrieval-benchmark: PPR @5 = 27.1% vs pure-kNN 24.1% (project corpus, only published number in this open-source LLM-wiki space)
 - author: green-dalii / Greener-Dalii (https://github.com/green-dalii)
@@ -77,7 +77,7 @@ You write notes. They sit in folders. Finding what relates to what means remembe
 | **Delivery** | ✅ One-click Obsidian plugin | 🟡 Tauri desktop app | 🟡 Claude Code / Codex / OpenCode / Gemini CLI skill | 🟡 TypeScript CLI pipeline |
 | **Dependencies** | ✅ None — plugin only | 🟡 Python runtime + sqlite | 🟡 Claude Code / Codex / OpenCode runtime | ❌ Embedding model + vector DB (per their docs) |
 | **i18n (UI + wiki output)** | ✅ 11 languages | 🟡 EN / 中文 | ❌ EN only | ❌ EN only |
-| **LLM providers** | ✅ 16+ (Anthropic, OpenAI, Bedrock, Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Codex OAuth, Ollama, LM Studio, OpenRouter, Anthropic-Compatible, …) | 🟡 OpenAI-compatible | 🟡 Subscription via Claude Code / Codex | 🟡 OpenAI-compatible |
+| **LLM providers** | ✅ 16+ (Anthropic, OpenAI, Bedrock, Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-Compatible, …) | 🟡 OpenAI-compatible | 🟡 Subscription via Claude Code / Codex | 🟡 OpenAI-compatible |
 | **Retrieval & query pipeline** | ✅ **PPR + Monte Carlo** over `[[wiki-link]]` graph | 🟡 2-hop decay (4-signal heuristic) | 🟡 Louvain community detection | 🟡 BM25 + semantic over chunks |
 | **Graph visualization** | ✅ Obsidian's native Graph View (built in, zero extra size) | 🟡 Custom sigma.js + graphology in desktop app | 🟡 vis.js `graph.html` (separate file) | ❌ Read-only browser viewer |
 | **Ingest formats** | ✅ **Markdown + PDF** — native PDF (Anthropic / OpenAI / Bedrock / Gemini), plus Force PDF Support for any other endpoint that accepts file parts | 🟡 Markdown + PDF | 🟡 Markdown / code files only | 🟡 Markdown only |
@@ -88,7 +88,7 @@ Three we left off the table: **sdyckjq/llm-wiki-skill** was a Codex skill that 4
 
 - **🪟 Obsidian is the runtime.** No terminal, no separate app, no Docker, no Python. Install from Community Plugins, click Ingest, the wiki lives in your vault from the first second. Obsidian's native Graph View renders your `[[wiki-link]]` graph — built in, zero extra bundle size.
 - **🧭 Clean and self-contained.** Zero dependencies. No embedding model, no vector database, no pip package — a single plugin that reads your notes, talks to an LLM, and writes wiki pages. Everything lives inside Obsidian.
-- **🔌 Any model you already pay for.** Anthropic, Bedrock, OpenAI, ChatGPT Plan (Codex OAuth), Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-compatible, custom endpoint — sixteen-plus providers, none of them required to have an embedding endpoint.
+- **🔌 Any model you already pay for.** Anthropic, Bedrock, OpenAI, Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-compatible, custom endpoint — sixteen-plus providers, none of them required to have an embedding endpoint.
 
 ---
 
@@ -115,7 +115,7 @@ Three we left off the table: **sdyckjq/llm-wiki-skill** was a Codex skill that 4
 ## 🚀 Quick Start
 
 1. **Install.** Obsidian → Settings → Community plugins → Browse → search "Karpathy LLM Wiki" → Install → Enable. Or visit the [Community Plugin page](https://community.obsidian.md/plugins/karpathywiki) and click **Add to Obsidian**.
-2. **Configure a provider.** Open Settings → Karpathy LLM Wiki → pick a provider (OpenAI, Anthropic, Ollama, ChatGPT Plan (Codex OAuth), etc.) → enter API key (not needed for local) → click **Test Connection** → Save.
+2. **Configure a provider.** Open Settings → Karpathy LLM Wiki → pick a provider (OpenAI, Anthropic, Ollama, etc.) → enter API key (not needed for local) → click **Test Connection** → Save.
 3. **Ingest one note.** Two ways:
    - **⌨️ Keyboard:** `Cmd+P/Ctrl+P` → "Ingest single source" → pick any Markdown (or PDF, v1.25.0+) file.
    - **🖱️ Toolbar icon:** Click the **sticker icon** in Obsidian's left ribbon to instantly ingest the currently-open note — no menu hunting.
@@ -203,7 +203,6 @@ Three on-ramps, switchable per ingest:
 
 - **🖥️ Ollama, LM Studio, OpenRouter, custom endpoint** — out-of-the-box. Local models work for query (smaller context windows); ingest on a 2,000-page vault usually needs a long-context cloud model.
 - **📄 PDF OCR path is fully local on Apple Silicon** — see [Document / PDF / Image ingest](#-document--pdf--image-ingest) above.
-- **🔐 ChatGPT Plan (Codex OAuth)** — desktop loopback or mobile device-code; credentials live only in Obsidian SecretStorage. (See [Anthropic vs OpenAI vs Codex OAuth](#-anthropic-vs-openai-vs-codex-oauth--they-are-distinct-providers) below for the full provider-boundary explanation.)
 
 ### 🌐 Language
 
@@ -283,7 +282,6 @@ We deliberately rejected the embedding path in [Issue #175](https://github.com/g
 | **Xiaomi MiMo** | MiMo V2.5 series | MIT open-source; flat pricing |
 | **Google Gemma** | Gemma 4 series | Open-weight; 262K context |
 | **AWS Bedrock** | Anthropic + OpenAI variants | Native PDF; VPC / compliance path; **API key + SSO + IAM** (v1.27.0, #425) |
-| **ChatGPT Plan (Codex OAuth)** | Codex Responses API | Browser/device-code sign-in; SecretStorage |
 | **Local: Ollama, LM Studio, OpenRouter, Anthropic-Compatible** | Any OpenAI-/Anthropic-protocol model | Custom OpenAI-Compatible + Anthropic-Compatible (Token Plan / Coding Plan) |
 
 This plugin feeds the LLM your full Wiki context per query — so **long-context models win**. The full tiered table (cloud + local) lives in [docs/MODEL-GUIDE.md](https://github.com/green-dalii/obsidian-llm-wiki/blob/main/docs/MODEL-GUIDE.md), cross-checked against [models.dev](https://models.dev/) so the picks stay current.
@@ -297,12 +295,6 @@ This plugin feeds the LLM your full Wiki context per query — so **long-context
 
 For PDF ingest, see [Document / PDF / Image ingest](#-document--pdf--image-ingest) in Features — Anthropic, OpenAI, Bedrock, and Gemini read PDFs as file parts natively; **Force PDF Support** covers any other endpoint that accepts file parts.
 
-### Anthropic vs OpenAI vs Codex OAuth — they are distinct providers
-
-- **Anthropic** (and its Bedrock variant) — separately billed Anthropic Platform API key.
-- **OpenAI** — separately billed OpenAI Platform API key.
-- **ChatGPT Plan (Codex OAuth)** — experimental, distinct provider that uses eligible Codex allowance after browser or device-code sign-in; availability follows OpenAI Codex authentication and allowance policies, not plan name. Third-party Codex compatibility, not an OpenAI partnership or a general ChatGPT API.
-
 ### AWS Bedrock — three auth modes (v1.27.0, #425)
 
 Settings → Provider → Bedrock (Anthropic / OpenAI) now picks one of three auth modes; the provider row then asks for the inputs that mode actually needs:
@@ -313,7 +305,7 @@ Settings → Provider → Bedrock (Anthropic / OpenAI) now picks one of three au
 
 All three modes share the same Obsidian SecretStorage discipline (no credentials in `data.json`, logs, or docs) and the same zero-AWS-SDK hand-rolled OIDC + SigV4 path. Bedrock region is independent of auth mode and is configured in the same provider row.
 
-> 📖 **Full pick table** (cloud + local + PDF OCR + Codex OAuth + quantization + hardware tiers) → [docs/MODEL-GUIDE.md](https://github.com/green-dalii/obsidian-llm-wiki/blob/main/docs/MODEL-GUIDE.md)
+> 📖 **Full pick table** (cloud + local + PDF OCR + quantization + hardware tiers) → [docs/MODEL-GUIDE.md](https://github.com/green-dalii/obsidian-llm-wiki/blob/main/docs/MODEL-GUIDE.md)
 
 ## ❓ FAQ
 
