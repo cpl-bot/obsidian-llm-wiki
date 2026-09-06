@@ -20,7 +20,7 @@
 //
 // Bot-compliance notes (issue #507):
 // - All `node:*` static imports → top-level IIFE + Platform.isDesktop guard
-//   (matches src/llm-sdk/openai-codex/loopback-flow.ts AST exemption)
+//   (matches the loopback-listener AST exemption)
 // - All three module loads batched via Promise.all to avoid serial cost
 //   (Simplification Finding 4 / Efficiency Finding 1)
 

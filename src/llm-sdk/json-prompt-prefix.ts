@@ -51,7 +51,7 @@ export const JSON_ENFORCEMENT_SYSTEM_PREFIX =
  * with a JSON instruction would corrupt the very output being measured.
  *
  * Lives here rather than in one client because every client that can honour a
- * pinned mode needs the identical rule — the #525 review found the Codex path
+ * pinned mode needs the identical rule — the #525 review found the pinned path
  * silently keeping JSON output because it had no access to this helper.
  */
 export function forcedTextPromptSystem(

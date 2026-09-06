@@ -1,6 +1,6 @@
 // v1.25.3 #182: Persistent API key storage via Obsidian SecretStorage
-// (OS keychain). Mirrors CodexCredentialStore (openai-codex/credential-store.ts)
-// but stores a single string rather than a structured credential object.
+// (OS keychain). Stores a single string rather than a structured
+// credential object.
 //
 // Why this exists:
 //   - Provider API keys previously lived in plain text inside data.json.
@@ -14,26 +14,27 @@
 //     key needs to survive a restart in practice (LLM Wiki re-prompts
 //     for a key when the slot is empty, same as before).
 
-// Re-export Codex's SecretStorageLike so the contract lives in one place.
-// Both this module and openai-codex/credential-store.ts use the same
-// Obsidian App.secretStorage surface (`getSecret`/`setSecret`); aliasing
-// keeps the two stores' signatures compatible without depending on the
-// Codex OAuth module from this file (the import is type-only, so it is
-// erased at runtime — no circular-dep risk at link time).
-import type { SecretStorageLike } from './openai-codex/types';
-
 /**
  * v1.25.3 #182: minimal storage primitive matching Obsidian's
  * `App.secretStorage` surface (`getSecret(id)` / `setSecret(id, value)`).
- * Aliased to Codex's `SecretStorageLike` to keep the two stores' type
- * contracts in sync without coupling at runtime.
+ *
+ * Hardening Phase 2.B: this interface used to be declared by the removed
+ * OAuth module and re-exported from here. It is now defined in this file,
+ * which is the single home of the SecretStorage contract for every
+ * credential store in the plugin.
  */
+export interface SecretStorageLike {
+  getSecret(id: string): string | null;
+  setSecret(id: string, secret: string): void;
+}
+
+/** Alias kept for the provider-key call sites that already use this name. */
 export type ProviderSecretStorage = SecretStorageLike;
 
 /**
- * v1.25.3 #182: provider-API-key storage contract. Modeled on
- * `CodexCredentialStoreLike` — `load` returns the trimmed key or null,
- * `save` and `clear` are side-effecting, `hasKey` is the cheap probe.
+ * v1.25.3 #182: provider-API-key storage contract. `load` returns the
+ * trimmed key or null, `save` and `clear` are side-effecting, `hasKey`
+ * is the cheap probe.
  */
 export interface ProviderSecretStoreLike {
   load(): string | null;
@@ -102,9 +103,8 @@ export class ProviderSecretStore implements ProviderSecretStoreLike {
 
   /**
    * Persist a key. Whitespace-only or empty input is normalized to a
-   * clear (matches `CodexCredentialStore.clear()` convention of writing
-   * `''` to the secretId rather than deleting it — keeps the slot
-   * registered with the OS credential manager).
+   * clear: `''` is written to the secretId rather than deleting it, which
+   * keeps the slot registered with the OS credential manager.
    *
    * v1.25.4 #339: rethrows setSecret platform throws as
    * `ProviderSecretStorageError`. Silent-skip would drop the user-typed
@@ -124,7 +124,7 @@ export class ProviderSecretStore implements ProviderSecretStoreLike {
    * Erase the stored key. Writes an empty string to keep the secretId
    * slot registered with the OS credential manager — Obsidian's
    * SecretStorage doesn't expose a delete API, so empty-string is the
-   * canonical "clear" (same convention as CodexCredentialStore).
+   * canonical "clear".
    *
    * v1.25.4 #339: same throw contract as `save()`.
    */

@@ -30,14 +30,13 @@
  *     the live value (UX nicety preserved).
  */
 
-import { Notice, Platform, Setting } from 'obsidian';
+import { Notice, Setting } from 'obsidian';
 import type { LLMWikiSettingTab } from '../settings';
 import type { LLMWikiSettings } from '../../types';
 import { PREDEFINED_PROVIDERS } from '../../types';
 import { BEDROCK_REGIONS, BEDROCK_DEFAULT_REGION, NATIVE_PDF_PROVIDER_IDS, MAX_BATCH_DELAY_MS, NOTICE_ERROR } from '../../constants';
 import { renderRangeSlider, egressReasonTextKey } from '../settings-helpers';
 import { assertAllowedEgress, EgressDeniedError } from '../../core/egress-policy';
-import { getCodexAuthUiState } from '../openai-codex-auth-controls';
 import { getBedrockAuthUiState } from '../bedrock-auth-controls';
 import { resolveInitialApiKey } from '../../llm-sdk/provider-api-key-resolver';
 import { isProviderSecretStorageError } from '../../llm-sdk/provider-secret-store';
@@ -48,7 +47,6 @@ export function renderProviderSection(tab: LLMWikiSettingTab, containerEl: HTMLE
   const providerConfig = PREDEFINED_PROVIDERS[tempSettings.provider];
   const isOllama = tempSettings.provider === 'ollama';
   const isLmStudio = tempSettings.provider === 'lmstudio';
-  const isCodex = tempSettings.provider === 'openai-codex';
   const isBedrock = tempSettings.provider === 'bedrock-anthropic'
     || tempSettings.provider === 'bedrock-openai';
   // #425: in sso/iam modes the bearer API-key field is inert (AWS
@@ -93,23 +91,9 @@ export function renderProviderSection(tab: LLMWikiSettingTab, containerEl: HTMLE
     });
 
   // API Key (or hint for ollama/lmstudio)
-  if (isCodex) {
-    const isSignedIn = tab.plugin.codexAuthManager?.hasCredential() === true;
-    const authState = getCodexAuthUiState({ isDesktop: !Platform.isMobile, isSignedIn, isBusy: tab.codexAuthBusy });
-    const status = tab.codexAuthBusy ? tab.getText('codexAuthBusy') : authState.showSignOut ? tab.getText('codexAuthSignedIn') : tab.getText('codexAuthSignedOut');
-    const authSetting = new Setting(containerEl).setName(tab.getText('codexAuthName')).setDesc(`${tab.getText('codexAuthDesc')} ${tab.getText('codexAuthExperimental')} ${status}`);
-    if (authState.showBrowser) authSetting.addButton(button => button.setButtonText(tab.getText('codexAuthBrowserButton')).onClick(() => { void tab.loginOpenAICodexBrowser(); }));
-    if (authState.showDevice) authSetting.addButton(button => button.setButtonText(tab.getText('codexAuthDeviceButton')).onClick(() => { void tab.loginOpenAICodexDevice(); }));
-    if (authState.showSignOut) authSetting.addButton(button => button.setButtonText(tab.getText('codexAuthSignOutButton')).setWarning().onClick(() => { void tab.signOutOpenAICodex(); }));
-    if (isSignedIn) new Setting(containerEl).setName(tab.getText('codexModelsRefreshName')).setDesc(tab.getText('codexModelsRefreshDesc')).addButton(button => button.setButtonText(tab.codexAuthBusy ? tab.getText('codexModelsRefreshing') : tab.getText('codexModelsRefreshButton')).setDisabled(tab.codexAuthBusy).onClick(() => { void tab.refreshOpenAICodexModels(true, true); }));
-    if (tab.codexDevicePrompt) {
-      const prompt = tab.codexDevicePrompt;
-      new Setting(containerEl).setName(tab.getText('codexAuthDeviceInstructions').replace('{}', prompt.userCode)).setDesc(prompt.verificationUrl).addButton(button => button.setButtonText(tab.getText('codexAuthCopyCode')).onClick(() => { void tab.copyOpenAICodexDeviceCode(); })).addButton(button => button.setButtonText(tab.getText('cancelButton')).setWarning().onClick(() => { prompt.cancel(); }));
-    }
-    if (isSignedIn) tab.queueStaleCodexModelRefresh();
-  } else if (!isOllama && !isLmStudio && !bedrockAwsCredMode) {
+  if (!isOllama && !isLmStudio && !bedrockAwsCredMode) {
     // v1.25.3 #182: read the key through the tested ProviderSecretStore
-    // helper (matches Codex's codexAuthManager UX). The text component
+    // helper. The text component
     // is an in-memory buffer; the actual SecretStorage write happens
     // once on settings-tab close (in LLMWikiSettingTab.hide → flushApiKey),
     // so a user typing 30 characters does NOT trigger 30 OS keychain

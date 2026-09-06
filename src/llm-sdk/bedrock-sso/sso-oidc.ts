@@ -4,8 +4,7 @@
  * RegisterClient → StartDeviceAuthorization → (user approves in
  * browser) → CreateToken polling. All calls are UNSIGNED HTTPS POSTs to
  * the public `oidc.{region}.amazonaws.com` endpoints — plain OAuth, no
- * SigV4 involved. Polling/abort/deadline machinery mirrors the proven
- * openai-codex device-flow skeleton.
+ * SigV4 involved.
  */
 
 import { BEDROCK_DEVICE_FLOW_TIMEOUT_MS, bedrockOidcBaseUrl } from './constants';

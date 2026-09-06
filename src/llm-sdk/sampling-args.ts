@@ -1,6 +1,6 @@
 // Sampling-args helper — consolidates the three conditional spread blocks
 // (`temperature`, `top_p`, `seed`) repeated across the OpenAI, Anthropic and
-// OpenAI-compatible SDK clients (the Codex client uses a different shape
+// OpenAI-compatible SDK clients (some other clients use a different shape
 // because `response_format` routes to AI-SDK's `Output.json()`, so it stays
 // out of scope here).
 //

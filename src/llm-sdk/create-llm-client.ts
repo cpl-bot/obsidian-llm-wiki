@@ -19,7 +19,6 @@
 // (they all expect a sync `LLMClient` instance).
 
 import { LLMClient } from '../types';
-import type { CodexAuthManager } from './openai-codex/auth-manager';
 import {
   bedrockMantleChatCompletionsUrl,
   bedrockMantleMessagesUrl,
@@ -57,9 +56,6 @@ export interface ProviderSettings {
    */
   bedrockRegion?: string;
   useOfficialOpenAI?: boolean;
-  codexAuth?: CodexAuthManager;
-  codexVersion?: string;
-  codexQuotaMessage?: string;
   /**
    * #425 Bedrock Stage 2 — auth mode for the two `bedrock-*` provider
    * ids. Default `'api-key'` = Stage-1 bearer, unchanged.
@@ -72,7 +68,7 @@ export interface ProviderSettings {
   /**
    * #425 — plugin-owned credential orchestrator. Required when a
    * `bedrock-*` provider runs in `'sso'` or `'iam'` mode; production
-   * hosts pass it next to codexAuth.
+   * hosts pass it next to the Bedrock manager.
    */
   bedrockAuthManager?: BedrockAuthManager;
 }
@@ -168,7 +164,6 @@ export async function createLLMClientFromSettings(
   const { OpenAISdkClient } = await import('./openai-sdk-client');
   const { AnthropicSdkClient } = await import('./anthropic-sdk-client');
   const { OpenAICompatSdkClient } = await import('./openai-compat-sdk-client');
-  const { OpenAICodexSdkClient } = await import('./openai-codex-sdk-client');
 
   const provider = settings.provider;
   // v1.25.3 #182: read the key through the resolver — SecretStorage is
@@ -189,10 +184,6 @@ export async function createLLMClientFromSettings(
   );
   const baseUrl = settings.baseUrl?.trim() || undefined;
 
-  if (provider === 'openai-codex') {
-    if (!settings.codexAuth) throw new Error('Codex auth manager is required');
-    return new OpenAICodexSdkClient({ auth: settings.codexAuth, sessionId: () => crypto.randomUUID(), version: settings.codexVersion ?? 'unknown', quotaMessage: settings.codexQuotaMessage });
-  }
   // v1.24.1 PATCH Bedrock Stage 1 — region-scoped bedrock-mantle endpoint,
   // reusing existing SDK clients via custom baseURL.
   if (provider === 'bedrock-anthropic') {
@@ -248,7 +239,6 @@ export interface PreloadedSdkModules {
   OpenAISdkClient: typeof import('./openai-sdk-client').OpenAISdkClient;
   AnthropicSdkClient: typeof import('./anthropic-sdk-client').AnthropicSdkClient;
   OpenAICompatSdkClient: typeof import('./openai-compat-sdk-client').OpenAICompatSdkClient;
-  OpenAICodexSdkClient: typeof import('./openai-codex-sdk-client').OpenAICodexSdkClient;
 }
 
 let preloadedModules: PreloadedSdkModules | null = null;
@@ -260,17 +250,15 @@ let preloadedModules: PreloadedSdkModules | null = null;
  * sync API contract).
  */
 export async function preloadLLMClientModules(): Promise<void> {
-  const [openai, anthropic, compat, codex] = await Promise.all([
+  const [openai, anthropic, compat] = await Promise.all([
     import('./openai-sdk-client'),
     import('./anthropic-sdk-client'),
     import('./openai-compat-sdk-client'),
-    import('./openai-codex-sdk-client'),
   ]);
   preloadedModules = {
     OpenAISdkClient: openai.OpenAISdkClient,
     AnthropicSdkClient: anthropic.AnthropicSdkClient,
     OpenAICompatSdkClient: compat.OpenAICompatSdkClient,
-    OpenAICodexSdkClient: codex.OpenAICodexSdkClient,
   };
 }
 
@@ -290,7 +278,7 @@ export function createLLMClientFromSettingsSync(
       'Call `await preloadLLMClientModules()` during plugin onload() before any LLM call.'
     );
   }
-  const { OpenAISdkClient, AnthropicSdkClient, OpenAICompatSdkClient, OpenAICodexSdkClient } = preloadedModules;
+  const { OpenAISdkClient, AnthropicSdkClient, OpenAICompatSdkClient } = preloadedModules;
 
   const provider = settings.provider;
   // v1.25.3 #182: read the key through the resolver — SecretStorage is
@@ -311,10 +299,6 @@ export function createLLMClientFromSettingsSync(
   );
   const baseUrl = settings.baseUrl?.trim() || undefined;
 
-  if (provider === 'openai-codex') {
-    if (!settings.codexAuth) throw new Error('Codex auth manager is required');
-    return new OpenAICodexSdkClient({ auth: settings.codexAuth, sessionId: () => crypto.randomUUID(), version: settings.codexVersion ?? 'unknown', quotaMessage: settings.codexQuotaMessage });
-  }
   // v1.24.1 PATCH Bedrock Stage 1 — region-scoped bedrock-mantle endpoint,
   // reusing existing SDK clients via custom baseURL.
   if (provider === 'bedrock-anthropic') {

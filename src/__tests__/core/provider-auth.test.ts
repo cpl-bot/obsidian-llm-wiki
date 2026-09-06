@@ -13,33 +13,28 @@ import { describe, expect, it } from 'vitest';
 import {
   isProviderConfigured,
   providerRequiresApiKey,
-  providerSupportsOAuth,
   usesBedrockAwsCredentials,
   type ProviderCredentialState,
 } from '../../core/provider-auth';
-import { PREDEFINED_PROVIDERS } from '../../types';
 
 function base(overrides: Partial<ProviderCredentialState>): ProviderCredentialState {
-  return { provider: 'bedrock-anthropic', apiKey: '', model: 'anthropic.claude-x', hasCodexCredential: false, ...overrides };
+  return { provider: 'bedrock-anthropic', apiKey: '', model: 'anthropic.claude-x', ...overrides };
 }
 
 describe('provider auth policy (legacy invariants)', () => {
   it('keeps OpenAI on API-key auth', () => {
     expect(providerRequiresApiKey('openai')).toBe(true);
-    expect(providerSupportsOAuth('openai')).toBe(false);
   });
-  it('configures openai-codex only with a stored credential and model', () => {
-    expect(isProviderConfigured({ provider: 'openai-codex', apiKey: '', model: 'gpt-5.5', hasCodexCredential: false })).toBe(false);
-    expect(isProviderConfigured({ provider: 'openai-codex', apiKey: '', model: 'gpt-5.5', hasCodexCredential: true })).toBe(true);
-  });
+  // Hardening Phase 2.B: the OAuth-only provider that used to be exercised
+  // here is gone, and with it the "configured without an API key" branch.
+  // Every remaining provider is either API-key-authenticated or keyless-local.
   it('preserves keyless local providers', () => {
-    expect(isProviderConfigured({ provider: 'ollama', apiKey: '', model: 'qwen3', hasCodexCredential: false })).toBe(true);
-    expect(isProviderConfigured({ provider: 'lmstudio', apiKey: '', model: 'local', hasCodexCredential: false })).toBe(true);
+    expect(isProviderConfigured({ provider: 'ollama', apiKey: '', model: 'qwen3' })).toBe(true);
+    expect(isProviderConfigured({ provider: 'lmstudio', apiKey: '', model: 'local' })).toBe(true);
   });
-  it('uses the required ChatGPT Plan label for Codex OAuth', () => {
-    expect(PREDEFINED_PROVIDERS['openai-codex'].name).toBe('ChatGPT Plan (Codex OAuth)');
-    expect(PREDEFINED_PROVIDERS['openai-codex'].nameEn).toBe('ChatGPT Plan (Codex OAuth)');
-    expect(PREDEFINED_PROVIDERS['openai-codex'].nameZh).toBe('ChatGPT Plan (Codex OAuth)');
+  it('requires an API key for every non-local provider', () => {
+    expect(isProviderConfigured({ provider: 'openai', apiKey: '', model: 'gpt-4.1' })).toBe(false);
+    expect(isProviderConfigured({ provider: 'openai', apiKey: 'sk-x', model: 'gpt-4.1' })).toBe(true);
   });
 });
 

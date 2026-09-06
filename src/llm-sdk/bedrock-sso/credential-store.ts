@@ -2,14 +2,14 @@
  * #425 Bedrock Stage 2 — SecretStorage-backed credential stores.
  *
  * Two independent blobs (SSO session token / static IAM keys), same
- * validated-parse discipline as the codex credential store. Values live
+ * validated-parse discipline as the provider secret store. Values live
  * ONLY in Obsidian SecretStorage — never in settings, data.json, logs
  * or Notices.
  */
 
-// One-contract invariant (see provider-secret-store.ts): the storage
-// surface is codex's SecretStorageLike re-exported ecosystem-wide.
-import type { SecretStorageLike } from '../openai-codex/types';
+// One-contract invariant: `SecretStorageLike` is declared once in
+// provider-secret-store.ts and shared by every credential store.
+import type { SecretStorageLike } from '../provider-secret-store';
 
 import type { BedrockIamKeys, BedrockSsoToken } from './types';
 

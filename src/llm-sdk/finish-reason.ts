@@ -78,7 +78,7 @@ export function reportFinish(
  *
  * The SDK's `result.reasoning` is either a string (most providers) or an
  * array of `{ text }` parts (anthropic). Both shapes appear across the
- * 4 SDK clients (openai / openai-compat / openai-codex / anthropic). Centralised
+ * 3 SDK clients (openai / openai-compat / anthropic). Centralised
  * here so each client carries the same shape-checking logic instead of
  * copying the `typeof === 'string'` / `Array.isArray` branching.
  */

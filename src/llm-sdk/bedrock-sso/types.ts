@@ -1,7 +1,5 @@
 /**
  * #425 Bedrock Stage 2 — shared contracts for the SSO/SigV4 path.
- * Mirrors the openai-codex module shape so stores and managers stay
- * structurally interchangeable where it makes sense.
  */
 
 /** Temporary IAM credentials (from GetRoleCredentials or manual entry). */
