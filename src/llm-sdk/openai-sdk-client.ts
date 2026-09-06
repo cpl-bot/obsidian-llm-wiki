@@ -424,10 +424,14 @@ export class OpenAISdkClient implements LLMClient {
       console.debug(`[STREAM-CHUNK] [openai] total chunks forwarded: ${chunkCount} in ${Date.now() - streamStartTime}ms`);
 
       // Collect reasoning content (if any) from the post-stream Promise.
-      // AI-SDK v6 resolves `result.reasoning` after the stream completes.
+      // AI-SDK 7 moved the per-step outputs onto `finalStep` and deprecated
+      // the flat `result.reasoning` accessor; `finalStep` is a PromiseLike
+      // on the stream result and resolves once the stream completes, so the
+      // await point is unchanged. Single-step calls (this client never
+      // passes `tools`), so "final step" == "the whole generation".
       let reasoningContent = '';
       try {
-        const reasoning = await result.reasoning;
+        const reasoning = (await result.finalStep).reasoning;
         if (typeof reasoning === 'string' && reasoning) {
           reasoningContent = reasoning;
         } else if (Array.isArray(reasoning)) {
@@ -479,7 +483,7 @@ export class OpenAISdkClient implements LLMClient {
 
         let reasoningContent = '';
         try {
-          const reasoning = await result.reasoning;
+          const reasoning = (await result.finalStep).reasoning;
           if (typeof reasoning === 'string' && reasoning) {
             reasoningContent = reasoning;
           } else if (Array.isArray(reasoning)) {
@@ -528,7 +532,7 @@ export class OpenAISdkClient implements LLMClient {
         }
         let reasoningContent = '';
         try {
-          const reasoning = await result.reasoning;
+          const reasoning = (await result.finalStep).reasoning;
           if (typeof reasoning === 'string' && reasoning) {
             reasoningContent = reasoning;
           } else if (Array.isArray(reasoning)) {

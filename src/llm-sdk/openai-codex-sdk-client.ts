@@ -158,7 +158,9 @@ export class OpenAICodexSdkClient implements LLMClient {
       // appear to "lose" their chain-of-thought in the Query response.
       let reasoningContent = '';
       try {
-        reasoningContent = extractReasoningText(await result.reasoning);
+        // AI-SDK 7: `result.reasoning` is deprecated in favour of the
+        // per-step `finalStep.reasoning`. Single-step call, same value.
+        reasoningContent = extractReasoningText((await result.finalStep).reasoning);
       } catch {
         /* no reasoning for this provider — ignore */
       }

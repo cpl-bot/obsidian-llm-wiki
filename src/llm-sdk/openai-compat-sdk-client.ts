@@ -357,15 +357,13 @@ export class OpenAICompatSdkClient implements LLMClient {
       // balanced-JSON finder can reach the JSON-shaped payload.
       let reasoningContent = '';
       try {
-        // AI SDK 6.0.230: `result.reasoning` is a sync getter returning
-        // Array<ReasoningOutput> in the DefaultGenerateTextResult class
-        // (line 5096-5098 of ai/dist/index.mjs). The .d.ts signature
-        // misleadingly declares `PromiseLike<Array<ReasoningOutput>>` —
-        // there is no actual Promise to await. `await` on a non-Thenable
-        // value wraps it in a resolved Promise immediately, so the code
-        // path still works; the cast below silences the await-thenable
-        // lint without changing runtime behaviour.
-        const reasoningRaw = await (result.reasoning as unknown as Promise<unknown>);
+        // AI SDK 7: `generateText`'s result exposes the per-step outputs on
+        // a *synchronous* `finalStep: StepResult` (the deprecated flat
+        // `result.reasoning` was the same value). No Promise, so no await
+        // and no cast — the 6.0.230-era `PromiseLike` .d.ts mismatch that
+        // forced the cast here is gone. This client never passes `tools`,
+        // so the final step is the whole generation.
+        const reasoningRaw: unknown = result.finalStep.reasoning;
         const reasoningArr: ReadonlyArray<{ text?: string }> = Array.isArray(reasoningRaw)
           ? (reasoningRaw as ReadonlyArray<{ text?: string }>)
           : typeof reasoningRaw === 'string'
@@ -935,9 +933,9 @@ export class OpenAICompatSdkClient implements LLMClient {
       // the streaming variant at line 1078–1093.
       let reasoningContent = '';
       try {
-        // See createMessage comment for the PromiseLike<Array<...>> vs
-        // sync-getter mismatch in the AI SDK 6.0.230 type signature.
-        const reasoningRaw = await (result.reasoning as unknown as Promise<unknown>);
+        // See createMessage: AI SDK 7 exposes the per-step reasoning on the
+        // synchronous `finalStep` and deprecates the flat accessor.
+        const reasoningRaw: unknown = result.finalStep.reasoning;
         const reasoningArr: ReadonlyArray<{ text?: string }> = Array.isArray(reasoningRaw)
           ? (reasoningRaw as ReadonlyArray<{ text?: string }>)
           : typeof reasoningRaw === 'string'
@@ -1506,9 +1504,15 @@ export class OpenAICompatSdkClient implements LLMClient {
 
       // Collect reasoning content (if any) from the post-stream Promise.
       // OpenAI o-series and reasoning-capable providers populate this.
+      //
+      // AI-SDK 7 moved the per-step outputs onto `finalStep` and deprecated
+      // the flat `result.reasoning` accessor. On a stream result `finalStep`
+      // is a PromiseLike that settles when the stream completes, so the
+      // await point is unchanged. This client never passes `tools`, so the
+      // final step is the whole generation.
       let reasoningContent = '';
       try {
-        const reasoning = await result.reasoning;
+        const reasoning = (await result.finalStep).reasoning;
         if (typeof reasoning === 'string' && reasoning) {
           reasoningContent = reasoning;
         } else if (Array.isArray(reasoning)) {
@@ -1556,7 +1560,7 @@ export class OpenAICompatSdkClient implements LLMClient {
         }
         let reasoningContent = '';
         try {
-          reasoningContent = extractReasoningText(await result.reasoning);
+          reasoningContent = extractReasoningText((await result.finalStep).reasoning);
         } catch { /* no reasoning */ }
         if (reasoningContent) {
           fullText = wrapReasoningContent(reasoningContent, fullText);
@@ -1607,7 +1611,7 @@ export class OpenAICompatSdkClient implements LLMClient {
         }
         let reasoningContent = '';
         try {
-          reasoningContent = extractReasoningText(await result.reasoning);
+          reasoningContent = extractReasoningText((await result.finalStep).reasoning);
         } catch { /* no reasoning */ }
         // Bug-3: markStrip AFTER the retry succeeds. If the stream
         // throws (network blip, transient 5xx), the cache is not
@@ -1646,7 +1650,7 @@ export class OpenAICompatSdkClient implements LLMClient {
         }
         let reasoningContent = '';
         try {
-          reasoningContent = extractReasoningText(await result.reasoning);
+          reasoningContent = extractReasoningText((await result.finalStep).reasoning);
         } catch { /* no reasoning */ }
         if (reasoningContent) {
           fullText = wrapReasoningContent(reasoningContent, fullText);

@@ -326,7 +326,10 @@ export class AnthropicSdkClient implements LLMClient {
       // from the post-stream Promise. Mirrors the OpenAI SDK pattern.
       let reasoningContent = '';
       try {
-        reasoningContent = extractReasoningText(await result.reasoning);
+        // AI-SDK 7: per-step outputs live on `finalStep`; the flat
+        // `result.reasoning` accessor is deprecated. Single-step call, so
+        // the final step carries the whole generation.
+        reasoningContent = extractReasoningText((await result.finalStep).reasoning);
       } catch {
         // No reasoning for this model — ignore.
       }
@@ -365,7 +368,7 @@ export class AnthropicSdkClient implements LLMClient {
         }
         let reasoningContent = '';
         try {
-          reasoningContent = extractReasoningText(await result.reasoning);
+          reasoningContent = extractReasoningText((await result.finalStep).reasoning);
         } catch { /* no reasoning */ }
         if (reasoningContent) {
           fullText = wrapReasoningContent(reasoningContent, fullText);
