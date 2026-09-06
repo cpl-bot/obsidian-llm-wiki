@@ -101,9 +101,13 @@ pnpm verify:release <tag>      # downloads the released main.js, rebuilds the
 pnpm check:reproducible        # two builds of this tree must be byte-identical
 ```
 
-Every release from v1.27.0 onward carries `SHA256SUMS` and `sbom.json`
-alongside `main.js`, `manifest.json`, and `styles.css`. A mismatch is not proof
-of an attack — check `pnpm check:reproducible` first, because a
+Every release from `1.27.0` onward carries `SHA256SUMS` and `sbom.json`
+alongside `main.js`, `manifest.json`, and `styles.css`. Release tags are bare
+semver (`1.27.0`, not `v1.27.0`) matching `manifest.json`'s `version`; the
+release workflow now runs the full `pnpm gate:1` plus `pnpm check:reproducible`
+before it builds the artifact it hashes and attests, and refuses to publish at
+all if the pushed tag does not equal `manifest.json`'s version. A mismatch is
+not proof of an attack — check `pnpm check:reproducible` first, because a
 non-deterministic build makes the comparison meaningless — but it is a reason
 to stop and not install the artifact.
 
@@ -145,8 +149,9 @@ control (HARDENING-PLAN Phase 6.8).
 - **Actions permissions:** allow only actions used by this repository and
   GitHub-verified creators. Workflow permissions default to **read-only**;
   every write scope is granted per-job in the workflow file.
-- **Tag protection** on `v*` so a release tag cannot be moved after its
-  artifacts have been attested and hashed.
+- **Tag protection** on `[0-9]*.[0-9]*.[0-9]*` (this fork's bare-semver release
+  tags — see "Verifying a release" above) so a release tag cannot be moved
+  after its artifacts have been attested and hashed.
 
 ## Related documents
 

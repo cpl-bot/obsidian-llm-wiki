@@ -9,8 +9,22 @@ name: Release Obsidian plugin
 #     the pnpm lockfile the maintainer and CI build against — that alone can
 #     make the released `main.js` byte-differ from any local rebuild, which
 #     defeats the hash comparison below before it starts.
-#   - the same three supply-chain checks PR CI runs, re-run here because a tag
-#     can be pushed from a branch CI never saw.
+#   - the full `pnpm gate:1` (lint, typecheck, build, test, css-lint, the
+#     lockfile registry check, both bundle tripwires) plus
+#     `pnpm check:reproducible` run here, before anything is published,
+#     because a tag can be pushed from a branch CI never saw and a release
+#     built from red code is worse than a release built late (PR #6 review
+#     follow-up, HARDENING-STATUS.md §B.2). A final `pnpm build` runs after
+#     `check:reproducible` so the exact bytes hashed, attested and uploaded
+#     below come from one unambiguous production build, not from whichever
+#     of `check:reproducible`'s two internal builds happened to run last.
+#   - the trigger is restricted to release tags and a guard step fails the
+#     job outright if the pushed tag does not equal `manifest.json`'s
+#     `version`, so a mistyped tag can never publish a mislabeled build.
+#     This fork's tags are bare semver (`1.27.0`, no `v` prefix) — that is
+#     what `versions.json` and `CHANGELOG.md` key on, and what Obsidian's own
+#     update mechanism requires: the release tag name must equal
+#     `manifest.json`'s `version` field verbatim.
 #   - `SHA256SUMS` published with the release so `scripts/verify-release.mjs`
 #     (and any user) can rebuild from the tag and diff.
 #   - build provenance attestation retained: it proves the artifact came from
@@ -22,7 +36,13 @@ name: Release Obsidian plugin
 on:
   push:
     tags:
-      - "*"
+      # Bare semver, matching versions.json / CHANGELOG.md / manifest.json —
+      # NOT the generic `v*` GitHub convention. GitHub Actions tag filters use
+      # git's fnmatch-style glob, where `+` means "one or more of the
+      # preceding character", so `[0-9]+` matches one or more digits; the
+      # trailing `*` also admits a pre-release/build suffix (e.g. `-beta.1`)
+      # without matching an unrelated tag such as `karpathywiki-hardened`.
+      - "[0-9]+.[0-9]+.[0-9]+*"
 
 # Read-only by default. The single job below opts into exactly the write
 # scopes it needs, and nothing else in this workflow gets them (Phase 6.2).
@@ -50,20 +70,43 @@ jobs:
           node-version: "24.x"
           cache: 'pnpm'
 
+      - name: Guard — tag must match manifest.json version
+        # Fails fast, before install/build are spent on a tag nobody meant to
+        # release. `manifest.json` is the file Obsidian reads to decide what
+        # version a user is running, so a tag/manifest mismatch here would
+        # otherwise ship (and attest, and hash) a build labeled with the
+        # wrong version.
+        run: |
+          tag="${GITHUB_REF#refs/tags/}"
+          manifest_version="$(node -p "require('./manifest.json').version")"
+          if [ "$tag" != "$manifest_version" ]; then
+            echo "::error::Tag '$tag' does not match manifest.json version '$manifest_version' — refusing to publish a mislabeled build."
+            exit 1
+          fi
+          echo "Tag '$tag' matches manifest.json version '$manifest_version'."
+
       - name: Install (lockfile-pinned, install scripts disabled)
         run: pnpm install --frozen-lockfile
 
-      - name: Lockfile registry check (F-02)
-        run: pnpm check:lockfile
+      - name: Full gate — lint, typecheck, build, test, css-lint, lockfile registry, bundle tripwires
+        # Everything PR CI enforces, re-run here: a tag can be pushed from a
+        # branch CI never saw, so the release job cannot assume the code it
+        # is about to publish was ever gated (PR #6 review / HARDENING-STATUS
+        # §B.2). Includes the `pnpm build` whose `main.js` the checks below
+        # then read.
+        run: pnpm gate:1
 
-      - name: Build plugin
+      - name: Reproducible build (F-01 detection)
+        # Two builds from the same tree must produce the same sha256, same
+        # invariant PR CI checks. This also leaves a fresh production
+        # `main.js` on disk (see scripts/verify-reproducible-build.mjs) — the
+        # step below rebuilds once more anyway so the artifact that gets
+        # hashed/attested/uploaded is unambiguously from a single final
+        # `pnpm build`, not an artifact of how this check happens to work.
+        run: pnpm check:reproducible
+
+      - name: Build plugin (final — this is the artifact that gets hashed and attested)
         run: pnpm build
-
-      - name: Bundle tripwire — MinerU removed (F-06)
-        run: pnpm check:bundle-mineru
-
-      - name: Bundle tripwire — no unaccounted hostname (F-04)
-        run: pnpm check:bundle-hosts
 
       - name: Publish build hashes
         # `SHA256SUMS` is the anchor for `scripts/verify-release.mjs`: check
