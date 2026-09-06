@@ -51,6 +51,7 @@ export const DE_TEXTS = {
     // Hardening Phase 3 (F-03): fail-closed keychain contract.
     keychainUnavailableNotice: 'Schlüsselbund nicht verfügbar — LLM-Funktionen sind deaktiviert, bis er gelesen werden kann: {}',
     plaintextApiKeyScrubbedNotice: 'Klartext-API-Schlüssel aus data.json entfernt — bitte diesen Schlüssel rotieren.',
+    removedProviderResetNotice: 'In diesem Vault war ein Anbieter konfiguriert, den dieser Build nicht mehr enthält. Der Anbieter wurde auf den Standard zurückgesetzt und die gespeicherten Cloud-Anmeldeinformationen wurden gelöscht — wähle in den Einstellungen einen Anbieter und trage einen Schlüssel ein.',
     unsupportedPlatform: 'LLM Wiki unterstützt Windows nicht. Das Plugin wurde nicht geladen.',
     codexAuthName: 'Bei ChatGPT Plan anmelden',
     codexAuthDesc: 'Experimenteller Codex-OAuth-Zugriff über das Kontingent Ihres ChatGPT-Plans. Die Abrechnung der OpenAI Platform API erfolgt weiterhin separat.',

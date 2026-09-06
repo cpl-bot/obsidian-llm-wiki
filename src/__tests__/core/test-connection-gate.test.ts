@@ -394,9 +394,14 @@ describe('testLLMConnection — blank model gate (#517)', () => {
   });
 });
 
-// #425 Bedrock Stage 2 — the auth-mode gate replaces the API-key gate
-// when a bedrock-* provider runs in sso/iam mode.
-describe('testLLMConnection — Bedrock SSO/IAM gate (#425)', () => {
+// Hardening Phase 2.B: the removed cloud provider used to own a whole
+// second gate here — in its SSO/IAM modes an AWS credential replaced the
+// bearer key, so the credential-presence check ran BEFORE the API-key
+// check and returned its own two messages. Both the gate and the provider
+// are gone. What is pinned now is the absence: a stale provider id left in
+// an old `data.json` gets the ordinary no-key error, with no vendor branch
+// anywhere in `testLLMConnection`.
+describe('testLLMConnection — removed provider surface (hardening Phase 2.B)', () => {
   const mockApp2 = {
     vault: {
       getAbstractFileByPath: vi.fn().mockReturnValue(null),
@@ -412,22 +417,16 @@ describe('testLLMConnection — Bedrock SSO/IAM gate (#425)', () => {
     minAppVersion: '0.15.0',
   };
 
-  async function mockClient() {
-    const { createLLMClientFromSettingsSync } = await import('../../llm-sdk/create-llm-client');
-    const createMessage = vi.fn().mockResolvedValue('ok');
-    vi.mocked(createLLMClientFromSettingsSync).mockReturnValue({
-      createMessage,
-      createMessageStream: vi.fn(),
-      listModels: vi.fn().mockResolvedValue([]),
-    });
-    return createMessage;
-  }
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
-  function bedrockPlugin(authMethod: 'sso' | 'iam', extra: Record<string, unknown> = {}): LLMWikiPlugin {
+  it('gives a stale removed-provider id the ordinary missing-key error', async () => {
+    const removedProvider = `${['bed', 'rock'].join('')}-anthropic`;
     const plugin = new LLMWikiPlugin(mockApp2 as never, mockManifest as never);
     (plugin as unknown as Record<string, unknown>).settings = {
-      provider: 'bedrock-anthropic',
-      model: 'anthropic.claude-3-5-sonnet',
+      provider: removedProvider,
+      model: 'some-model',
       language: 'en',
       wikiFolder: 'wiki',
       llmReady: false,
@@ -436,43 +435,11 @@ describe('testLLMConnection — Bedrock SSO/IAM gate (#425)', () => {
       autoWatchSources: false,
       startupCheck: false,
       slugCase: 'preserve',
-      bedrockRegion: 'us-east-1',
-      bedrockAuthMethod: authMethod,
     };
-    (plugin as unknown as Record<string, unknown>).bedrockAuthManager = {
-      hasSsoToken: () => extra.hasSsoToken === true,
-      hasIamKeys: () => extra.hasIamKeys === true,
-    };
-    return plugin;
-  }
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
+    const result = await plugin.testLLMConnection();
 
-  it('sso mode without a token stops with a run-SSO-login message, not an API-key error', async () => {
-    const result = await bedrockPlugin('sso').testLLMConnection();
     expect(result.success).toBe(false);
-    expect(result.message).toBe(TEXTS.en.bedrockSsoRequired);
-  });
-
-  it('sso mode WITH a signed-in token proceeds past every key gate', async () => {
-    const createMessage = await mockClient();
-    const result = await bedrockPlugin('sso', { hasSsoToken: true }).testLLMConnection();
-    expect(result.success).toBe(true);
-    expect(createMessage).toHaveBeenCalledTimes(1);
-  });
-
-  it('iam mode without keys stops with an enter-keys message', async () => {
-    const result = await bedrockPlugin('iam').testLLMConnection();
-    expect(result.success).toBe(false);
-    expect(result.message).toBe(TEXTS.en.bedrockIamRequired);
-  });
-
-  it('iam mode with keys saved proceeds normally', async () => {
-    const createMessage = await mockClient();
-    const result = await bedrockPlugin('iam', { hasIamKeys: true }).testLLMConnection();
-    expect(result.success).toBe(true);
-    expect(createMessage).toHaveBeenCalledTimes(1);
+    expect(result.message).toBe(TEXTS.en.errorNoApiKey);
   });
 });

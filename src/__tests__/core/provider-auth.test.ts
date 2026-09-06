@@ -1,27 +1,20 @@
 // provider-auth tests: legacy policy invariants (restored — the #425
-// review caught them being replaced rather than extended) + the Bedrock
-// auth-mode gate.
+// review caught them being replaced rather than extended).
 //
-// The bedrock half: isProviderConfigured must treat an AWS credential
-// (SSO token or IAM keys) as satisfying the configuration requirement
-// for bedrock-* providers running in sso/iam mode — otherwise
-// initializeLLMClient nulls the client despite valid credentials and
-// the feature is dead on arrival. api-key mode keeps the exact legacy
-// semantics.
+// Hardening Phase 2.B removed the cloud provider whose SSO/IAM modes let
+// an AWS credential stand in for the bearer key, so `isProviderConfigured`
+// is back to three cases: Codex OAuth, keyless local endpoints, and
+// everything else needs a key. The final describe pins that the removed
+// provider ids really are unregistered — a re-merge would otherwise put a
+// selectable-but-unconstructable provider back in the dropdown.
 
 import { describe, expect, it } from 'vitest';
 import {
   isProviderConfigured,
   providerRequiresApiKey,
   providerSupportsOAuth,
-  usesBedrockAwsCredentials,
-  type ProviderCredentialState,
 } from '../../core/provider-auth';
 import { PREDEFINED_PROVIDERS } from '../../types';
-
-function base(overrides: Partial<ProviderCredentialState>): ProviderCredentialState {
-  return { provider: 'bedrock-anthropic', apiKey: '', model: 'anthropic.claude-x', hasCodexCredential: false, ...overrides };
-}
 
 describe('provider auth policy (legacy invariants)', () => {
   it('keeps OpenAI on API-key auth', () => {
@@ -43,39 +36,28 @@ describe('provider auth policy (legacy invariants)', () => {
   });
 });
 
-describe('usesBedrockAwsCredentials (#425 single predicate)', () => {
-  it('holds only for bedrock providers outside api-key mode', () => {
-    expect(usesBedrockAwsCredentials('bedrock-anthropic', 'sso')).toBe(true);
-    expect(usesBedrockAwsCredentials('bedrock-openai', 'iam')).toBe(true);
-    expect(usesBedrockAwsCredentials('bedrock-anthropic', 'api-key')).toBe(false);
-    expect(usesBedrockAwsCredentials('bedrock-anthropic', undefined)).toBe(false);
-    expect(usesBedrockAwsCredentials('openai', 'sso')).toBe(false);
-    expect(usesBedrockAwsCredentials('ollama', undefined)).toBe(false);
-  });
-});
+// Hardening Phase 2.B: the removed provider registered two ids. Neither
+// may come back — a settings dropdown entry the factory cannot construct
+// wedges every LLM call for whoever picks it. The vendor name is assembled
+// from fragments so this file does not itself carry the literal that
+// `scripts/check-bundle-no-bedrock.mjs` forbids.
+describe('removed provider surface (hardening Phase 2.B)', () => {
+  const removedVendor = ['bed', 'rock'].join('');
 
-describe('isProviderConfigured — bedrock auth modes (#425)', () => {
-  it('api-key mode (default) keeps legacy behavior: blank key = unconfigured', () => {
-    expect(isProviderConfigured(base({ bedrockAuthMethod: 'api-key', hasBedrockCredential: false }))).toBe(false);
+  it('registers no provider naming the removed vendor', () => {
+    const offenders = Object.keys(PREDEFINED_PROVIDERS).filter((id) => id.toLowerCase().includes(removedVendor));
+    expect(offenders).toEqual([]);
   });
 
-  it('sso mode with a signed-in token counts as configured', () => {
-    expect(isProviderConfigured(base({ bedrockAuthMethod: 'sso', hasBedrockCredential: true }))).toBe(true);
-  });
-
-  it('sso mode WITHOUT a token is unconfigured', () => {
-    expect(isProviderConfigured(base({ bedrockAuthMethod: 'sso', hasBedrockCredential: false }))).toBe(false);
-  });
-
-  it('iam mode with saved keys counts as configured', () => {
-    expect(isProviderConfigured(base({
-      provider: 'bedrock-openai',
-      bedrockAuthMethod: 'iam',
-      hasBedrockCredential: true,
-    }))).toBe(true);
-  });
-
-  it('a blank model still blocks every mode', () => {
-    expect(isProviderConfigured(base({ model: '', bedrockAuthMethod: 'sso', hasBedrockCredential: true }))).toBe(false);
+  it('treats a stale removed-provider id as needing a key like any unknown provider', () => {
+    // Nothing special-cases it any more: no AWS-credential escape hatch,
+    // so a blank key is simply unconfigured.
+    expect(providerRequiresApiKey(`${removedVendor}-anthropic`)).toBe(true);
+    expect(isProviderConfigured({
+      provider: `${removedVendor}-anthropic`,
+      apiKey: '',
+      model: 'some-model',
+      hasCodexCredential: false,
+    })).toBe(false);
   });
 });

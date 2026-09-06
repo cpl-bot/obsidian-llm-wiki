@@ -26,7 +26,9 @@ describe('extractBundleHosts', () => {
   });
 
   it('returns the truncated prefix for a runtime-concatenated host', () => {
-    expect(extractBundleHosts('const u = `https://oidc.${region}.amazonaws.com`;')).toEqual(['oidc.']);
+    // The scanner can only ever see the literal prefix when a label is
+    // concatenated at runtime — hence the `knownRuntimePrefixes` category.
+    expect(extractBundleHosts('const u = `https://api.${region}.example.com`;')).toEqual(['api.']);
   });
 
   it('returns nothing for a bundle with no URLs', () => {
@@ -48,20 +50,40 @@ describe('isAcceptedBundleHost', () => {
     expect(isAcceptedBundleHost('localhost', EGRESS_HOSTS)).toBe(true);
   });
 
-  it('accepts the truncated runtime prefixes the bundle really contains', () => {
-    expect(isAcceptedBundleHost('oidc.', EGRESS_HOSTS)).toBe(true);
-    expect(isAcceptedBundleHost('portal.sso.', EGRESS_HOSTS)).toBe(true);
-    expect(isAcceptedBundleHost('bedrock-mantle.', EGRESS_HOSTS)).toBe(true);
+  // Hardening Phase 2.B removed the only feature that built a hostname at
+  // runtime, so the live data has no prefixes and no patterns left. The
+  // matcher itself still has to work — a future regional provider would
+  // depend on it — so it is exercised against a synthetic host set rather
+  // than deleted along with the rows.
+  const SYNTHETIC = {
+    allowlist: [],
+    hostPatterns: [{ id: 'demo', prefix: 'api.', suffix: '.example.com' }],
+    loopbackHosts: [],
+    knownDocHosts: [],
+    knownRuntimePrefixes: ['api.'],
+  };
+
+  it('accepts a declared runtime prefix verbatim', () => {
+    expect(isAcceptedBundleHost('api.', SYNTHETIC)).toBe(true);
   });
 
-  it('accepts a fully expanded regional AWS host', () => {
-    expect(isAcceptedBundleHost('oidc.us-east-1.amazonaws.com', EGRESS_HOSTS)).toBe(true);
-    expect(isAcceptedBundleHost('portal.sso.eu-west-1.amazonaws.com', EGRESS_HOSTS)).toBe(true);
+  it('accepts a fully expanded regional host through its pattern', () => {
+    expect(isAcceptedBundleHost('api.us-east-1.example.com', SYNTHETIC)).toBe(true);
   });
 
-  it('accepts the SSO placeholder literal but no other awsapps tenant', () => {
-    // The placeholder is a doc host; *.awsapps.com is NOT pattern-accepted,
-    // so a newly appearing tenant domain still trips the wire.
+  it('rejects an extra label in the region slot of a pattern', () => {
+    expect(isAcceptedBundleHost('api.evil.example.example.com', SYNTHETIC)).toBe(false);
+  });
+
+  it('accepts nothing regional against the live host set — no pattern is declared', () => {
+    expect(isAcceptedBundleHost('oidc.', EGRESS_HOSTS)).toBe(false);
+    expect(isAcceptedBundleHost('oidc.us-east-1.amazonaws.com', EGRESS_HOSTS)).toBe(false);
+    expect(isAcceptedBundleHost('bedrock-mantle.', EGRESS_HOSTS)).toBe(false);
+  });
+
+  it('accepts the settings-string placeholder but no other awsapps tenant', () => {
+    // The placeholder is a doc host and nothing more; *.awsapps.com is NOT
+    // pattern-accepted, so a real tenant domain still trips the wire.
     expect(isAcceptedBundleHost('d-xxxxxxxxx.awsapps.com', EGRESS_HOSTS)).toBe(true);
     expect(isAcceptedBundleHost('d-9067abcdef.awsapps.com', EGRESS_HOSTS)).toBe(false);
     expect(isAcceptedBundleHost('attacker.awsapps.com', EGRESS_HOSTS)).toBe(false);
@@ -74,7 +96,7 @@ describe('isAcceptedBundleHost', () => {
 
   it('rejects a look-alike of an allowlisted host', () => {
     expect(isAcceptedBundleHost('api.openai.com.evil.net', EGRESS_HOSTS)).toBe(false);
-    expect(isAcceptedBundleHost('oidc.evil.example.amazonaws.com', EGRESS_HOSTS)).toBe(false);
+    expect(isAcceptedBundleHost('notapi.openai.com', EGRESS_HOSTS)).toBe(false);
   });
 });
 
@@ -85,10 +107,7 @@ describe('findOffendingHosts', () => {
       'https://api.anthropic.com/v1',
       'https://ai-gateway.vercel.sh/v1',
       'http://localhost:11434',
-      'https://oidc.',
-      'https://portal.sso.',
-      'https://bedrock-mantle.',
-      'https://d-xxxxxxxxx.awsapps.com/start',
+      'https://docs.anthropic.com/en/api',
     ].map((u) => `"${u}"`).join(';\n');
     expect(findOffendingHosts(source, EGRESS_HOSTS)).toEqual([]);
   });
@@ -111,11 +130,26 @@ describe('egress-hosts.json contract', () => {
   });
 
   it('keeps every runtime prefix consistent with a declared host pattern', () => {
-    for (const prefix of EGRESS_HOSTS.knownRuntimePrefixes) {
+    // Vacuously true while both lists are empty (hardening Phase 2.B), and
+    // the check that matters the moment either grows again.
+    const patterns: ReadonlyArray<{ prefix: string }> = EGRESS_HOSTS.hostPatterns;
+    for (const prefix of EGRESS_HOSTS.knownRuntimePrefixes as readonly string[]) {
       expect(
-        EGRESS_HOSTS.hostPatterns.some((p) => p.prefix === prefix),
+        patterns.some((p) => p.prefix === prefix),
         `runtime prefix ${prefix} has no matching hostPattern`,
       ).toBe(true);
     }
+  });
+
+  // Hardening Phase 2.B: the removed provider owned every pattern row and
+  // every runtime prefix. Neither list may name it again.
+  it('leaves no removed-provider host pattern or runtime prefix behind', () => {
+    const needles = [['bed', 'rock'].join(''), 'amazonaws.com'];
+    const serialized = JSON.stringify([
+      EGRESS_HOSTS.allowlist,
+      EGRESS_HOSTS.hostPatterns,
+      EGRESS_HOSTS.knownRuntimePrefixes,
+    ]).toLowerCase();
+    for (const needle of needles) expect(serialized).not.toContain(needle);
   });
 });

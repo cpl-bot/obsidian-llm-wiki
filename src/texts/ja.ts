@@ -51,6 +51,7 @@ export const JA_TEXTS = {
     // Hardening Phase 3 (F-03): fail-closed keychain contract.
     keychainUnavailableNotice: 'キーチェーンを読み取れません。読み取り可能になるまでLLM機能は無効です: {}',
     plaintextApiKeyScrubbedNotice: 'data.json から平文のAPIキーを削除しました。このキーはローテーションしてください。',
+    removedProviderResetNotice: 'このボールトで設定されていた Provider は、このビルドには含まれていません。Provider を既定値にリセットし、保存されていたクラウド認証情報を消去しました。設定で Provider とキーを設定し直してください。',
     unsupportedPlatform: 'LLM Wiki は Windows に対応していません。プラグインは読み込まれませんでした。',
     codexAuthName: 'ChatGPTプランにサインイン',
     codexAuthDesc: 'ChatGPTプランの利用枠を使う実験的なCodex OAuthアクセスです。OpenAI Platform APIの課金は別途行われます。',

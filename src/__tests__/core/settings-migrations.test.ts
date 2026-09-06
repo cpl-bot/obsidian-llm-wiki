@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { applySettingsMigrations } from '../../core/settings-migrations';
+import { DEFAULT_SETTINGS } from '../../types';
 
 // Hardening Phase 2.A (F-06): the removed document-conversion backend's
 // vendor name is assembled from fragments, matching the production scrub in
@@ -369,5 +370,145 @@ describe('plaintext apiKey scrub is unconditional (hardening Phase 3)', () => {
 
     expect(applied).toContain('harden-plaintext-api-key-removed');
     expect('_migrated_v1_25_3_secret_storage' in (settings as unknown as Record<string, unknown>)).toBe(false);
+  });
+});
+
+// Hardening Phase 2.B: the AWS Bedrock SSO/IAM provider surface was removed
+// — a hand-rolled OIDC device flow and a hand-rolled SigV4 signer that
+// minted and replayed cloud credentials with a far wider blast radius than
+// an LLM API key. Everything it left in the vault has to go: five settings
+// keys, two keychain slots, and (for anyone who actually selected it) a
+// `provider` pointing at an id this build can no longer construct.
+//
+// The vendor name is assembled from fragments here for the same reason the
+// production scrub assembles it — a bare occurrence of that literal is what
+// `scripts/check-bundle-no-bedrock.mjs` treats as the surface coming back.
+const REMOVED_PROVIDER_VENDOR = 'bed' + 'rock';
+const REMOVED_PROVIDER_MARKER = `_migrated_harden_${REMOVED_PROVIDER_VENDOR}_removed`;
+const REMOVED_PROVIDER_SSO_SECRET_ID = `karpathywiki-${REMOVED_PROVIDER_VENDOR}-sso`;
+const REMOVED_PROVIDER_IAM_SECRET_ID = `karpathywiki-${REMOVED_PROVIDER_VENDOR}-iam`;
+
+describe('applySettingsMigrations — hardening scrub of the removed provider surface', () => {
+  // The shape a v1.27.0 user who had actually configured the provider has
+  // on disk: the SSO auth mode, all four of its companion fields, and a
+  // `provider` naming one of the two removed ids.
+  const v1_27_0_data = () => ({
+    provider: `${REMOVED_PROVIDER_VENDOR}-anthropic`,
+    model: 'anthropic.claude-3-5-sonnet',
+    wikiFolder: 'wiki',
+    llmReady: true,
+    [`${REMOVED_PROVIDER_VENDOR}Region`]: 'eu-central-1',
+    [`${REMOVED_PROVIDER_VENDOR}AuthMethod`]: 'sso',
+    [`${REMOVED_PROVIDER_VENDOR}SsoStartUrl`]: 'https://d-9067abcdef.awsapps.com/start',
+    [`${REMOVED_PROVIDER_VENDOR}SsoAccountId`]: '123456789012',
+    [`${REMOVED_PROVIDER_VENDOR}SsoRoleName`]: 'PowerUserAccess',
+  }) as unknown as Partial<import('../../types').LLMWikiSettings>;
+
+  it('loads a v1.27.0 data.json without error and keeps unrelated settings', () => {
+    const { settings } = applySettingsMigrations(v1_27_0_data());
+
+    expect(settings.wikiFolder).toBe('wiki');
+    expect(settings.model).toBe('anthropic.claude-3-5-sonnet');
+  });
+
+  it('deletes every removed-provider key from the loaded settings', () => {
+    const { settings, applied } = applySettingsMigrations(v1_27_0_data());
+    const record = settings as unknown as Record<string, unknown>;
+
+    const offenders = Object.keys(record).filter(
+      (key) => key !== REMOVED_PROVIDER_MARKER && key.toLowerCase().includes(REMOVED_PROVIDER_VENDOR),
+    );
+    expect(offenders).toEqual([]);
+    expect(applied).toContain('harden-removed-provider-scrubbed');
+  });
+
+  it('falls back to the default provider when the removed one was active', () => {
+    const { settings, applied } = applySettingsMigrations(v1_27_0_data());
+
+    expect(settings.provider).toBe(DEFAULT_SETTINGS.provider);
+    expect(settings.llmReady).toBe(false);
+    expect(applied).toContain('harden-removed-provider-reset');
+  });
+
+  it('leaves an unrelated provider alone and signals no reset', () => {
+    const savedData = {
+      provider: 'openai',
+      [`${REMOVED_PROVIDER_VENDOR}Region`]: 'us-east-1',
+    } as unknown as Partial<import('../../types').LLMWikiSettings>;
+
+    const { settings, applied } = applySettingsMigrations(savedData);
+
+    expect(settings.provider).toBe('openai');
+    expect(applied).toContain('harden-removed-provider-scrubbed');
+    expect(applied).not.toContain('harden-removed-provider-reset');
+  });
+
+  it('sets the scrub marker so the migration is one-time', () => {
+    const { settings } = applySettingsMigrations(v1_27_0_data());
+
+    expect((settings as unknown as Record<string, unknown>)[REMOVED_PROVIDER_MARKER]).toBe(true);
+  });
+
+  it('is a no-op on the second load (idempotent via the marker)', () => {
+    const firstPass = applySettingsMigrations(v1_27_0_data());
+
+    const secondPass = applySettingsMigrations(firstPass.settings);
+
+    expect(secondPass.applied).not.toContain('harden-removed-provider-scrubbed');
+    expect(secondPass.applied).not.toContain('harden-removed-provider-reset');
+    expect((secondPass.settings as unknown as Record<string, unknown>)[REMOVED_PROVIDER_MARKER]).toBe(true);
+    expect(secondPass.settings.provider).toBe(DEFAULT_SETTINGS.provider);
+  });
+
+  it('does not serialize the removed keys back to data.json', () => {
+    const { settings } = applySettingsMigrations(v1_27_0_data());
+
+    expect(JSON.stringify(settings)).not.toMatch(/PowerUserAccess/);
+    expect(JSON.stringify(settings)).not.toMatch(/awsapps\.com/);
+  });
+});
+
+// The two secret slots are blanked outside the pure migration (they touch
+// the OS keychain). main.ts calls this when the scrub fires; these tests pin
+// that BOTH slots are cleared and that re-running changes nothing.
+describe('scrubRemovedProviderSecrets', () => {
+  it('blanks both of the removed provider\'s secret slots', async () => {
+    const { scrubRemovedProviderSecrets } = await import('../../core/settings-migrations');
+    const setSecret = vi.fn();
+
+    scrubRemovedProviderSecrets({ getSecret: () => 'stored-credential', setSecret });
+
+    expect(setSecret).toHaveBeenCalledTimes(2);
+    expect(setSecret).toHaveBeenCalledWith(REMOVED_PROVIDER_SSO_SECRET_ID, '');
+    expect(setSecret).toHaveBeenCalledWith(REMOVED_PROVIDER_IAM_SECRET_ID, '');
+  });
+
+  it('writes unconditionally, so an unreadable slot is still cleared', async () => {
+    const { scrubRemovedProviderSecrets } = await import('../../core/settings-migrations');
+    const setSecret = vi.fn();
+
+    // `getSecret` returning null must NOT be read as "already empty" — the
+    // whole point is that a cloud credential cannot survive a failed read.
+    scrubRemovedProviderSecrets({ getSecret: () => null, setSecret });
+
+    expect(setSecret).toHaveBeenCalledTimes(2);
+  });
+
+  it('is idempotent — a second run writes the same empty values', async () => {
+    const { scrubRemovedProviderSecrets } = await import('../../core/settings-migrations');
+    const stored = new Map<string, string>([
+      [REMOVED_PROVIDER_SSO_SECRET_ID, '{"accessToken":"live"}'],
+      [REMOVED_PROVIDER_IAM_SECRET_ID, '{"accessKeyId":"AKIA"}'],
+    ]);
+    const storage = {
+      getSecret: (id: string) => stored.get(id) ?? null,
+      setSecret: (id: string, value: string) => { stored.set(id, value); },
+    };
+
+    scrubRemovedProviderSecrets(storage);
+    scrubRemovedProviderSecrets(storage);
+
+    expect(stored.get(REMOVED_PROVIDER_SSO_SECRET_ID)).toBe('');
+    expect(stored.get(REMOVED_PROVIDER_IAM_SECRET_ID)).toBe('');
   });
 });

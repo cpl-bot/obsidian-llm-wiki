@@ -8,7 +8,6 @@
  *   - API key input (hidden for ollama/lmstudio; lmstudio shows hint)
  *   - Base URL input (always shown for custom/anthropic-compatible;
  *     otherwise only when override differs from default)
- *   - Bedrock region dropdown (only when provider is bedrock-*)
  *   - Page Generation Concurrency slider
  *   - Batch Delay slider
  *
@@ -20,9 +19,9 @@
  * Invariants preserved:
  *   - Switching provider resets llmReady + availableModels + model +
  *     useCustomModel (clears stale-client state).
- *   - Switching to a native-PDF provider (anthropic / openai /
- *     bedrock-*) auto-resets forcePdfSupport to false (v1.25.0 PR3
- *     universal escape hatch UX invariant).
+ *   - Switching to a native-PDF provider (anthropic / openai)
+ *     auto-resets forcePdfSupport to false (v1.25.0 PR3 universal
+ *     escape hatch UX invariant).
  *   - baseUrl is set to PREDEFINED_PROVIDERS.baseUrl when switching to
  *     a known provider; user can override afterwards.
  *   - API key input is hidden for ollama / lmstudio (no key needed).
@@ -32,13 +31,11 @@
 
 import { Notice, Platform, Setting } from 'obsidian';
 import type { LLMWikiSettingTab } from '../settings';
-import type { LLMWikiSettings } from '../../types';
 import { PREDEFINED_PROVIDERS } from '../../types';
-import { BEDROCK_REGIONS, BEDROCK_DEFAULT_REGION, NATIVE_PDF_PROVIDER_IDS, MAX_BATCH_DELAY_MS, NOTICE_ERROR } from '../../constants';
+import { NATIVE_PDF_PROVIDER_IDS, MAX_BATCH_DELAY_MS, NOTICE_ERROR } from '../../constants';
 import { renderRangeSlider, egressReasonTextKey } from '../settings-helpers';
 import { assertAllowedEgress, EgressDeniedError } from '../../core/egress-policy';
 import { getCodexAuthUiState } from '../openai-codex-auth-controls';
-import { getBedrockAuthUiState } from '../bedrock-auth-controls';
 import { resolveInitialApiKey } from '../../llm-sdk/provider-api-key-resolver';
 import { isProviderSecretStorageError } from '../../llm-sdk/provider-secret-store';
 import { redactSecrets } from '../../core/redact';
@@ -49,12 +46,6 @@ export function renderProviderSection(tab: LLMWikiSettingTab, containerEl: HTMLE
   const isOllama = tempSettings.provider === 'ollama';
   const isLmStudio = tempSettings.provider === 'lmstudio';
   const isCodex = tempSettings.provider === 'openai-codex';
-  const isBedrock = tempSettings.provider === 'bedrock-anthropic'
-    || tempSettings.provider === 'bedrock-openai';
-  // #425: in sso/iam modes the bearer API-key field is inert (AWS
-  // credentials sign instead) — hiding it prevents "which one do I
-  // fill?" confusion.
-  const bedrockAwsCredMode = isBedrock && (tempSettings.bedrockAuthMethod ?? 'api-key') !== 'api-key';
 
   // LLM Provider (highest priority - must configure first).
   // v1.25.1 Phase C-PR2 fix: this heading was previously emitted from
@@ -83,7 +74,7 @@ export function renderProviderSection(tab: LLMWikiSettingTab, containerEl: HTMLE
         const config = PREDEFINED_PROVIDERS[value];
         if (config && value !== 'custom') tempSettings.baseUrl = config.baseUrl;
         // v1.25.0 PR3: if the user just switched to a native-PDF provider
-        // (anthropic / openai / bedrock-*), reset forcePdfSupport so they
+        // (anthropic / openai), reset forcePdfSupport so they
         // don't carry a stale escape-hatch value that no longer applies.
         if ((NATIVE_PDF_PROVIDER_IDS as readonly string[]).includes(value)) {
           tempSettings.forcePdfSupport = false;
@@ -107,7 +98,7 @@ export function renderProviderSection(tab: LLMWikiSettingTab, containerEl: HTMLE
       new Setting(containerEl).setName(tab.getText('codexAuthDeviceInstructions').replace('{}', prompt.userCode)).setDesc(prompt.verificationUrl).addButton(button => button.setButtonText(tab.getText('codexAuthCopyCode')).onClick(() => { void tab.copyOpenAICodexDeviceCode(); })).addButton(button => button.setButtonText(tab.getText('cancelButton')).setWarning().onClick(() => { prompt.cancel(); }));
     }
     if (isSignedIn) tab.queueStaleCodexModelRefresh();
-  } else if (!isOllama && !isLmStudio && !bedrockAwsCredMode) {
+  } else if (!isOllama && !isLmStudio) {
     // v1.25.3 #182: read the key through the tested ProviderSecretStore
     // helper (matches Codex's codexAuthManager UX). The text component
     // is an in-memory buffer; the actual SecretStorage write happens
@@ -239,131 +230,6 @@ export function renderProviderSection(tab: LLMWikiSettingTab, containerEl: HTMLE
       text: tab.getText('strictEgressWarning'),
       cls: 'llm-wiki-strict-egress-warning',
     });
-  }
-
-  // v1.24.1 PATCH Bedrock Stage 1 - region selector (only when provider
-  // is one of the two bedrock-* ids). Region drives the baseURL the
-  // factory resolves; the user does NOT edit baseURL for Bedrock.
-  if (isBedrock) {
-    const currentRegion = tempSettings.bedrockRegion || BEDROCK_DEFAULT_REGION;
-    new Setting(containerEl)
-      .setName(tab.getText('bedrockRegionName'))
-      .setDesc(`${tab.getText('bedrockRegionDesc')} ${tab.getText('bedrockRegionHint')}`)
-      .addDropdown(dropdown => {
-        BEDROCK_REGIONS.forEach(region => {
-          dropdown.addOption(region, region);
-        });
-        dropdown.setValue(currentRegion);
-        dropdown.onChange((value) => {
-          tempSettings.bedrockRegion = value;
-          tempSettings.llmReady = false;
-          tempSettings.availableModels = [];
-          tempSettings.useCustomModel = false;
-          tempSettings.model = '';
-        });
-      });
-
-    // #425 Bedrock Stage 2 — auth method + credential surfaces. Secrets
-    // never live in settings: SSO runs a device login, IAM keys buffer
-    // in-memory and flush to SecretStorage on tab close.
-    const currentAuthMethod = tempSettings.bedrockAuthMethod ?? 'api-key';
-    new Setting(containerEl)
-      .setName(tab.getText('bedrockAuthMethodName'))
-      .setDesc(tab.getText('bedrockAuthMethodDesc'))
-      .addDropdown(dropdown => {
-        dropdown.addOption('api-key', tab.getText('bedrockAuthOptionApiKey'));
-        dropdown.addOption('sso', tab.getText('bedrockAuthOptionSso'));
-        dropdown.addOption('iam', tab.getText('bedrockAuthOptionIam'));
-        dropdown.setValue(currentAuthMethod);
-        dropdown.onChange((value) => {
-          const previous = tempSettings.bedrockAuthMethod ?? 'api-key';
-          tempSettings.bedrockAuthMethod = value as LLMWikiSettings['bedrockAuthMethod'];
-          // Leaving iam mode abandons any half-typed key buffers — wipe
-          // them so a later tab close cannot persist abandoned secrets.
-          if (previous === 'iam' && value !== 'iam') {
-            tab.bedrockIamKeyBuffer = '';
-            tab.bedrockIamSecretBuffer = '';
-            tab.bedrockIamSessionTokenBuffer = '';
-          }
-          tempSettings.llmReady = false;
-          tab.display();
-        });
-      });
-
-    const bedrockAuthMethod = currentAuthMethod;
-    if (bedrockAuthMethod === 'sso') {
-      new Setting(containerEl)
-        .setName(tab.getText('bedrockSsoStartUrlName'))
-        .setDesc(tab.getText('bedrockSsoStartUrlDesc'))
-        .addText(text => text
-          .setValue(tempSettings.bedrockSsoStartUrl ?? '')
-          .onChange((value) => { tempSettings.bedrockSsoStartUrl = value; }));
-      new Setting(containerEl)
-        .setName(tab.getText('bedrockSsoAccountIdName'))
-        .setDesc(tab.getText('bedrockSsoAccountIdDesc'))
-        .addText(text => text
-          .setValue(tempSettings.bedrockSsoAccountId ?? '')
-          .onChange((value) => { tempSettings.bedrockSsoAccountId = value; tempSettings.llmReady = false; }));
-      new Setting(containerEl)
-        .setName(tab.getText('bedrockSsoRoleNameName'))
-        .setDesc(tab.getText('bedrockSsoRoleNameDesc'))
-        .addText(text => text
-          .setValue(tempSettings.bedrockSsoRoleName ?? '')
-          .onChange((value) => { tempSettings.bedrockSsoRoleName = value; tempSettings.llmReady = false; }));
-
-      const ssoSignedIn = tab.plugin.bedrockAuthManager?.hasSsoToken() === true;
-      const ssoState = getBedrockAuthUiState({ isBusy: tab.bedrockAuthBusy, isSignedIn: ssoSignedIn });
-      const expiryMs = tab.plugin.bedrockAuthManager?.ssoTokenExpiry() ?? null;
-      const status = tab.bedrockAuthBusy
-        ? tab.getText('bedrockSsoBusy')
-        : ssoSignedIn && expiryMs !== null
-          ? tab.getText('bedrockSsoStatusSignedIn').replace('{}', new Date(expiryMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
-          : tab.getText('bedrockSsoStatusSignedOut');
-      const authSetting = new Setting(containerEl)
-        .setName(tab.getText('bedrockAuthOptionSso'))
-        .setDesc(status);
-      if (ssoState.showLogin) authSetting.addButton(button => button.setButtonText(tab.getText('bedrockSsoLoginButton')).onClick(() => { void tab.loginBedrockSso(); }));
-      if (ssoState.showSignOut) authSetting.addButton(button => button.setButtonText(tab.getText('bedrockSsoSignOutButton')).setWarning().onClick(() => { void tab.signOutBedrock(); }));
-      if (tab.bedrockDevicePrompt) {
-        const prompt = tab.bedrockDevicePrompt;
-        new Setting(containerEl)
-          .setName(tab.getText('bedrockSsoUserCodeInstructions').replace('{}', prompt.userCode))
-          .setDesc(prompt.verificationUriComplete ?? prompt.verificationUri)
-          .addButton(button => button.setButtonText(tab.getText('bedrockSsoCopyCode')).onClick(() => { void tab.copyBedrockUserCode(); }))
-          .addButton(button => button.setButtonText(tab.getText('cancelButton')).setWarning().onClick(() => { prompt.cancel(); }));
-      }
-    } else if (bedrockAuthMethod === 'iam') {
-      new Setting(containerEl)
-        .setName(tab.getText('bedrockIamKeyName'))
-        .setDesc(tab.getText('bedrockIamKeyDesc'))
-        .addText(text => text
-          .setValue(tab.bedrockIamKeyBuffer)
-          .onChange((value) => { tab.bedrockIamKeyBuffer = value; tempSettings.llmReady = false; }));
-      new Setting(containerEl)
-        .setName(tab.getText('bedrockIamSecretName'))
-        .setDesc(tab.getText('bedrockIamSecretDesc'))
-        .addText(text => {
-          text.inputEl.type = 'password';
-          text.setValue(tab.bedrockIamSecretBuffer).onChange((value) => { tab.bedrockIamSecretBuffer = value; tempSettings.llmReady = false; });
-        });
-      new Setting(containerEl)
-        .setName(tab.getText('bedrockIamSessionTokenName'))
-        .setDesc(tab.getText('bedrockIamSessionTokenDesc'))
-        .addText(text => text
-          .setValue(tab.bedrockIamSessionTokenBuffer)
-          .onChange((value) => { tab.bedrockIamSessionTokenBuffer = value; tempSettings.llmReady = false; }));
-      // Destructive-credential control for iam mode: without this there
-      // is no UI path to remove saved keys (sign-out lives in sso mode).
-      if (tab.plugin.bedrockAuthManager?.hasIamKeys() === true) {
-        new Setting(containerEl)
-          .setName(tab.getText('bedrockIamClearButton'))
-          .addButton(button => button.setButtonText(tab.getText('bedrockIamClearButton')).setWarning().onClick(() => {
-            tab.plugin.bedrockAuthManager?.clearIamKeys();
-            tempSettings.llmReady = false;
-            tab.display();
-          }));
-      }
-    }
   }
 
   // Page Generation Concurrency + Batch Delay — both rendered via the

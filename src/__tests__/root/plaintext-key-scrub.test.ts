@@ -126,7 +126,9 @@ describe('startup scrub of the plaintext API key (F-03, task 3.3)', () => {
 
     await plugin.loadSettings();
 
-    expect(store.setSecret).not.toHaveBeenCalled();
+    // Scoped to the provider slot: a legacy `data.json` also trips the
+    // Phase 2.B removed-provider scrub, which blanks its own two slots.
+    expect(store.setSecret).not.toHaveBeenCalledWith(PROVIDER_SECRET_ID, expect.anything());
     expect(store.values.get(PROVIDER_SECRET_ID)).toBe('sk-live-already-in-keychain');
     const saved = saveData.mock.calls.at(-1)?.[0] as Record<string, unknown>;
     expect('apiKey' in saved).toBe(false);
@@ -185,6 +187,10 @@ describe('startup scrub of the plaintext API key (F-03, task 3.3)', () => {
     vi.spyOn(plugin, 'loadData').mockResolvedValue({
       provider: 'openai', model: 'gpt-4.1', language: 'en', wikiLanguage: 'en', llmReady: true,
       _migrated_harden_plaintext_api_key_removed: true,
+      // Steady state means EVERY scrub marker is already set — otherwise
+      // this asserts "no IO" against a load that still has work to do.
+      _migrated_harden_conversion_backend_removed: true,
+      [`_migrated_harden_${'bed' + 'rock'}_removed`]: true,
     });
     vi.spyOn(plugin, 'saveData').mockResolvedValue();
 

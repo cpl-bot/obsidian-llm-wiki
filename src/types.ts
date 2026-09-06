@@ -226,27 +226,6 @@ export interface LLMWikiSettings {
   wikiFolder: string;
   language: 'en' | 'zh' | 'zh-Hant' | 'ja' | 'ko' | 'de' | 'fr' | 'es' | 'pt' | 'it';
   wikiLanguage: string;
-  /**
-   * v1.24.1 PATCH Stage 1 — AWS region used by both Bedrock providers. Only
-   * applied when provider is `bedrock-anthropic` or `bedrock-openai`. Falls
-   * back to `us-east-1` (broadest model coverage) when unset. Always a
-   * region string (e.g. "us-east-1"), not a URL component.
-   */
-  bedrockRegion?: string;
-  /**
-   * #425 Bedrock Stage 2 — auth mode for the two `bedrock-*` providers.
-   * Default `'api-key'` preserves Stage-1 bearer behavior byte-for-byte;
-   * `'sso'` signs with IAM Identity Center temporary credentials,
-   * `'iam'` with user-entered static keys. Secrets live ONLY in
-   * SecretStorage (`karpathywiki-bedrock-sso` / `-iam`) — never here.
-   */
-  bedrockAuthMethod?: 'api-key' | 'sso' | 'iam';
-  /** #425 — organization portal URL that starts the SSO device flow. */
-  bedrockSsoStartUrl?: string;
-  /** #425 — target account id for GetRoleCredentials in SSO mode. */
-  bedrockSsoAccountId?: string;
-  /** #425 — role name to assume for GetRoleCredentials in SSO mode. */
-  bedrockSsoRoleName?: string;
   useCustomWikiLanguage?: boolean;
   availableModels?: string[];
   useCustomModel?: boolean;
@@ -339,6 +318,17 @@ export interface LLMWikiSettings {
   // removed. The migration blanks its secret slot and deletes the legacy
   // backend keys from data.json. Idempotent — set true once the scrub runs.
   _migrated_harden_conversion_backend_removed?: boolean;
+  // Hardening (Phase 2.B): the AWS Bedrock SSO/IAM provider surface was
+  // removed. The migration blanks both of its keychain slots, deletes its
+  // settings keys from data.json and resets the active provider when it was
+  // one of the removed ids. Idempotent — set true once the scrub runs.
+  //
+  // Written and read through `REMOVED_PROVIDER_SCRUB_MARKER`
+  // (`core/settings-migrations.ts`), never as a literal property access: the
+  // marker names the removed vendor, and `scripts/check-bundle-no-bedrock.mjs`
+  // asserts that name is absent from the built bundle. An interface field is
+  // erased at compile time, so declaring it here is free.
+  _migrated_harden_bedrock_removed?: boolean;
 
   // Query dedup
   lastOfferedQueryHash?: string;
@@ -1108,36 +1098,6 @@ export const PREDEFINED_PROVIDERS: Record<string, ProviderConfig> = {
     requiresBaseUrl: false,
     authMode: 'api-key'
   },
-  // v1.24.1 PATCH Bedrock Stage 1 — reuses AnthropicSdkClient via the
-  // bedrock-mantle endpoint (Bearer auth, no AWS SDK). baseUrl is filled
-  // dynamically by createLLMClientFromSettings based on `bedrockRegion`.
-  'bedrock-anthropic': {
-    id: 'bedrock-anthropic',
-    name: 'Amazon Bedrock (Anthropic via mantle)',
-    nameEn: 'Amazon Bedrock (Anthropic via mantle)',
-    nameZh: 'Amazon Bedrock（Anthropic via mantle）',
-    baseUrl: '',  // Resolved at runtime from bedrockRegion (see constants.ts)
-    apiKeyPlaceholder: 'ABSK... (Bedrock bearer key)',
-    apiKeyPlaceholderEn: 'ABSK... (Bedrock bearer key)',
-    apiKeyPlaceholderZh: 'ABSK...（Bedrock bearer key）',
-    requiresBaseUrl: false,
-    authMode: 'api-key'
-  },
-  // v1.24.1 PATCH Bedrock Stage 1 — reuses OpenAICompatSdkClient via
-  // bedrock-mantle /v1 chat-completions. Same bearer auth as Bedrock-
-  // Anthropic; region is resolved at runtime from `bedrockRegion`.
-  'bedrock-openai': {
-    id: 'bedrock-openai',
-    name: 'Amazon Bedrock (OpenAI via mantle)',
-    nameEn: 'Amazon Bedrock (OpenAI via mantle)',
-    nameZh: 'Amazon Bedrock（OpenAI via mantle）',
-    baseUrl: '',  // Resolved at runtime from bedrockRegion
-    apiKeyPlaceholder: 'ABSK... (Bedrock bearer key)',
-    apiKeyPlaceholderEn: 'ABSK... (Bedrock bearer key)',
-    apiKeyPlaceholderZh: 'ABSK...（Bedrock bearer key）',
-    requiresBaseUrl: false,
-    authMode: 'api-key'
-  },
   ollama: {
     id: 'ollama',
     name: 'Ollama (Local)',
@@ -1304,12 +1264,4 @@ export const DEFAULT_SETTINGS: LLMWikiSettings = {
   // strictly to Query Wiki chat; no other workflow is affected.
   customQueryInstructions: '',
 
-  // v1.24.1 PATCH Bedrock Stage 1 — default region is the broadest-coverage
-  // region (us-east-1). Only consulted when provider is one of the two
-  // bedrock-* provider ids. Has no effect on other providers.
-  bedrockRegion: 'us-east-1',
-  // #425 Bedrock Stage 2 — default auth mode preserves the Stage-1
-  // bearer wire shape for every existing user.
-  bedrockAuthMethod: 'api-key',
-  bedrockSsoStartUrl: '',
 };

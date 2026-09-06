@@ -6,6 +6,7 @@ import { createLLMClientFromSettingsSync } from '../../llm-sdk/create-llm-client
 import { Notice, Platform } from 'obsidian';
 import { fetchCodexModelCatalog } from '../../llm-sdk/openai-codex/model-catalog';
 import { CODEX_MODELS } from '../../llm-sdk/openai-codex/constants';
+import { TEXTS } from '../../texts';
 
 vi.mock('../../llm-sdk/create-llm-client', () => ({
   createLLMClientFromSettingsSync: vi.fn(() => ({
@@ -143,6 +144,10 @@ describe('OpenAI Codex plugin lifecycle', () => {
       language: 'en',
       wikiLanguage: 'en',
       markdownConversionBackend: REMOVED_BACKEND_VENDOR,
+      // The Phase 2.B removed-provider scrub blanks two slots of its own on
+      // any un-migrated load; mark it done so this test stays about the
+      // conversion-backend slot only.
+      [`_migrated_harden_${'bed' + 'rock'}_removed`]: true,
     });
     vi.spyOn(plugin, 'saveData').mockResolvedValue();
 
@@ -398,5 +403,124 @@ describe('OpenAI Codex plugin lifecycle', () => {
     plugin.onunload();
     await expect(prompt.complete).rejects.toMatchObject({ name: 'AbortError' });
     expect(aborted).toBe(true);
+  });
+});
+
+// Hardening Phase 2.B: `main.ts loadSettings` owns the IO half of the
+// removed-provider scrub — blanking the two keychain slots, showing the
+// one-time Notice when the active provider had to be reset, and dropping
+// the marker again when the keychain write throws so the next load retries.
+// The pure half is covered in core/settings-migrations.test.ts.
+//
+// The vendor name is assembled from fragments for the same reason the
+// production scrub assembles it: `scripts/check-bundle-no-bedrock.mjs`
+// treats a bare occurrence of that literal as the surface coming back.
+const REMOVED_PROVIDER_VENDOR = 'bed' + 'rock';
+const REMOVED_PROVIDER_MARKER = `_migrated_harden_${REMOVED_PROVIDER_VENDOR}_removed`;
+const REMOVED_PROVIDER_SSO_SECRET_ID = `karpathywiki-${REMOVED_PROVIDER_VENDOR}-sso`;
+const REMOVED_PROVIDER_IAM_SECRET_ID = `karpathywiki-${REMOVED_PROVIDER_VENDOR}-iam`;
+
+describe('removed provider scrub on load (hardening Phase 2.B)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (Notice as unknown as { instances: unknown[] }).instances.length = 0;
+  });
+
+  /** A v1.27.0 `data.json` from a user who had the removed provider active. */
+  function configuredSavedData(): Record<string, unknown> {
+    return {
+      provider: `${REMOVED_PROVIDER_VENDOR}-anthropic`,
+      model: 'anthropic.claude-3-5-sonnet',
+      language: 'en',
+      wikiLanguage: 'en',
+      llmReady: true,
+      [`${REMOVED_PROVIDER_VENDOR}Region`]: 'eu-central-1',
+      [`${REMOVED_PROVIDER_VENDOR}AuthMethod`]: 'sso',
+      [`${REMOVED_PROVIDER_VENDOR}SsoAccountId`]: '123456789012',
+    };
+  }
+
+  it('blanks both keychain slots and drops the settings keys', async () => {
+    const setSecret = vi.fn();
+    const app = { secretStorage: { getSecret: () => 'stored-credential', setSecret } };
+    const plugin = new LLMWikiPlugin(app as never, {} as never);
+    vi.spyOn(plugin, 'loadData').mockResolvedValue(configuredSavedData());
+    const saveData = vi.spyOn(plugin, 'saveData').mockResolvedValue();
+
+    await plugin.loadSettings();
+
+    expect(setSecret).toHaveBeenCalledWith(REMOVED_PROVIDER_SSO_SECRET_ID, '');
+    expect(setSecret).toHaveBeenCalledWith(REMOVED_PROVIDER_IAM_SECRET_ID, '');
+    const saved = saveData.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+    const offenders = Object.keys(saved).filter(
+      (key) => key !== REMOVED_PROVIDER_MARKER && key.toLowerCase().includes(REMOVED_PROVIDER_VENDOR),
+    );
+    expect(offenders).toEqual([]);
+    expect(saved[REMOVED_PROVIDER_MARKER]).toBe(true);
+  });
+
+  it('resets the active provider and tells the user once', async () => {
+    const app = { secretStorage: { getSecret: () => null, setSecret: vi.fn() } };
+    const plugin = new LLMWikiPlugin(app as never, {} as never);
+    vi.spyOn(plugin, 'loadData').mockResolvedValue(configuredSavedData());
+    vi.spyOn(plugin, 'saveData').mockResolvedValue();
+
+    await plugin.loadSettings();
+
+    expect(plugin.settings.provider).not.toContain(REMOVED_PROVIDER_VENDOR);
+    const notices = (Notice as unknown as { instances: Array<{ message: string }> }).instances;
+    expect(notices.map((n) => n.message)).toContain(TEXTS.en.removedProviderResetNotice);
+  });
+
+  it('says nothing when the removed provider was never the active one', async () => {
+    const app = { secretStorage: { getSecret: () => null, setSecret: vi.fn() } };
+    const plugin = new LLMWikiPlugin(app as never, {} as never);
+    vi.spyOn(plugin, 'loadData').mockResolvedValue({
+      provider: 'openai', model: 'gpt-4.1', language: 'en', wikiLanguage: 'en',
+      [`${REMOVED_PROVIDER_VENDOR}Region`]: 'us-east-1',
+    });
+    vi.spyOn(plugin, 'saveData').mockResolvedValue();
+
+    await plugin.loadSettings();
+
+    expect(plugin.settings.provider).toBe('openai');
+    const notices = (Notice as unknown as { instances: Array<{ message: string }> }).instances;
+    expect(notices.map((n) => n.message)).not.toContain(TEXTS.en.removedProviderResetNotice);
+  });
+
+  // A keychain throw must not be recorded as a completed scrub: the marker
+  // gates the retry, so persisting it after a failed setSecret would strand
+  // live cloud credentials in the keychain permanently.
+  it('does not persist the marker when blanking the slots throws', async () => {
+    const setSecret = vi.fn(() => { throw new Error('keychain unavailable'); });
+    const app = { secretStorage: { getSecret: () => 'stored-credential', setSecret } };
+    const plugin = new LLMWikiPlugin(app as never, {} as never);
+    vi.spyOn(plugin, 'loadData').mockResolvedValue(configuredSavedData());
+    const saveData = vi.spyOn(plugin, 'saveData').mockResolvedValue();
+
+    await expect(plugin.loadSettings()).resolves.toBeUndefined();
+
+    const saved = saveData.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+    // Settings keys still scrubbed, but the marker is withheld so the next
+    // load re-enters the scrub and retries both slots.
+    expect(saved[`${REMOVED_PROVIDER_VENDOR}Region`]).toBeUndefined();
+    expect(saved[REMOVED_PROVIDER_MARKER]).toBeUndefined();
+  });
+
+  it('is a no-op on the next load once the marker is set', async () => {
+    const setSecret = vi.fn();
+    const app = { secretStorage: { getSecret: () => null, setSecret } };
+    const plugin = new LLMWikiPlugin(app as never, {} as never);
+    vi.spyOn(plugin, 'loadData').mockResolvedValue({
+      provider: 'openai', model: 'gpt-4.1', language: 'en', wikiLanguage: 'en',
+      _migrated_harden_plaintext_api_key_removed: true,
+      _migrated_harden_conversion_backend_removed: true,
+      [REMOVED_PROVIDER_MARKER]: true,
+    });
+    vi.spyOn(plugin, 'saveData').mockResolvedValue();
+
+    await plugin.loadSettings();
+
+    expect(setSecret).not.toHaveBeenCalled();
   });
 });

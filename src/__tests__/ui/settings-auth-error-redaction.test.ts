@@ -3,11 +3,13 @@
  *
  * The OAuth/SSO controls in the settings tab are the flows that actually
  * carry bearer tokens: the Codex device+browser login exchanges and
- * refreshes tokens against `auth.openai.com` / `chatgpt.com/backend-api`,
- * and the Bedrock SSO flow does the same against AWS OIDC. Their failures
- * are therefore the error bodies most likely to quote an `Authorization`
- * header back at us — and every one of them lands in a Notice that a user
- * screenshots into a bug report.
+ * refreshes tokens against `auth.openai.com` / `chatgpt.com/backend-api`.
+ * Their failures are therefore the error bodies most likely to quote an
+ * `Authorization` header back at us — and every one of them lands in a
+ * Notice that a user screenshots into a bug report.
+ *
+ * A second such flow (the removed provider's SSO device login) was covered
+ * here until hardening Phase 2.B deleted it along with the whole surface.
  *
  * `main-commands/codex-auth-commands.ts` was routed through the redactor
  * in this phase; the three sinks on the settings tab were not. These tests
@@ -41,7 +43,6 @@ function makeTab(pluginOverrides: Record<string, unknown> = {}): LLMWikiSettingT
   (tab as unknown as { plugin: unknown }).plugin = {
     settings,
     openExternal: vi.fn(),
-    bedrockAuthManager: null,
     ...pluginOverrides,
   };
   tab.tempSettings = settings;
@@ -81,20 +82,5 @@ describe('settings-tab auth failures are redacted before they reach a Notice', (
     expect(messages.length).toBeGreaterThan(0);
     for (const message of messages) expect(message).not.toContain(LEAKED_SECRET);
     expect(messages.join(' ')).toContain('token exchange rejected');
-  });
-
-  it('redacts a Bedrock SSO device-login failure', async () => {
-    const manager = {
-      hasSsoToken: () => false,
-      beginDeviceLogin: vi.fn().mockRejectedValue(new Error(LEAKY_BODY)),
-    };
-    const tab = makeTab({ bedrockAuthManager: manager });
-    tab.tempSettings.bedrockSsoStartUrl = 'https://example.awsapps.com/start';
-
-    await tab.loginBedrockSso();
-
-    const messages = notices().map((n) => n.message);
-    expect(messages.length).toBeGreaterThan(0);
-    for (const message of messages) expect(message).not.toContain(LEAKED_SECRET);
   });
 });
