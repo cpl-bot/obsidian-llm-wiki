@@ -100,6 +100,39 @@ describe('removed conversion backend leaves no i18n trace (hardening Phase 2.A)'
   });
 });
 
+// Hardening Phase 2.B (F-06 sibling): the AWS Bedrock SSO/IAM provider
+// surface was removed — a hand-rolled OIDC device flow plus a hand-rolled
+// SigV4 signer, minting and replaying cloud credentials. It owned 34 i18n
+// keys per locale, and i18n is the easiest place for a fragment of a removed
+// feature to survive: an orphan key here would put the vendor's name and its
+// `awsapps.com` SSO-portal placeholder straight back into the shipped
+// bundle, which is what `scripts/check-bundle-no-bedrock.mjs` asserts
+// against post-build. This guard fails at test time instead, in every
+// locale, for keys AND values — and covers the two host suffixes as well,
+// because a translated string is exactly where a URL survives a code purge.
+//
+// The needles are assembled from fragments so this file does not itself
+// contain the literals it forbids.
+const REMOVED_PROVIDER_NEEDLES = ['bed' + 'rock', 'amazon' + 'aws.com', 'aws' + 'apps.com'];
+
+describe('removed provider surface leaves no i18n trace (hardening Phase 2.B)', () => {
+  it.each(LOCALES)('locale "%s" has no key naming the removed provider', (locale) => {
+    const offenders = Object.keys(TEXTS[locale]).filter(
+      (key) => REMOVED_PROVIDER_NEEDLES.some((needle) => key.toLowerCase().includes(needle)),
+    );
+    expect(offenders, `removed-provider keys in ${locale}`).toEqual([]);
+  });
+
+  it.each(LOCALES)('locale "%s" has no value mentioning the removed provider', (locale) => {
+    const texts = TEXTS[locale] as unknown as Record<string, unknown>;
+    const offenders = Object.entries(texts)
+      .filter(([, value]) => typeof value === 'string'
+        && REMOVED_PROVIDER_NEEDLES.some((needle) => value.toLowerCase().includes(needle)))
+      .map(([key]) => key);
+    expect(offenders, `removed-provider copy in ${locale}`).toEqual([]);
+  });
+});
+
 describe('Italian locale wiring', () => {
   it('exposes the Italian UI locale', () => {
     expect(TEXTS.it).toBeDefined();

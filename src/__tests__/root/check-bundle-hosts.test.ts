@@ -81,10 +81,8 @@ describe('isAcceptedBundleHost', () => {
     expect(isAcceptedBundleHost('bedrock-mantle.', EGRESS_HOSTS)).toBe(false);
   });
 
-  it('accepts the settings-string placeholder but no other awsapps tenant', () => {
-    // The placeholder is a doc host and nothing more; *.awsapps.com is NOT
-    // pattern-accepted, so a real tenant domain still trips the wire.
-    expect(isAcceptedBundleHost('d-xxxxxxxxx.awsapps.com', EGRESS_HOSTS)).toBe(true);
+  it('accepts no awsapps tenant at all — the SSO placeholder is gone too', () => {
+    expect(isAcceptedBundleHost('d-xxxxxxxxx.awsapps.com', EGRESS_HOSTS)).toBe(false);
     expect(isAcceptedBundleHost('d-9067abcdef.awsapps.com', EGRESS_HOSTS)).toBe(false);
     expect(isAcceptedBundleHost('attacker.awsapps.com', EGRESS_HOSTS)).toBe(false);
   });
@@ -142,12 +140,13 @@ describe('egress-hosts.json contract', () => {
   });
 
   // Hardening Phase 2.B: the removed provider owned every pattern row and
-  // every runtime prefix. Neither list may name it again.
-  it('leaves no removed-provider host pattern or runtime prefix behind', () => {
-    const needles = [['bed', 'rock'].join(''), 'amazonaws.com'];
+  // the one doc host under a self-registrable suffix. Nothing may name it.
+  it('carries no trace of the removed provider in the host data', () => {
+    const needles = [['bed', 'rock'].join(''), 'amazonaws.com', 'awsapps.com'];
     const serialized = JSON.stringify([
       EGRESS_HOSTS.allowlist,
       EGRESS_HOSTS.hostPatterns,
+      EGRESS_HOSTS.knownDocHosts,
       EGRESS_HOSTS.knownRuntimePrefixes,
     ]).toLowerCase();
     for (const needle of needles) expect(serialized).not.toContain(needle);
