@@ -21,9 +21,10 @@
  *       refused — this is the SSRF / cloud-metadata guard — unless the
  *       loopback exception in (a) applies;
  *   (b) the hostname must match EGRESS_ALLOWLIST exactly, match one of
- *       EGRESS_HOST_PATTERNS (regional AWS hosts whose middle label is
- *       concatenated at runtime — every pattern suffix is a namespace AWS
- *       controls, never one anybody can self-register under), be a
+ *       EGRESS_HOST_PATTERNS (regional hosts whose middle label is
+ *       concatenated at runtime — every pattern suffix must be a namespace
+ *       its vendor controls, never one anybody can self-register under;
+ *       the list is currently empty, see egress-hosts.json), be a
  *       loopback host, or equal the hostname of the provider base URL the
  *       user themselves configured;
  *   (e) when `settings.strictEgress === false` the user has explicitly
@@ -96,11 +97,9 @@ export interface EgressSettings {
   /**
    * User-configured provider base URL (`LLMWikiSettings.baseUrl`). This is
    * the ONLY settings field whose hostname becomes a destination: it is the
-   * one URL the plugin actually fetches on the user's instruction. Notably
-   * NOT included is `bedrockSsoStartUrl` — that value is only ever a field
-   * inside the body of a request to `oidc.<region>.amazonaws.com`
-   * (`sso-oidc.ts` startDeviceAuthorization), never a fetch target, so
-   * trusting its host would widen the allowlist for nothing.
+   * one URL the plugin actually fetches on the user's instruction. No other
+   * settings field is ever trusted as a host — a URL a user types into some
+   * unrelated field is not thereby an approved destination.
    */
   baseUrl?: string;
   /** Phase 4.4 toggle. Absent / undefined means strict (fail closed). */
@@ -117,7 +116,12 @@ export interface EgressHostPattern {
 /** Hosts the shipped code actually fetches. */
 export const EGRESS_ALLOWLIST: ReadonlySet<string> = new Set(EGRESS_HOSTS.allowlist);
 
-/** Regional AWS hosts (`oidc.<region>.amazonaws.com`, …). */
+/**
+ * Regional hosts whose middle label is concatenated at runtime.
+ * Empty since hardening Phase 2.B removed the AWS provider surface — the
+ * mechanism is retained because it is the only safe way to express a
+ * regional destination without blanket-allowing a whole suffix.
+ */
 export const EGRESS_HOST_PATTERNS: readonly EgressHostPattern[] = EGRESS_HOSTS.hostPatterns;
 
 /** The only hostnames for which `http:` is tolerated. */

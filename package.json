@@ -20,11 +20,13 @@
     "typecheck": "tsc --noEmit",
     "typecheck:tools": "tsc -p tools/dev-instrument/tsconfig.json --noEmit",
     "check:bundle-mineru": "node scripts/check-bundle-no-mineru.mjs",
+    "check:bundle-codex": "node scripts/check-bundle-no-codex.mjs",
+    "check:bundle-bedrock": "node scripts/check-bundle-no-bedrock.mjs",
     "check:lockfile": "node scripts/check-lockfile-registry.mjs",
     "check:reproducible": "node scripts/verify-reproducible-build.mjs",
     "verify:release": "node scripts/verify-release.mjs",
     "prepare": "node scripts/ensure-esbuild.mjs",
-    "gate:1": "pnpm lint && pnpm typecheck && pnpm build && pnpm test && pnpm css-lint && pnpm check:lockfile && pnpm check:bundle-mineru && pnpm check:bundle-hosts"
+    "gate:1": "pnpm lint && pnpm typecheck && pnpm build && pnpm test && pnpm css-lint && pnpm check:lockfile && pnpm check:bundle-mineru && pnpm check:bundle-hosts && pnpm check:bundle-codex && pnpm check:bundle-bedrock"
   },
   "keywords": [
     "obsidian",

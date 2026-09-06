@@ -138,9 +138,9 @@ export class OpenAICompatSdkClient implements LLMClient {
    * editing the SDK client. Local servers (LM Studio / Ollama /
    * self-hosted `custom`) accept this form; cloud compat servers
    * (openrouter / deepseek / kimi / glm) accept `json_object` and
-   * do NOT receive `json_schema` (they may 400 on it). The openai /
-   * anthropic / codex paths go through their own SDK clients and
-   * are unaffected by this flag.
+   * do NOT receive `json_schema` (they may 400 on it). The openai and
+   * anthropic paths go through their own SDK clients and are unaffected
+   * by this flag.
    */
   private readonly supportsStructuredOutputs: boolean;
 
@@ -843,7 +843,7 @@ export class OpenAICompatSdkClient implements LLMClient {
    *
    * Backward compat: callers that check `if (client.createMessageWithOutput)`
    * before calling this method can fall back to `createMessage` for
-   * clients (Anthropic / OpenAI / Codex) that don't implement it yet.
+   * clients (Anthropic / OpenAI) that don't implement it yet.
    */
   async createMessageWithOutput<T = unknown>(params: {
     model: string;

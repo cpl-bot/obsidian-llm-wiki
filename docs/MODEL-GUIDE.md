@@ -113,15 +113,6 @@ No model-table pick is needed if your provider has a fixed catalog. The plugin t
 
 ---
 
-## 💳 OpenAI vs ChatGPT Plan (Codex OAuth) — they are distinct
-
-- **OpenAI** — separately billed OpenAI Platform API key.
-- **ChatGPT Plan (Codex OAuth)** — experimental, distinct provider that uses eligible Codex allowance after browser or device-code sign-in; availability follows OpenAI Codex authentication and allowance policies, not plan name. Third-party Codex compatibility, not an OpenAI partnership or a general ChatGPT API.
-
-OAuth credentials live only in Obsidian SecretStorage. Sign-out clears the secret.
-
----
-
 ## 🔍 Verifying picks yourself
 
 For any model you're evaluating:

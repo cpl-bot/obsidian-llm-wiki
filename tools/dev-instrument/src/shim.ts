@@ -113,8 +113,8 @@ export interface RequestUrlResponse {
 
 /**
  * requestUrl — Obsidian's HTTP client. Backed by node:http / node:https
- * via dynamic import. The dynamic-import guard pattern matches
- * `src/llm-sdk/openai-codex/loopback-flow.ts` (Bot AST exemption).
+ * via dynamic import (Bot AST exemption for the dynamic-import guard
+ * pattern).
  *
  * Uses node:http directly (rather than global `fetch` / undici) because
  * undici applies a 300s headersTimeout that fires on long-running LLM

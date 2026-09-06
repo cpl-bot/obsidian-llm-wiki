@@ -2044,7 +2044,7 @@ describe('OpenAICompatSdkClient', () => {
     });
 
     it('returns null for providers whose public API does not document the field (drop silently)', () => {
-      for (const provider of ['deepseek', 'gemini', 'minimax', 'glm', 'bedrock-openai'] as const) {
+      for (const provider of ['deepseek', 'gemini', 'minimax', 'glm'] as const) {
         expect(repetitionPenaltyWireField(provider), provider).toBeNull();
       }
     });

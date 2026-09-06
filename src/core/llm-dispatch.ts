@@ -47,7 +47,7 @@ export interface LlmDispatchClient {
 /**
  * Dispatch an LLM call. Prefers the typed `createMessageWithOutput` method
  * when the client implements it; falls back to plain `createMessage` on
- * legacy clients (Anthropic / OpenAI / Codex / mock clients without the
+ * legacy clients (Anthropic / OpenAI / mock clients without the
  * typed method). Returns the wire text — callers that need the typed
  * `output` field should call `createMessageWithOutput` directly and
  * inspect `result.output`.

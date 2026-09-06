@@ -19,7 +19,7 @@
  *   7. Write LLM response to cache under the file token
  *
  * Provider support matrix:
- *   - anthropic / openai / bedrock-anthropic / bedrock-openai: native PDF support
+ *   - anthropic / openai: native PDF support
  *   - custom / anthropic-compatible: requires forcePdfSupport=true (else throw)
  *   - ollama / lmstudio / deepseek / glm: never supported (throw)
  *
@@ -85,7 +85,7 @@ export class UnsupportedProviderError extends Error {
   constructor(public readonly provider: string) {
     super(
       `PDF conversion is not supported by provider "${provider}". ` +
-        `Supported providers: anthropic, openai, bedrock-anthropic, bedrock-openai. ` +
+        `Supported providers: anthropic, openai. ` +
         `For other OpenAI-compatible or Anthropic-compatible providers, enable ` +
         `"Force PDF Support" in Settings → LLM Configuration → Advanced (at your own risk).`
     );
@@ -217,9 +217,9 @@ export async function convertPdfToMarkdown(ctx: PdfConversionContext): Promise<C
  * Provider capability gate.
  *
  * A provider can convert PDFs if EITHER:
- *   - it appears in `NATIVE_PDF_PROVIDER_IDS` (anthropic / openai /
- *     bedrock-anthropic / bedrock-openai) — the provider's built-in
- *     client handles `application/pdf` content parts natively; OR
+ *   - it appears in `NATIVE_PDF_PROVIDER_IDS` (anthropic / openai) — the
+ *     provider's built-in client handles `application/pdf` content parts
+ *     natively; OR
  *   - the user has enabled the `forcePdfSupport` escape hatch in Settings.
  *     This is a UNIVERSAL override: any non-native provider that the user
  *     believes supports PDF input on their endpoint (custom / anthropic-

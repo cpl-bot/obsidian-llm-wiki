@@ -86,7 +86,7 @@ function makeContainer(): HTMLElement {
 function createTab(overrides: Partial<LLMWikiSettings>): LLMWikiSettingTab {
   return {
     tempSettings: { ...DEFAULT_SETTINGS, ...overrides },
-    plugin: { app: { secretStorage: emptySecretStorage() }, codexAuthManager: null, bedrockAuthManager: null },
+    plugin: { app: { secretStorage: emptySecretStorage() }, codexAuthManager: null },
     codexAuthBusy: false,
     codexDevicePrompt: null,
     getText: (key: string) => key,

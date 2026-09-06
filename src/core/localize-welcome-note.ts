@@ -207,7 +207,7 @@ export async function localizeWelcomeNote(args: LocalizeArgs): Promise<LocalizeR
  *
  * Why this still exists after the schema migration (code-review P1, 2026-08-11):
  * Tier 0 schema enforcement produces clean `{"translated": "..."}`, but the
- * legacy createMessage-only path (Anthropic / OpenAI / Codex) and Tier 1/2
+ * legacy createMessage-only path (Anthropic / OpenAI) and Tier 1/2
  * demotion on local backends can still emit prose/nested/duplicated-object
  * shapes. parseJsonResponse grabs the FIRST balanced object; the key-directed
  * walk grabs the one that actually carries `translated`.

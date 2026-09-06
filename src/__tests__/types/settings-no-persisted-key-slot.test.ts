@@ -56,7 +56,6 @@ const CREDENTIAL_NAME_SHAPES = [/api[_-]?key/i, /secret/i, /token/i, /password/i
  * explaining which of those two it is.
  */
 const ALLOWED_NAMES: Record<string, 'keychain-slot-id' | 'token-budget'> = {
-  openAICodexSecretId: 'keychain-slot-id',
   providerApiKeySecretId: 'keychain-slot-id',
   maxTokensPerCall: 'token-budget',
 };
@@ -112,8 +111,7 @@ describe('serializing settings never yields a key-shaped value (F-03, task 3.6)'
     for (const key of Object.keys(settings)) {
       if (typeof settings[key] === 'string') settings[key] = `sentinel-value-for-${key}`;
     }
-    // The slot ids are read back as keychain lookups, so keep them real.
-    settings.openAICodexSecretId = DEFAULT_SETTINGS.openAICodexSecretId;
+    // The slot id is read back as a keychain lookup, so keep it real.
     settings.providerApiKeySecretId = DEFAULT_SETTINGS.providerApiKeySecretId;
     return settings as unknown as LLMWikiSettings;
   }

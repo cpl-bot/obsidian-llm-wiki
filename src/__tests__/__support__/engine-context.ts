@@ -87,7 +87,6 @@ export function createMockClient(responses: string[]): LLMClient & { lastCreateM
 
 export const DEFAULT_SETTINGS: LLMWikiSettings = {
   provider: 'mock',
-  openAICodexSecretId: '',
   providerApiKeySecretId: 'karpathywiki-provider-api-key',
   baseUrl: '',
   model: 'mock-model',

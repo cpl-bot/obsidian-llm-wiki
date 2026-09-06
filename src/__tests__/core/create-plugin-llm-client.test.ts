@@ -1,13 +1,14 @@
-// Bedrock Stage 2 prerequisite (#425): the plugin-level factory must
-// forward `settings.bedrockRegion` into the sync SDK-factory literal.
+// Plugin-level factory seam contract.
 //
-// Regression context: since v1.24.1 the literal built here omitted
-// `bedrockRegion`, so every production sync-path Bedrock call silently
-// ran against BEDROCK_DEFAULT_REGION (us-east-1) regardless of the
-// user's Settings dropdown — the async factory honored the setting,
-// which is why the existing bedrock-factory tests never caught it.
-// Stage 2 (SSO/SigV4 signing scope) depends on the region, so the
-// forwarding is pinned by contract here.
+// History: this file was added for a Bedrock region-forwarding regression
+// (#425 prerequisite) — the literal `createLLMClient` builds for the sync
+// SDK factory had silently omitted a field, so production sync-path calls
+// ran against a default the user had not chosen, while the async factory
+// honored the setting. Hardening Phase 2.B removed the AWS provider
+// surface, but the *shape* of that bug is provider-independent: the literal
+// is the contract between the plugin and the SDK factory, and a dropped
+// field there is invisible to every provider-specific test. So the file
+// stays, pinning the seams that remain.
 //
 // Strategy: mock the sync factory (same pattern as
 // test-connection-gate.test.ts so no AI-SDK dynamic imports run) and
@@ -17,7 +18,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createLLMClient } from '../../core/create-plugin-llm-client';
 import { createLLMClientFromSettingsSync } from '../../llm-sdk/create-llm-client';
-import type { BedrockAuthManager } from '../../llm-sdk/bedrock-sso/credential-manager';
 import type { LLMWikiSettings } from '../../types';
 
 vi.mock('../../llm-sdk/create-llm-client', () => ({
@@ -29,77 +29,65 @@ vi.mock('../../llm-sdk/create-llm-client', () => ({
   preloadLLMClientModules: vi.fn().mockResolvedValue(undefined),
 }));
 
-describe('createLLMClient — Bedrock region forwarding (#425 prerequisite)', () => {
+describe('createLLMClient — sync factory literal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('forwards bedrockRegion into the sync factory literal', () => {
-    const settings = {
-      provider: 'bedrock-anthropic',
-      apiKey: 'ABSK-test',
-      providerApiKeySecretId: 'karpathywiki-provider-api-key',
-      language: 'en',
-      bedrockRegion: 'eu-central-1',
-    } as unknown as LLMWikiSettings;
-
-    createLLMClient(settings);
-
-    expect(createLLMClientFromSettingsSync).toHaveBeenCalledTimes(1);
-    expect(createLLMClientFromSettingsSync).toHaveBeenCalledWith(
-      expect.objectContaining({ bedrockRegion: 'eu-central-1' }),
-      undefined,
-    );
-  });
-
-  it('still forwards the other credential seams alongside the region', () => {
+  it('forwards the credential seams into the sync factory literal', () => {
     const secretStorage = { getSecret: vi.fn(), setSecret: vi.fn() };
     const settings = {
-      provider: 'bedrock-openai',
-      apiKey: '',
+      provider: 'anthropic',
       providerApiKeySecretId: 'karpathywiki-provider-api-key',
       language: 'de',
       baseUrl: 'https://example.invalid',
-      bedrockRegion: 'ap-northeast-1',
     } as unknown as LLMWikiSettings;
 
-    createLLMClient(settings, undefined, 'test-version', secretStorage, 'pending-key');
+    createLLMClient(settings, secretStorage, 'pending-key');
 
     expect(createLLMClientFromSettingsSync).toHaveBeenCalledWith(
       expect.objectContaining({
-        provider: 'bedrock-openai',
+        provider: 'anthropic',
+        providerApiKeySecretId: 'karpathywiki-provider-api-key',
         baseUrl: 'https://example.invalid',
-        bedrockRegion: 'ap-northeast-1',
         secretStorage,
-        codexVersion: 'test-version',
       }),
       'pending-key',
     );
   });
 
-  it('forwards the Stage-2 bedrock auth fields and manager (#425)', () => {
-    const manager = {} as BedrockAuthManager;
+  it('passes a null secret storage through rather than dropping the key', () => {
     const settings = {
-      provider: 'bedrock-anthropic',
-      apiKey: '',
+      provider: 'openai',
       providerApiKeySecretId: 'karpathywiki-provider-api-key',
       language: 'en',
-      bedrockRegion: 'us-east-1',
-      bedrockAuthMethod: 'sso',
-      bedrockSsoAccountId: '123456789012',
-      bedrockSsoRoleName: 'PowerUserAccess',
     } as unknown as LLMWikiSettings;
 
-    createLLMClient(settings, undefined, undefined, null, undefined, manager);
+    createLLMClient(settings);
 
     expect(createLLMClientFromSettingsSync).toHaveBeenCalledWith(
-      expect.objectContaining({
-        bedrockAuthMethod: 'sso',
-        bedrockSsoAccountId: '123456789012',
-        bedrockSsoRoleName: 'PowerUserAccess',
-        bedrockAuthManager: manager,
-      }),
+      expect.objectContaining({ secretStorage: null }),
       undefined,
     );
+  });
+
+  // Hardening Phase 2.B: the factory used to take two plugin-owned
+  // credential orchestrators — the AWS one (plus four `bedrock*` settings
+  // fields copied into the literal) and the OAuth one (plus `codexAuth` /
+  // `codexVersion` / `codexQuotaMessage`). All of it is gone; nothing in the
+  // literal may name either removed vendor again.
+  it('puts no trace of the removed provider surfaces into the literal', () => {
+    const removedVendors = [['bed', 'rock'].join(''), ['cod', 'ex'].join('')];
+    const settings = {
+      provider: 'anthropic',
+      providerApiKeySecretId: 'karpathywiki-provider-api-key',
+      language: 'en',
+    } as unknown as LLMWikiSettings;
+
+    createLLMClient(settings);
+
+    const literal = vi.mocked(createLLMClientFromSettingsSync).mock.calls[0][0];
+    const offenders = Object.keys(literal).filter((key) => removedVendors.some((vendor) => key.toLowerCase().includes(vendor)));
+    expect(offenders).toEqual([]);
   });
 });

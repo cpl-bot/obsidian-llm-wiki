@@ -412,7 +412,7 @@ export class SourceAnalyzer {
         };
         // Typed-output dispatch via the centralized helper in core/llm-dispatch:
         // prefer createMessageWithOutput on modern clients, fall back to
-        // createMessage on legacy Anthropic / OpenAI / Codex. The returned
+        // createMessage on legacy Anthropic / OpenAI. The returned
         // string is the wire text — Tier 1 / Tier 2 (output undefined) flows
         // through the existing parseJsonResponse path below.
         const response = await callLlm(client, extractArgs);
@@ -1004,7 +1004,7 @@ Respond with this JSON object and nothing else: {"kind": "entity"} or {"kind": "
     try {
       // v1.26.3 PATCH Issue #443 expanded scope: typed-output path.
       // Prefer createMessageWithOutput on modern clients; falls back to
-      // createMessage on legacy Anthropic / OpenAI / Codex. The schema
+      // createMessage on legacy Anthropic / OpenAI. The schema
       // forces `{"kind": "entity|concept"}` on the wire as Tier 0
       // json_schema — LMStudio accepts, no parse-error fallback to English.
       const lemmaArgs = {

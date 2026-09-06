@@ -7,28 +7,20 @@
     "api.minimaxi.com",
     "api.moonshot.cn",
     "api.openai.com",
-    "auth.openai.com",
-    "chatgpt.com",
     "generativelanguage.googleapis.com",
     "open.bigmodel.cn",
     "openrouter.ai"
   ],
-  "_hostPatterns": "Regional hosts whose middle label is concatenated at runtime. A hostname matches when it starts with `prefix`, ends with `suffix`, and the single label in between matches [a-z0-9-]+ (so `oidc.evil.example.amazonaws.com` does NOT match). Every suffix here must be a namespace AWS itself controls: a suffix under which anyone can self-register a subdomain (`.awsapps.com`) would hand a hostile build a ready-made allowlisted destination.",
-  "hostPatterns": [
-    { "id": "aws-sso-oidc", "prefix": "oidc.", "suffix": ".amazonaws.com" },
-    { "id": "aws-sso-portal", "prefix": "portal.sso.", "suffix": ".amazonaws.com" },
-    { "id": "aws-bedrock-runtime", "prefix": "bedrock-runtime.", "suffix": ".amazonaws.com" },
-    { "id": "aws-bedrock-mantle", "prefix": "bedrock-mantle.", "suffix": ".api.aws" }
-  ],
+  "_hostPatterns": "Regional hosts whose middle label is concatenated at runtime. A hostname matches when it starts with `prefix`, ends with `suffix`, and the single label in between matches [a-z0-9-]+ (so `sub.evil.example.vendor.com` does NOT match). Every suffix here must be a namespace the vendor itself controls: a suffix under which anyone can self-register a subdomain would hand a hostile build a ready-made allowlisted destination. EMPTY since hardening Phase 2.B removed the cloud provider surface that owned all four former entries; the mechanism stays because it is the only safe way to express a regional destination.",
+  "hostPatterns": [],
   "_loopbackHosts": "http: is permitted only for these (Ollama / LM Studio / OAuth loopback listener).",
   "loopbackHosts": ["localhost", "127.0.0.1", "::1"],
-  "_knownDocHosts": "Hosts that appear as literals in the bundle but are NEVER fetched: documentation links, links opened in the user's browser, and placeholder examples. `ai-gateway.vercel.sh` is the `ai` SDK's built-in default gateway — it is deliberately listed HERE and NOT in `allowlist`, so the tripwire passes while the policy blocks any request to it. `d-xxxxxxxxx.awsapps.com` is the SSO-start-URL placeholder shown in the settings description; the SSO start URL is only ever sent as a field in the body of a request to oidc.<region>.amazonaws.com, never fetched.",
+  "_knownDocHosts": "Hosts that appear as literals in the bundle but are NEVER fetched: documentation links, links opened in the user's browser, and placeholder examples. `ai-gateway.vercel.sh` is the `ai` SDK's built-in default gateway — it is deliberately listed HERE and NOT in `allowlist`, so the tripwire passes while the policy blocks any request to it. `cookbook.openai.com` and `developers.openai.com` are @see links inside the bundled @ai-sdk/openai JSDoc — they survived the Phase 2.B removal of the ChatGPT-subscription OAuth provider (which took the two hosts it fetched out of `allowlist`) because the SDK, not that provider, is what mentions them. `scripts/check-bundle-no-codex.mjs` names those two hosts; nothing else in the repo may.",
   "knownDocHosts": [
     "ai-gateway.vercel.sh",
     "ai-sdk.dev",
     "api.example.com",
     "cookbook.openai.com",
-    "d-xxxxxxxxx.awsapps.com",
     "developer.mozilla.org",
     "developers.openai.com",
     "docs.anthropic.com",
@@ -39,6 +31,6 @@
     "platform.openai.com",
     "vercel.com"
   ],
-  "_knownRuntimePrefixes": "Truncated literals the bundle contains because the region is concatenated at runtime (`https://oidc.` + region + `.amazonaws.com`). The bundle scanner sees the prefix only, so it is accepted verbatim.",
-  "knownRuntimePrefixes": ["bedrock-mantle.", "oidc.", "portal.sso."]
+  "_knownRuntimePrefixes": "Truncated literals the bundle contains because a label is concatenated at runtime (`https://<prefix>.` + region + `.<suffix>`). The bundle scanner sees the prefix only, so it is accepted verbatim. Every entry must have a matching `hostPatterns` prefix. EMPTY since hardening Phase 2.B — the bundle no longer builds any host at runtime.",
+  "knownRuntimePrefixes": []
 }

@@ -285,7 +285,7 @@ export async function runIngest(vaultRoot: string, sourcePath: string): Promise<
 
   await preloadLLMClientModules();
   const tokens = { in: 0, out: 0 };
-  const client = withTokenTracking(createLLMClient(settings, undefined, undefined, secretStorage), tokens);
+  const client = withTokenTracking(createLLMClient(settings, secretStorage), tokens);
   const getClient = (): LLMClient => client;
 
   const engineApp = app as unknown as App;

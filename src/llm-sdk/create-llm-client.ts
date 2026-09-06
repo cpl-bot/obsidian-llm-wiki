@@ -20,7 +20,7 @@
 
 import { LLMClient } from '../types';
 // Static, not `await import(...)`. `main.ts` calls `preloadLLMClientModules()`
-// at module scope, so all four were loaded on plugin start anyway and the
+// at module scope, so all three were loaded on plugin start anyway and the
 // dynamic form deferred nothing; with no code splitting in this build it kept
 // nothing out of `main.js` either. What it did do is make esbuild *wrap* these
 // modules, and a wrapped module is exempt from tree shaking — the exemption
@@ -30,20 +30,8 @@ import { LLMClient } from '../types';
 import { OpenAISdkClient } from './openai-sdk-client';
 import { AnthropicSdkClient } from './anthropic-sdk-client';
 import { OpenAICompatSdkClient } from './openai-compat-sdk-client';
-import { OpenAICodexSdkClient } from './openai-codex-sdk-client';
-import type { CodexAuthManager } from './openai-codex/auth-manager';
-import {
-  bedrockMantleChatCompletionsUrl,
-  bedrockMantleMessagesUrl,
-  BEDROCK_DEFAULT_REGION,
-  type BedrockRegion,
-} from '../constants';
 import { resolveProviderApiKey } from './provider-api-key-resolver';
-import { usesBedrockAwsCredentials } from '../core/provider-auth';
 import type { ProviderSecretStorage } from './provider-secret-store';
-import { obsidianFetchBridge, streamWithFallback, type ObsidianFetchInit } from '../core/obsidian-fetch-bridge';
-import { createSigV4SigningFetch } from './bedrock-sso/signing-fetch';
-import type { BedrockAuthManager } from './bedrock-sso/credential-manager';
 
 export interface ProviderSettings {
   provider: string;
@@ -62,112 +50,17 @@ export interface ProviderSettings {
    */
   secretStorage?: ProviderSecretStorage | null;
   baseUrl?: string;
-  /**
-   * v1.24.1 PATCH Bedrock Stage 1 — AWS region used by the two
-   * `bedrock-*` provider ids. Ignored when provider is anything else.
-   * Falls back to BEDROCK_DEFAULT_REGION (us-east-1) when unset.
-   */
-  bedrockRegion?: string;
   useOfficialOpenAI?: boolean;
-  codexAuth?: CodexAuthManager;
-  codexVersion?: string;
-  codexQuotaMessage?: string;
-  /**
-   * #425 Bedrock Stage 2 — auth mode for the two `bedrock-*` provider
-   * ids. Default `'api-key'` = Stage-1 bearer, unchanged.
-   */
-  bedrockAuthMethod?: 'api-key' | 'sso' | 'iam';
-  /** #425 — target account id for GetRoleCredentials (SSO mode). */
-  bedrockSsoAccountId?: string;
-  /** #425 — role name to assume (SSO mode). */
-  bedrockSsoRoleName?: string;
-  /**
-   * #425 — plugin-owned credential orchestrator. Required when a
-   * `bedrock-*` provider runs in `'sso'` or `'iam'` mode; production
-   * hosts pass it next to codexAuth.
-   */
-  bedrockAuthManager?: BedrockAuthManager;
 }
 
-/**
- * v1.24.1 PATCH Bedrock Stage 1 — resolve the AWS region from settings,
- * narrowing `string | undefined` to the typed `BedrockRegion` union.
- * Settings UI dropdown only emits `BEDROCK_REGIONS` values, so runtime
- * is sound; the cast is here for TS-only safety.
- */
-function resolveBedrockRegion(settings: ProviderSettings): BedrockRegion {
-  return (settings.bedrockRegion as BedrockRegion | undefined) || BEDROCK_DEFAULT_REGION;
-}
-
-/**
- * v1.24.1 PATCH Bedrock Stage 1 — construct a Bedrock-backed LLM client
- * for either the Anthropic Messages protocol or the OpenAI Chat
- * Completions protocol. Both reuse existing SDK clients via the
- * region-scoped bedrock-mantle baseURL.
- *
- * #425 Stage 2: when `bedrockAuthMethod` is `'sso'`/`'iam'`, a SigV4
- * signing wrapper replaces bearer auth on BOTH fetch seams (non-stream
- * and streaming); the apiKey argument is then inert (''). The default
- * `'api-key'` mode is byte-for-byte Stage 1.
- *
- * The class constructors are injected (rather than dynamic-imported)
- * so the same helper works for both the async factory (which does
- * dynamic imports inside) and the sync factory (which reads from
- * preloadedModules). Either way, the resolved client is identical.
- */
-function createBedrockClient(
-  providers: {
-    AnthropicSdkClient: typeof import('./anthropic-sdk-client').AnthropicSdkClient;
-    OpenAICompatSdkClient: typeof import('./openai-compat-sdk-client').OpenAICompatSdkClient;
-  },
-  settings: ProviderSettings,
-  apiKey: string,
-  protocol: 'anthropic' | 'openai',
-): LLMClient {
-  const region = resolveBedrockRegion(settings);
-  const authMethod = settings.bedrockAuthMethod ?? 'api-key';
-  let signingFetch: ((url: string, init?: ObsidianFetchInit) => Promise<Response>) | undefined;
-  let signingStreamFetch: ((url: string, init?: ObsidianFetchInit) => Promise<Response>) | undefined;
-  if (authMethod !== 'api-key') {
-    if (!settings.bedrockAuthManager) {
-      throw new Error('Bedrock SSO/IAM auth requires the plugin-managed BedrockAuthManager');
-    }
-    const manager = settings.bedrockAuthManager;
-    const getCredentials = () => manager.getCredentials({
-      method: authMethod,
-      region,
-      accountId: settings.bedrockSsoAccountId,
-      roleName: settings.bedrockSsoRoleName,
-    });
-    // Two wrappers over the SAME credential source — one per seam — so
-    // the streaming seam keeps Stage-1 incremental delivery (sign, then
-    // hand off to streamWithFallback exactly like api-key mode) instead
-    // of degrading to single-chunk requestUrl responses.
-    signingFetch = createSigV4SigningFetch({ delegate: obsidianFetchBridge, getCredentials });
-    signingStreamFetch = createSigV4SigningFetch({ delegate: streamWithFallback, getCredentials });
-  }
-  const authOverrides = {
-    ...(signingFetch ? { fetch: signingFetch } : {}),
-    ...(signingStreamFetch ? { streamFetch: signingStreamFetch } : {}),
-  };
-  if (protocol === 'anthropic') {
-    return new providers.AnthropicSdkClient({
-      apiKey,
-      baseURL: bedrockMantleMessagesUrl(region),
-      ...authOverrides,
-    });
-  }
-  return new providers.OpenAICompatSdkClient({
-    apiKey,
-    baseURL: bedrockMantleChatCompletionsUrl(region),
-    provider: settings.provider,
-    ...authOverrides,
-  });
-}
-
-// #425 Stage 2 — "signs with AWS credentials" predicate lives in
-// core/provider-auth.ts (single home, shared with the connection gate);
-// the key resolver below must be skipped when it holds.
+// Hardening Phase 2.B removed both credential-orchestrated provider
+// surfaces that used to be wired in here:
+//   - `resolveBedrockRegion()` / `createBedrockClient()` — the region-scoped
+//     mantle baseURL builder plus the SigV4 signing wrappers that replaced
+//     bearer auth on both fetch seams.
+//   - the ChatGPT-subscription OAuth branch and its dedicated SDK client.
+// Both are gone, so every branch below authenticates with a bearer key or
+// nothing at all, and `ProviderSettings` carries no auth-manager handle.
 
 /**
  * Async factory used by callers that can await (Test Connection,
@@ -187,38 +80,12 @@ export async function createLLMClientFromSettings(
   // v1.25.7 PATCH: forward the optional pendingApiKey (tab.pendingApiKey
   // in the Test Connection flow) so the freshly-typed key wins over the
   // stale SecretStorage value. Production callers pass undefined.
-  // #425 Stage 2: in bedrock sso/iam modes AWS credentials sign every
-  // request, so no bearer key is resolved at all.
-  const apiKey = usesBedrockAwsCredentials(provider, settings.bedrockAuthMethod) ? '' : resolveProviderApiKey(
+  const apiKey = resolveProviderApiKey(
     { providerApiKeySecretId: settings.providerApiKeySecretId },
     settings.secretStorage ?? null,
     pendingApiKey,
   );
   const baseUrl = settings.baseUrl?.trim() || undefined;
-
-  if (provider === 'openai-codex') {
-    if (!settings.codexAuth) throw new Error('Codex auth manager is required');
-    return new OpenAICodexSdkClient({ auth: settings.codexAuth, sessionId: () => crypto.randomUUID(), version: settings.codexVersion ?? 'unknown', quotaMessage: settings.codexQuotaMessage });
-  }
-  // v1.24.1 PATCH Bedrock Stage 1 — region-scoped bedrock-mantle endpoint,
-  // reusing existing SDK clients via custom baseURL.
-  if (provider === 'bedrock-anthropic') {
-    return createBedrockClient(
-      { AnthropicSdkClient, OpenAICompatSdkClient },
-      settings,
-      apiKey,
-      'anthropic',
-    );
-  }
-
-  if (provider === 'bedrock-openai') {
-    return createBedrockClient(
-      { AnthropicSdkClient, OpenAICompatSdkClient },
-      settings,
-      apiKey,
-      'openai',
-    );
-  }
 
   if (provider === 'anthropic') {
     return new AnthropicSdkClient({ apiKey });
@@ -255,7 +122,6 @@ export interface PreloadedSdkModules {
   OpenAISdkClient: typeof import('./openai-sdk-client').OpenAISdkClient;
   AnthropicSdkClient: typeof import('./anthropic-sdk-client').AnthropicSdkClient;
   OpenAICompatSdkClient: typeof import('./openai-compat-sdk-client').OpenAICompatSdkClient;
-  OpenAICodexSdkClient: typeof import('./openai-codex-sdk-client').OpenAICodexSdkClient;
 }
 
 let preloadedModules: PreloadedSdkModules | null = null;
@@ -275,7 +141,6 @@ export async function preloadLLMClientModules(): Promise<void> {
     OpenAISdkClient,
     AnthropicSdkClient,
     OpenAICompatSdkClient,
-    OpenAICodexSdkClient,
   };
 }
 
@@ -295,7 +160,7 @@ export function createLLMClientFromSettingsSync(
       'Call `await preloadLLMClientModules()` during plugin onload() before any LLM call.'
     );
   }
-  const { OpenAISdkClient, AnthropicSdkClient, OpenAICompatSdkClient, OpenAICodexSdkClient } = preloadedModules;
+  const { OpenAISdkClient, AnthropicSdkClient, OpenAICompatSdkClient } = preloadedModules;
 
   const provider = settings.provider;
   // v1.25.3 #182: read the key through the resolver — SecretStorage is
@@ -307,38 +172,12 @@ export function createLLMClientFromSettingsSync(
   // v1.25.7 PATCH: forward the optional pendingApiKey (tab.pendingApiKey
   // in the Test Connection flow) so the freshly-typed key wins over the
   // stale SecretStorage value. Production callers pass undefined.
-  // #425 Stage 2: in bedrock sso/iam modes AWS credentials sign every
-  // request, so no bearer key is resolved at all.
-  const apiKey = usesBedrockAwsCredentials(provider, settings.bedrockAuthMethod) ? '' : resolveProviderApiKey(
+  const apiKey = resolveProviderApiKey(
     { providerApiKeySecretId: settings.providerApiKeySecretId },
     settings.secretStorage ?? null,
     pendingApiKey,
   );
   const baseUrl = settings.baseUrl?.trim() || undefined;
-
-  if (provider === 'openai-codex') {
-    if (!settings.codexAuth) throw new Error('Codex auth manager is required');
-    return new OpenAICodexSdkClient({ auth: settings.codexAuth, sessionId: () => crypto.randomUUID(), version: settings.codexVersion ?? 'unknown', quotaMessage: settings.codexQuotaMessage });
-  }
-  // v1.24.1 PATCH Bedrock Stage 1 — region-scoped bedrock-mantle endpoint,
-  // reusing existing SDK clients via custom baseURL.
-  if (provider === 'bedrock-anthropic') {
-    return createBedrockClient(
-      { AnthropicSdkClient, OpenAICompatSdkClient },
-      settings,
-      apiKey,
-      'anthropic',
-    );
-  }
-
-  if (provider === 'bedrock-openai') {
-    return createBedrockClient(
-      { AnthropicSdkClient, OpenAICompatSdkClient },
-      settings,
-      apiKey,
-      'openai',
-    );
-  }
 
   if (provider === 'anthropic') {
     return new AnthropicSdkClient({ apiKey });
