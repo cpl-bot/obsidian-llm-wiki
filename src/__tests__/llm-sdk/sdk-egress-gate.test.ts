@@ -28,6 +28,7 @@ import { requestUrl } from 'obsidian';
 import { OpenAICompatSdkClient } from '../../llm-sdk/openai-compat-sdk-client';
 import { OpenAISdkClient } from '../../llm-sdk/openai-sdk-client';
 import { AnthropicSdkClient } from '../../llm-sdk/anthropic-sdk-client';
+import { createLLMClientFromSettings } from '../../llm-sdk/create-llm-client';
 import {
   EgressDeniedError,
   registerEgressSettings,
@@ -64,6 +65,26 @@ const CHAT_COMPLETION = {
     { index: 0, message: { role: 'assistant', content: 'ok' }, finish_reason: 'stop' },
   ],
   usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+};
+
+// The official-OpenAI client builds `createOpenAI()(modelId)`, which is the
+// Responses model — its reply shape is `output[]`, not `choices[]`.
+const OPENAI_RESPONSE = {
+  id: 'resp_1',
+  object: 'response',
+  created_at: 0,
+  model: 'gpt-4o-mini',
+  status: 'completed',
+  output: [
+    {
+      type: 'message',
+      id: 'msg_1',
+      role: 'assistant',
+      status: 'completed',
+      content: [{ type: 'output_text', text: 'ok', annotations: [] }],
+    },
+  ],
+  usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
 };
 
 const ANTHROPIC_MESSAGE = {
@@ -168,6 +189,69 @@ describe('egress gate under the AI SDK (provider adapters, production fetch defa
       });
       const text = await client.createMessage({
         model: 'claude-haiku-4-5',
+        max_tokens: 16,
+        messages: [{ role: 'user', content: 'hi' }],
+      });
+      expect(text).toBe('ok');
+      expect(mockRequestUrl).toHaveBeenCalledTimes(1);
+      const params = mockRequestUrl.mock.calls[0][0] as { url: string };
+      expect(params.url).toContain('127.0.0.1:11434');
+    });
+  });
+
+  // The blocks above construct the clients the way production's factory
+  // does — no `fetch` / `streamFetch` override, so the constructor defaults
+  // (`obsidianFetchBridge` / `streamWithFallback`) are what the SDK gets.
+  // That still leaves one seam untested: the factory itself. `main.ts` never
+  // calls `new OpenAICompatSdkClient(...)`; it goes through
+  // `createLLMClientFromSettings` / `...Sync`, which is also where the
+  // Bedrock branch DOES pass explicit fetch overrides. A future edit that
+  // handed some provider an unbridged fetch there would leave every
+  // assertion above green. So drive the real factory too, for both the
+  // denied and the allowed direction.
+  describe('clients built by the production factory are bridged the same way', () => {
+    /** `createLLMClientFromSettings` shape used by `main.ts`, key passed as pending. */
+    function factorySettings(provider: string, baseUrl: string) {
+      return {
+        provider,
+        providerApiKeySecretId: 'karpathywiki:provider-key',
+        baseUrl,
+      };
+    }
+
+    it.each([
+      ['custom', 'm'],
+      ['openai', 'gpt-4o-mini'],
+      ['anthropic-compatible', 'claude-haiku-4-5'],
+    ] as const)('provider:%s — denied destination never reaches the transport', async (provider, model) => {
+      useSettings({ strictEgress: true });
+      const client = await createLLMClientFromSettings(
+        factorySettings(provider, DENIED_BASE_URL),
+        'sk-secret',
+      );
+      await expect(
+        client.createMessage({
+          model,
+          max_tokens: 16,
+          messages: [{ role: 'user', content: 'hi' }],
+        }),
+      ).rejects.toBeInstanceOf(EgressDeniedError);
+      expect(mockRequestUrl).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['custom', 'm', CHAT_COMPLETION],
+      ['openai', 'gpt-4o-mini', OPENAI_RESPONSE],
+      ['anthropic-compatible', 'claude-haiku-4-5', ANTHROPIC_MESSAGE],
+    ] as const)('provider:%s — allowed destination reaches requestUrl', async (provider, model, payload) => {
+      useSettings({ strictEgress: true });
+      mockRequestUrl.mockResolvedValue(jsonResult(payload));
+      const client = await createLLMClientFromSettings(
+        factorySettings(provider, LOOPBACK_BASE_URL),
+        'sk-secret',
+      );
+      const text = await client.createMessage({
+        model,
         max_tokens: 16,
         messages: [{ role: 'user', content: 'hi' }],
       });

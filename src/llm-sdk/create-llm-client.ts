@@ -19,6 +19,18 @@
 // (they all expect a sync `LLMClient` instance).
 
 import { LLMClient } from '../types';
+// Static, not `await import(...)`. `main.ts` calls `preloadLLMClientModules()`
+// at module scope, so all four were loaded on plugin start anyway and the
+// dynamic form deferred nothing; with no code splitting in this build it kept
+// nothing out of `main.js` either. What it did do is make esbuild *wrap* these
+// modules, and a wrapped module is exempt from tree shaking — the exemption
+// cascaded through them into `ai`, `@ai-sdk/*` and `zod`, holding a large
+// slice of otherwise-shakable code in the bundle. See the Gate 4 table in the
+// commit that removed the dynamic form.
+import { OpenAISdkClient } from './openai-sdk-client';
+import { AnthropicSdkClient } from './anthropic-sdk-client';
+import { OpenAICompatSdkClient } from './openai-compat-sdk-client';
+import { OpenAICodexSdkClient } from './openai-codex-sdk-client';
 import type { CodexAuthManager } from './openai-codex/auth-manager';
 import {
   bedrockMantleChatCompletionsUrl,
@@ -165,11 +177,6 @@ export async function createLLMClientFromSettings(
   settings: ProviderSettings,
   pendingApiKey?: string,
 ): Promise<LLMClient> {
-  const { OpenAISdkClient } = await import('./openai-sdk-client');
-  const { AnthropicSdkClient } = await import('./anthropic-sdk-client');
-  const { OpenAICompatSdkClient } = await import('./openai-compat-sdk-client');
-  const { OpenAICodexSdkClient } = await import('./openai-codex-sdk-client');
-
   const provider = settings.provider;
   // v1.25.3 #182: read the key through the resolver — SecretStorage is
   // the only source. Hardening Phase 3 (F-03): a keychain that cannot be
@@ -260,17 +267,15 @@ let preloadedModules: PreloadedSdkModules | null = null;
  * sync API contract).
  */
 export async function preloadLLMClientModules(): Promise<void> {
-  const [openai, anthropic, compat, codex] = await Promise.all([
-    import('./openai-sdk-client'),
-    import('./anthropic-sdk-client'),
-    import('./openai-compat-sdk-client'),
-    import('./openai-codex-sdk-client'),
-  ]);
+  // The modules are static imports now, so "preloading" is just publishing
+  // them to the sync factory's slot. The function stays async and stays the
+  // only writer of `preloadedModules`, so `createLLMClientFromSettingsSync`
+  // keeps throwing its init-order error when a caller skipped this step.
   preloadedModules = {
-    OpenAISdkClient: openai.OpenAISdkClient,
-    AnthropicSdkClient: anthropic.AnthropicSdkClient,
-    OpenAICompatSdkClient: compat.OpenAICompatSdkClient,
-    OpenAICodexSdkClient: codex.OpenAICodexSdkClient,
+    OpenAISdkClient,
+    AnthropicSdkClient,
+    OpenAICompatSdkClient,
+    OpenAICodexSdkClient,
   };
 }
 

@@ -18,7 +18,15 @@
 // Architecture: same shape as OpenAISdkClient — implements LLMClient,
 // uses obsidianFetchBridge, lazy-loads @ai-sdk/anthropic.
 
-import { type LanguageModel } from 'ai';
+// Static, not `await import('ai')`. There is no code splitting in this build
+// (one `main.js`, `format: 'cjs'`) and `output-args.ts` already imports `ai`
+// statically, so the dynamic form never kept a byte out of the bundle. What it
+// did do is make esbuild *wrap* the `ai` module, and a wrapped module is
+// exempt from tree shaking — every export of `ai`, and of everything `ai`
+// re-exports, stayed live. Under `ai` 6 + zod 3 that was tolerable; under
+// `ai` 7 + zod 4 it cost ~450 KB. See the Gate 4 table in the commit that
+// removed the dynamic form.
+import { type LanguageModel, generateText, streamText } from 'ai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { LLMClient } from '../types';
 import { obsidianFetchBridge, streamWithFallback } from '../core/obsidian-fetch-bridge';
@@ -162,7 +170,6 @@ export class AnthropicSdkClient implements LLMClient {
   private async probeBaseURL(baseURL: string): Promise<boolean> {
     try {
       const languageModel = this.getProvider('claude-haiku-4-5', this.fetchImpl, baseURL);
-      const { generateText } = await import('ai');
       await generateText({
         model: languageModel,
         messages: [{ role: 'user', content: 'hi' }],
@@ -187,7 +194,6 @@ export class AnthropicSdkClient implements LLMClient {
 
     try {
       const languageModel = this.getProvider(model, this.fetchImpl);
-      const { generateText } = await import('ai');
 
       const result = await generateText({
         model: languageModel,
@@ -220,7 +226,6 @@ export class AnthropicSdkClient implements LLMClient {
         // Retry with the resolved URL — separate try block so the
         // fallback result is returned even if the retry somehow fails.
         const retryLanguageModel = this.getProvider(model, this.fetchImpl, resolved);
-        const { generateText } = await import('ai');
         const result = await generateText({
           model: retryLanguageModel,
           ...(system ? { system } : {}),
@@ -295,7 +300,6 @@ export class AnthropicSdkClient implements LLMClient {
     // to candidate URLs and retry.
     try {
       const languageModel = this.getProvider(model, this.streamFetchImpl);
-      const { streamText } = await import('ai');
 
       const result = streamText({
         model: languageModel,
@@ -347,7 +351,6 @@ export class AnthropicSdkClient implements LLMClient {
           originalError: mappedErr,
         });
         const retryLanguageModel = this.getProvider(model, this.streamFetchImpl, resolved);
-        const { streamText } = await import('ai');
 
         const result = streamText({
           model: retryLanguageModel,

@@ -18,7 +18,15 @@
 // `supportsStructuredOutputs`, `includeUsage`) are set automatically
 // based on the `provider` id we pass in.
 
-import { type LanguageModel, APICallError, NoObjectGeneratedError, NoOutputGeneratedError } from 'ai';
+// Static, not `await import('ai')`. There is no code splitting in this build
+// (one `main.js`, `format: 'cjs'`) and `output-args.ts` already imports `ai`
+// statically, so the dynamic form never kept a byte out of the bundle. What it
+// did do is make esbuild *wrap* the `ai` module, and a wrapped module is
+// exempt from tree shaking — every export of `ai`, and of everything `ai`
+// re-exports, stayed live. Under `ai` 6 + zod 3 that was tolerable; under
+// `ai` 7 + zod 4 it cost ~450 KB. See the Gate 4 table in the commit that
+// removed the dynamic form.
+import { type LanguageModel, APICallError, NoObjectGeneratedError, NoOutputGeneratedError, generateText, streamText } from 'ai';
 import { redactSecrets } from '../core/redact';
 import type { z } from 'zod';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
@@ -263,7 +271,6 @@ export class OpenAICompatSdkClient implements LLMClient {
   private async probeBaseURL(baseURL: string): Promise<boolean> {
     try {
       const languageModel = this.getProvider('gpt-4o-mini', this.fetchImpl, baseURL);
-      const { generateText } = await import('ai');
       await generateText({
         model: languageModel,
         messages: [{ role: 'user', content: 'hi' }],
@@ -332,7 +339,6 @@ export class OpenAICompatSdkClient implements LLMClient {
 
     try {
       const languageModel = this.getProvider(model, this.fetchImpl);
-      const { generateText } = await import('ai');
 
       const result = await generateText({
         model: languageModel,
@@ -506,7 +512,6 @@ export class OpenAICompatSdkClient implements LLMClient {
           originalError: mappedErr,
         });
         const retryLanguageModel = this.getProvider(model, this.fetchImpl, resolved);
-        const { generateText } = await import('ai');
         const result = await generateText({
           model: retryLanguageModel,
           ...(system ? { system } : {}),
@@ -582,7 +587,6 @@ export class OpenAICompatSdkClient implements LLMClient {
           `→ retrying with enableThinking=true (no reasoningEffort on wire)`,
         );
         const retryLanguageModel = this.getProvider(model, this.fetchImpl);
-        const { generateText } = await import('ai');
         // Retry without reasoningEffort — pass enableThinking=true so
         // buildProviderOptions does not re-add the field. A per-task policy's
         // named effort (#481) is dropped here for the same reason: the backend
@@ -719,7 +723,6 @@ export class OpenAICompatSdkClient implements LLMClient {
 
         try {
           const retryLanguageModel = this.getProvider(model, this.fetchImpl);
-          const { generateText } = await import('ai');
           // Tier 2 retry injects the JSON enforcement prefix; Tier 1
           // does not (Output.json() is a wire-shape constraint; no
           // prompt change needed).
@@ -789,7 +792,6 @@ export class OpenAICompatSdkClient implements LLMClient {
         // rejected it, try `max_completion_tokens`.
         this.tokenKeyProber.setCachedKey(this.baseURL, model, 'max_completion_tokens');
         const retryLanguageModel = this.getProvider(model, this.fetchImpl);
-        const { generateText } = await import('ai');
         const result = await generateText({
           model: retryLanguageModel,
           ...(system ? { system } : {}),
@@ -907,7 +909,6 @@ export class OpenAICompatSdkClient implements LLMClient {
 
     try {
       const languageModel = this.getProvider(model, this.fetchImpl);
-      const { generateText } = await import('ai');
       const result = await generateText({
         model: languageModel,
         ...(system ? { system } : {}),
@@ -1027,7 +1028,6 @@ export class OpenAICompatSdkClient implements LLMClient {
             );
             try {
               const retryLanguageModel = this.getProvider(model, this.fetchImpl);
-              const { generateText } = await import('ai');
               const retrySystem = system
                 ? `${JSON_ENFORCEMENT_SYSTEM_PREFIX}\n\n${system}`
                 : JSON_ENFORCEMENT_SYSTEM_PREFIX;
@@ -1131,7 +1131,6 @@ export class OpenAICompatSdkClient implements LLMClient {
           originalError: mappedErr,
         });
         const retryLanguageModel = this.getProvider(model, this.fetchImpl, resolved);
-        const { generateText } = await import('ai');
         const result = await generateText({
           model: retryLanguageModel,
           ...(system ? { system } : {}),
@@ -1188,7 +1187,6 @@ export class OpenAICompatSdkClient implements LLMClient {
 
           try {
             const retryLanguageModel = this.getProvider(model, this.fetchImpl);
-            const { generateText } = await import('ai');
             const retrySystem =
               demotedMode === 'text_prompt'
                 ? (system ? `${JSON_ENFORCEMENT_SYSTEM_PREFIX}\n\n${system}` : JSON_ENFORCEMENT_SYSTEM_PREFIX)
@@ -1232,7 +1230,6 @@ export class OpenAICompatSdkClient implements LLMClient {
       if (APICallError.isInstance(err) && err.statusCode === 400 && !this.tokenKeyProber.getCachedKey(this.baseURL, model)) {
         this.tokenKeyProber.setCachedKey(this.baseURL, model, 'max_completion_tokens');
         const retryLanguageModel = this.getProvider(model, this.fetchImpl);
-        const { generateText } = await import('ai');
         const result = await generateText({
           model: retryLanguageModel,
           ...(system ? { system } : {}),
@@ -1438,7 +1435,6 @@ export class OpenAICompatSdkClient implements LLMClient {
     // (real streaming via window.fetch with CORS fallback to
     // requestUrl). See obsidian-fetch-bridge.ts for rationale.
     const languageModel = this.getProvider(model, this.streamFetchImpl);
-    const { streamText } = await import('ai');
 
     try {
       // v1.23.0 P2: AI-SDK v6 stream consumption fix.
@@ -1538,7 +1534,6 @@ export class OpenAICompatSdkClient implements LLMClient {
           originalError: mappedErr,
         });
         const retryLanguageModel = this.getProvider(model, this.streamFetchImpl, resolved);
-        const { streamText } = await import('ai');
 
         const result = streamText({
           model: retryLanguageModel,
@@ -1591,7 +1586,6 @@ export class OpenAICompatSdkClient implements LLMClient {
         ReasoningStripProber.isReasoningFieldError(err.responseBody ?? err.message ?? '')
       ) {
         const retryLanguageModel = this.getProvider(model, this.streamFetchImpl);
-        const { streamText } = await import('ai');
         const result = streamText({
           model: retryLanguageModel,
           ...(system ? { system } : {}),
@@ -1630,7 +1624,6 @@ export class OpenAICompatSdkClient implements LLMClient {
       if (APICallError.isInstance(err) && err.statusCode === 400 && !this.tokenKeyProber.getCachedKey(this.baseURL, model)) {
         this.tokenKeyProber.setCachedKey(this.baseURL, model, 'max_completion_tokens');
         const retryLanguageModel = this.getProvider(model, this.streamFetchImpl);
-        const { streamText } = await import('ai');
         const result = streamText({
           model: retryLanguageModel,
           ...(system ? { system } : {}),
