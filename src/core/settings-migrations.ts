@@ -23,10 +23,13 @@ const REMOVED_OAUTH_VENDOR = ['cod', 'ex'].join('');
 const REMOVED_OAUTH_PROVIDER_ID = `openai-${REMOVED_OAUTH_VENDOR}`;
 
 /**
- * On-disk flag that records the Phase 2.B scrub already ran. Its own key
+ * On-disk flag that records the OAuth-provider scrub already ran. Its own key
  * carries the vendor fragment, so the scrub's fragment loop must skip it by
  * name; it cannot be renamed without replaying the migration on every
- * existing install.
+ * existing install. Unlike the AWS marker below, the bare vendor fragment is
+ * not a forbidden bundle needle (see `scripts/check-bundle-no-codex.mjs` for
+ * why: the retained OpenAI SDK ships model ids carrying it), so this one may
+ * be a literal.
  */
 const MIGRATION_MARKER_KEY = '_migrated_harden_codex_removed';
 
@@ -69,6 +72,55 @@ const REMOVED_CONVERSION_BACKEND_FIELDS = [
 
 /** Keychain slot that held the removed backend's API token. */
 const REMOVED_CONVERSION_SECRET_ID = `karpathywiki-${REMOVED_BACKEND_VENDOR}-api-token`;
+
+/**
+ * Vendor name of the removed cloud-provider auth surface (hardening
+ * Phase 2.B), assembled from fragments for exactly the reason the
+ * conversion-backend vendor above is.
+ *
+ * `scripts/check-bundle-no-bedrock.mjs` asserts the built `main.js` carries
+ * no trace of this vendor — the SSO device flow, the hand-rolled SigV4
+ * signer and the two credential stores are gone, and a string-level
+ * assertion is the structural proof they cannot be quietly re-merged from
+ * upstream. The scrub below still has to recognise the vendor's leftover
+ * settings keys, its two provider ids and its two keychain slots, so all of
+ * them are composed at module load instead of sitting in the bundle as
+ * literals. This is the only place in `src/` that knows the name.
+ */
+const REMOVED_PROVIDER_VENDOR = ['bed', 'rock'].join('');
+
+/**
+ * Marker recorded in `data.json` once the Phase 2.B scrub has run.
+ *
+ * Declared on `LLMWikiSettings` as `_migrated_harden_bedrock_removed` (an
+ * interface field is erased at compile time, so the name never reaches the
+ * bundle) but always WRITTEN and READ through this assembled key, never as
+ * a literal property access — that is what keeps the bundle assertion
+ * meaningful. Exported because `main.ts` drops the marker when the
+ * keychain write fails.
+ */
+export const REMOVED_PROVIDER_SCRUB_MARKER = `_migrated_harden_${REMOVED_PROVIDER_VENDOR}_removed`;
+
+/**
+ * The two provider ids the removed surface registered. A `data.json` whose
+ * `provider` is one of these points at a provider this build no longer has,
+ * so the scrub resets it to the default and the caller tells the user.
+ */
+const REMOVED_PROVIDER_IDS = [
+  `${REMOVED_PROVIDER_VENDOR}-anthropic`,
+  `${REMOVED_PROVIDER_VENDOR}-openai`,
+] as const;
+
+/**
+ * Keychain slots that held the removed surface's SSO session token and its
+ * static IAM access keys. Both are blanked by
+ * `scrubRemovedProviderSecrets()`, which the caller runs because this
+ * module's migration function is pure.
+ */
+const REMOVED_PROVIDER_SECRET_IDS = [
+  `karpathywiki-${REMOVED_PROVIDER_VENDOR}-sso`,
+  `karpathywiki-${REMOVED_PROVIDER_VENDOR}-iam`,
+] as const;
 
 /** Minimal view of Obsidian's SecretStorage; keeps this module test-friendly. */
 export interface SecretSlotWriter {
@@ -294,6 +346,84 @@ export function applySettingsMigrations(
     if (!alreadyScrubbed || removedKey) applied.push('harden-oauth-provider-removed');
   }
 
+  // Hardening Phase 2.B: the AWS Bedrock SSO/IAM provider surface was
+  // removed — a hand-rolled OIDC device flow plus a hand-rolled SigV4
+  // signer, both of which minted and replayed cloud credentials with far
+  // wider blast radius than an LLM API key. Its settings keys, its two
+  // provider ids and its two keychain slots all have to leave the vault,
+  // not just the source tree: a downgrade-then-upgrade cycle or a sync
+  // conflict must not be able to resurrect a configured AWS identity.
+  //
+  // Pure side: delete the vendor's settings keys, reset the active
+  // provider when it was one of the removed ids, and set the marker. The
+  // two secret slots are blanked by `scrubRemovedProviderSecrets()`, which
+  // the caller (`main.ts loadSettings`) runs because this function must
+  // stay IO-free; `main.ts` also owns the one-time Notice and drops the
+  // marker again if the keychain write throws, so the next load retries.
+  //
+  // The DELETE and the provider reset are UNCONDITIONAL — deliberately NOT
+  // gated on our own marker, exactly like the Phase 3 plaintext-key scrub
+  // above and unlike the shape this block first shipped in. A marker-gated
+  // scrub only fires the first time it sees the data, which is the wrong
+  // guarantee here: `{ _migrated_…: true, bedrockSsoRoleName: '…',
+  // provider: 'bedrock-anthropic' }` — the shape a sync conflict, a
+  // downgrade-then-upgrade cycle or an upstream re-merge produces — would
+  // load straight through into `this.settings`, the next `saveSettings()`
+  // would write the AWS identity back to disk, and the plugin would stay
+  // wedged on a provider id this build cannot construct.
+  //
+  // Idempotence is preserved where it matters — the WRITE. `applied` is
+  // pushed (so `main.ts` calls `saveData` and blanks the keychain slots)
+  // only when this load actually had something to remove, so a
+  // steady-state load is still silent and does no IO.
+  if (savedData) {
+    const alreadyScrubbed = untrustedSettings[REMOVED_PROVIDER_SCRUB_MARKER] === true;
+    // Fragment match rather than a fixed field list, matching the Phase 2.A
+    // scrub: `bedrockRegion`, `bedrockAuthMethod`, `bedrockSsoStartUrl`,
+    // `bedrockSsoAccountId`, `bedrockSsoRoleName` — and anything a future
+    // upstream merge adds under that name — cannot survive one upgrade.
+    // The marker itself carries the vendor name, so it is skipped
+    // explicitly; it is written after this loop either way.
+    let removedKey = false;
+    for (const key of Object.keys(untrustedSettings)) {
+      if (key === REMOVED_PROVIDER_SCRUB_MARKER) continue;
+      if (!key.toLowerCase().includes(REMOVED_PROVIDER_VENDOR)) continue;
+      delete untrustedSettings[key];
+      removedKey = true;
+    }
+    // A provider id this build cannot construct would leave the plugin
+    // wedged on every LLM call, so fall back to the default and drop the
+    // readiness flag — the user has to re-pick a provider and a key.
+    //
+    // The model fields go with it. `provider` and `model` are one pair: a
+    // model id minted for the removed provider is not a model the default
+    // provider has, and `resolveModelForTask()` would hand that stale id to
+    // every ingest / lint / query call (per-task overrides first, then
+    // `settings.model`) against an endpoint that has never heard of it.
+    // Resetting the whole pair to DEFAULT_SETTINGS is what the UI already
+    // does on a manual provider switch (llmReady + availableModels + model
+    // + useCustomModel — see `ui/settings-sections/provider-section.ts`);
+    // a switch the migration performs FOR the user must not leave a
+    // half-configured state the user never chose.
+    const resetProvider = (REMOVED_PROVIDER_IDS as readonly string[]).includes(settings.provider);
+    if (resetProvider) {
+      settings.provider = DEFAULT_SETTINGS.provider;
+      settings.baseUrl = DEFAULT_SETTINGS.baseUrl;
+      settings.model = DEFAULT_SETTINGS.model;
+      settings.availableModels = [];
+      settings.useCustomModel = false;
+      settings.ingestModel = '';
+      settings.lintModel = '';
+      settings.queryModel = '';
+      settings.llmReady = false;
+      applied.push('harden-removed-provider-reset');
+    }
+    untrustedSettings[REMOVED_PROVIDER_SCRUB_MARKER] = true;
+    if (!alreadyScrubbed || removedKey || resetProvider) {
+      applied.push('harden-removed-provider-scrubbed');
+    }
+  }
+
   return { settings, applied };
 }
 
@@ -366,4 +496,24 @@ export function adoptScrubbedPlaintextApiKey(
   if (typeof existing === 'string' && existing.trim().length > 0) return false;
   secretStorage.setSecret(secretId, legacyKey);
   return true;
+}
+
+/**
+ * Hardening Phase 2.B: blank both keychain slots that held the removed
+ * provider's SSO session token and its static IAM access keys.
+ *
+ * Split out of `applySettingsMigrations` for the same reason as the
+ * Phase 2.A conversion-backend scrub: that function is pure and this
+ * touches the OS keychain.
+ *
+ * The write is UNCONDITIONAL and does not consult `getSecret` first. That
+ * differs from the conversion-backend scrub deliberately: these slots hold
+ * cloud credentials, and a read that returns null because the keychain is
+ * momentarily unreadable must not be mistaken for "already empty" and skip
+ * the clear. Writing `''` over an empty slot is a no-op, so this stays
+ * idempotent by construction; the caller gates on the migration marker
+ * anyway, and re-arms that marker if this throws.
+ */
+export function scrubRemovedProviderSecrets(secretStorage: SecretSlotWriter): void {
+  for (const id of REMOVED_PROVIDER_SECRET_IDS) secretStorage.setSecret(id, '');
 }

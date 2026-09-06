@@ -43,9 +43,11 @@ export interface ObsidianFetchInit {
  * understands. AI-SDK passes either a Headers instance, a plain object,
  * or an array of tuples.
  *
- * Exported since v1.27.0 (#425): the Bedrock SigV4 signing wrapper
- * reuses this normalization so wrapped and unwrapped paths see
- * identical header shapes.
+ * Exported since v1.27.0 (#425) for fetch wrappers that need the same
+ * normalization, so wrapped and unwrapped paths see identical header
+ * shapes. (The AWS SigV4 wrapper that first needed it was removed in
+ * hardening Phase 2.B; the export stays because it is the one place that
+ * defines the bridge's header contract.)
  */
 export function headersToObject(headers: HeadersInit | undefined): Record<string, string> {
   if (!headers) return {};

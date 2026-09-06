@@ -12,11 +12,7 @@ import { resolveProviderApiKey } from './llm-sdk/provider-api-key-resolver';
 import { isProviderSecretStorageError } from './llm-sdk/provider-secret-store';
 import { redactError, redactSecrets } from './core/redact';
 import { createLLMClient } from './core/create-plugin-llm-client';
-import { BedrockAuthManager } from './llm-sdk/bedrock-sso/credential-manager';
-import { BEDROCK_SSO_SECRET_ID, BEDROCK_IAM_SECRET_ID } from './llm-sdk/bedrock-sso/constants';
-import { obsidianFetchBridge } from './core/obsidian-fetch-bridge';
 import { registerEgressSettings } from './core/egress-policy';
-import { openExternalUrl } from './ui/bedrock-auth-controls';
 import { setActivePluginId } from './core/plugin-runtime-id';
 
 // v1.23.0 P1-7: AI-SDK migration. Eagerly preload SDK modules on plugin
@@ -38,7 +34,7 @@ export async function initializeLLMClientAfterModules(modulesLoaded: Promise<voi
 export { createLLMClient };
 import { TEXTS } from './texts';
 import { getText } from './core/i18n';
-import { applySettingsMigrations, adoptScrubbedPlaintextApiKey, scrubRemovedConversionBackendSecret, scrubRemovedOAuthProviderSecret } from './core/settings-migrations';
+import { applySettingsMigrations, adoptScrubbedPlaintextApiKey, scrubRemovedConversionBackendSecret, scrubRemovedOAuthProviderSecret, scrubRemovedProviderSecrets, REMOVED_PROVIDER_SCRUB_MARKER } from './core/settings-migrations';
 import { normalizeVocabularyCsv } from './core/tag-vocab';
 import { detectStaleWikiFolders } from './core/query-history-migration-check';
 import { BatchProgress } from './core/status-bar';
@@ -77,8 +73,6 @@ export class LLMWikiPlugin extends Plugin {
   wikiEngine: WikiEngine;
   schemaManager: SchemaManager;
   autoMaintainManager: AutoMaintainManager;
-  /** #425 Bedrock Stage 2 — SSO/IAM credential orchestrator. */
-  bedrockAuthManager: BedrockAuthManager | null = null;
   ingestQueue: IngestQueue = new IngestQueue();
   progressNotice: Notice | null = null;
   ingestStatusBar: HTMLElement | null = null;
@@ -119,14 +113,6 @@ export class LLMWikiPlugin extends Plugin {
     // there is no constructor to thread settings through; until this runs
     // the policy sees `{}` and is therefore strict (fail closed).
     registerEgressSettings(() => this.settings);
-    // #425 Bedrock Stage 2 — SSO/IAM credential orchestrator over
-    // SecretStorage; fetchFn is the same bridge the SDK clients use.
-    this.bedrockAuthManager = new BedrockAuthManager({
-      ssoSecretId: BEDROCK_SSO_SECRET_ID,
-      iamSecretId: BEDROCK_IAM_SECRET_ID,
-      secretStorage: this.app.secretStorage,
-      fetchFn: obsidianFetchBridge as unknown as (url: string, init?: RequestInit) => Promise<Response>,
-    });
     this.cleanupVocabularyTags();
     await initializeLLMClientAfterModules(aiSdkModulesLoaded, () => this.initializeLLMClient());
 
@@ -220,28 +206,8 @@ export class LLMWikiPlugin extends Plugin {
     // Drop the settings getter so a stale plugin instance can never
     // authorize egress for the next one.
     registerEgressSettings(null);
-    // #425: drop in-memory temp credentials ONLY — the persisted SSO
-    // token survives so the user stays signed in across restarts.
-    this.bedrockAuthManager?.dispose();
     this.autoMaintainManager?.stop();
     console.debug('LLM Wiki Plugin unloaded');
-  }
-
-  /**
-   * #425 Bedrock Stage 2 — AWS-credential presence for the active
-   * bedrock provider mode. Returns undefined when the active provider/
-   * mode doesn't use AWS credentials (non-bedrock or api-key mode), so
-   * isProviderConfigured keeps legacy semantics there.
-   */
-  private bedrockCredentialPresence(): boolean | undefined {
-    // Manager not constructed yet (early loadSettings path): report
-    // unknown so legacy semantics apply rather than a false negative.
-    if (!this.bedrockAuthManager) return undefined;
-    if (!this.settings.provider.startsWith('bedrock-')) return undefined;
-    const method = this.settings.bedrockAuthMethod ?? 'api-key';
-    if (method === 'sso') return this.bedrockAuthManager.hasSsoToken() === true;
-    if (method === 'iam') return this.bedrockAuthManager.hasIamKeys() === true;
-    return undefined;
   }
 
   async loadSettings() {
@@ -314,6 +280,36 @@ export class LLMWikiPlugin extends Plugin {
       }
     }
 
+    // Hardening Phase 2.B: the AWS Bedrock SSO/IAM provider surface is
+    // gone. `applySettingsMigrations` has already deleted its settings keys
+    // and reset the active provider when it was one of the removed ids; the
+    // two paired keychain slots (SSO session token / static IAM keys) are
+    // blanked here because the migration helper is pure. No saveData() call:
+    // the shared `applied.length > 0` write below persists the whole pass.
+    if (applied.includes('harden-removed-provider-scrubbed')) {
+      try {
+        scrubRemovedProviderSecrets(this.app.secretStorage);
+        console.debug('[main.loadSettings] Cleared the removed provider credentials from SecretStorage');
+      } catch (error) {
+        // Best-effort: a keychain failure must not block startup. The
+        // settings keys are already gone and the provider cannot be
+        // selected either way. Drop the marker before the shared saveData()
+        // below persists it, so the next load retries the two slots —
+        // otherwise the marker would record a scrub that never happened and
+        // live cloud credentials would sit in the keychain forever.
+        delete (this.settings as unknown as Record<string, unknown>)[REMOVED_PROVIDER_SCRUB_MARKER];
+        console.error('[main.loadSettings] Failed to clear the removed provider credentials; retrying on next load:', redactError(error));
+      }
+    }
+
+    // A vault configured against the removed provider is now pointing at a
+    // provider this build does not have, so the migration reset it. Say so
+    // once — silently switching the provider under the user would look like
+    // data loss the next time a wiki build used the wrong model.
+    if (applied.includes('harden-removed-provider-reset')) {
+      new Notice(getText(this.settings.language, 'removedProviderResetNotice'), NOTICE_ERROR);
+    }
+
     // Hardening Phase 2.B: the ChatGPT-subscription OAuth provider is gone.
     // `applySettingsMigrations` has already deleted its settings keys and
     // reset the active provider; the OAuth credential blob in the keychain is
@@ -369,15 +365,10 @@ export class LLMWikiPlugin extends Plugin {
       // would survive the keychain coming back.
       const resolvedKey = this.resolveKeyOrNotify();
       if (resolvedKey === null) return;
-      const bedrockPresence = this.bedrockCredentialPresence();
       const hasConfig = isProviderConfigured({
         provider: this.settings.provider,
         apiKey: resolvedKey,
         model: this.settings.model,
-        ...(bedrockPresence !== undefined && {
-          bedrockAuthMethod: this.settings.bedrockAuthMethod,
-          hasBedrockCredential: bedrockPresence,
-        }),
       });
       this.settings.llmReady = hasConfig;
       if (hasConfig) {
@@ -460,16 +451,6 @@ export class LLMWikiPlugin extends Plugin {
     }
   }
 
-  /**
-   * Hand a URL to the user's browser. Hardening Phase 2.B: this used to be
-   * supplied by the removed OAuth command mixin; the Bedrock SSO device flow
-   * is now the only caller, so it lives on the plugin directly.
-   */
-  openExternal(url: string): void {
-    const target = typeof activeWindow !== 'undefined' ? activeWindow : window;
-    openExternalUrl(target, url);
-  }
-
   initializeLLMClient(): void {
     // v1.25.3 #182: resolve from SecretStorage — the only place the key
     // has ever lived since v1.25.3, and since hardening Phase 3 (F-03) the
@@ -481,15 +462,10 @@ export class LLMWikiPlugin extends Plugin {
       this.llmClient = null;
       return;
     }
-    const bedrockPresence = this.bedrockCredentialPresence();
     if (!isProviderConfigured({
       provider: this.settings.provider,
       apiKey: resolvedKey,
       model: this.settings.model,
-      ...(bedrockPresence !== undefined && {
-        bedrockAuthMethod: this.settings.bedrockAuthMethod,
-        hasBedrockCredential: bedrockPresence,
-      }),
     })) {
       this.llmClient = null;
       return;
@@ -497,7 +473,7 @@ export class LLMWikiPlugin extends Plugin {
     try {
       // v1.25.3 #182: pass `app.secretStorage` so the SDK factory reads
       // the live key from the OS keychain.
-      this.llmClient = createLLMClient(this.settings, this.app.secretStorage, undefined, this.bedrockAuthManager ?? undefined);
+      this.llmClient = createLLMClient(this.settings, this.app.secretStorage);
       console.debug('LLM Client initialized:', this.settings.provider);
     } catch (error) {
       // Hardening Phase 3 (F-03/3.5): the SDK factory's throw can carry a

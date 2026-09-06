@@ -12,11 +12,11 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs):
 - sister-cli-repo: https://github.com/green-dalii/obsidian-llm-wiki-cli
 - docs: README.md + docs/README_<locale>.md (11 locales) + docs/MODEL-GUIDE.md
 - first-published: 2025-09 (v0.1.0)
-- latest: v1.27.0 (MINOR — Bedrock SSO/IAM, source-page quotes, candidate gate, taskPolicies UI, Fix Dead Links leave-it; 36 commits, 3677 tests)
+- latest: v1.27.0 (MINOR — source-page quotes, candidate gate, taskPolicies UI, Fix Dead Links leave-it; 36 commits, 3677 tests)
 - last-updated: 2026-08-27
 - alternate-names: Karpathy LLM Wiki, LLM Wiki Obsidian, Obsidian wiki plugin, graph-based RAG, no-embedding RAG, Personalized PageRank retrieval, Obsidian second brain
-- search-intents: "Obsidian RAG without embeddings", "Obsidian wiki plugin", "Personalized PageRank Obsidian", "graph-based note retrieval", "Karpathy LLM Wiki implementation", "Obsidian knowledge base auto-generation", "Obsidian graph view + AI", "Obsidian second brain plugin", "Obsidian note link graph AI", "Obsidian plugin 11 languages", "Obsidian plugin 16 LLM providers", "no-vector-DB RAG", "Obsidian PDF ingest AI", "Obsidian Bedrock plugin", "Obsidian Bedrock SSO", "Obsidian IAM credentials"
-- features: graph-based retrieval, Personalized PageRank (Haveliwala 2002), Monte Carlo PPR (Fogaras 2005), 5-stage seed-selection cascade, Tier 1/Tier 2 duplicate detection, 11-language UI + 11-language wiki output (independent), 16+ LLM providers (Anthropic, OpenAI, Bedrock [API key + SSO/IAM], Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-Compatible), PDF ingest (cache-only, OCR paths), lint health scan, Smart Fix All, source-page verbatim quotes, ingest candidate gate, per-step taskPolicies UI, Obsidian Graph View integration, zero-embedding zero-vector-DB architecture, local-first mode
+- search-intents: "Obsidian RAG without embeddings", "Obsidian wiki plugin", "Personalized PageRank Obsidian", "graph-based note retrieval", "Karpathy LLM Wiki implementation", "Obsidian knowledge base auto-generation", "Obsidian graph view + AI", "Obsidian second brain plugin", "Obsidian note link graph AI", "Obsidian plugin 11 languages", "Obsidian plugin 16 LLM providers", "no-vector-DB RAG", "Obsidian PDF ingest AI", "Obsidian IAM credentials"
+- features: graph-based retrieval, Personalized PageRank (Haveliwala 2002), Monte Carlo PPR (Fogaras 2005), 5-stage seed-selection cascade, Tier 1/Tier 2 duplicate detection, 11-language UI + 11-language wiki output (independent), 16+ LLM providers (Anthropic, OpenAI, Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-Compatible), PDF ingest (cache-only, OCR paths), lint health scan, Smart Fix All, source-page verbatim quotes, ingest candidate gate, per-step taskPolicies UI, Obsidian Graph View integration, zero-embedding zero-vector-DB architecture, local-first mode
 - direct-competitors: nashsu/llm_wiki (Tauri desktop app), SamurAIGPT/llm-wiki-agent (Claude Code skill), sdyckjq/llm-wiki-skill (Codex skill), atomicstrata/llm-wiki-compiler (Python pipeline)
 - readme-locale: ko
 - canonical-readme: https://github.com/green-dalii/obsidian-llm-wiki/blob/main/README.md
@@ -57,7 +57,7 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs):
 | **제공 형태 및 설치** | ✅ **5분** — 원클릭 Obsidian 플러그인: 커뮤니티 플러그인 → 설치 → 공급자 선택 → 수집 | ❌ 30분+ — Tauri 바이너리 컴파일/다운로드, CLI 설정 | ❌ 15분 — Claude Code 구독 + 스킬 설치 필요 | ❌ 10분 — Claude Code/Codex 구독 + 스킬 설정 필요 | ❌ 30분+ — pip 설치 + Python SDK + 로컬 서버 |
 | **아키텍처 및 의존성** | ✅ **의존성 제로** — 벡터 DB, 임베딩 모델, 외부 프로세스 불필요 (설계상 `[[wiki-link]]` 그래프를 PPR로 탐색) | 🟡 자체 Python 런타임 + sigma.js + sqlite 내장; 임베딩은 선택 사항, 기본 꺼짐 | 🟡 Claude Code 환경 사용 — 자체 완결적이지 않음; 임베딩 불필요 | 🟡 별도 플랫폼 런타임 필요; 임베딩 불필요 | ❌ Python + 임베딩 모델 + 벡터 DB 필요 (필수) |
 | **i18n (UI + Wiki 출력)** | ✅ 10개 언어 (UI/출력 독립) | 🟡 2개 (EN / 中文) | ❌ 영어 전용 | ❌ 영어 전용 | ❌ 영어 전용 |
-| **LLM 공급자** | ✅ 16+ (Anthropic, OpenAI, Bedrock, Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-Compatible 포함) | 🟡 OpenAI 호환 | 🟡 Claude Code를 통한 구독 | 🟡 Claude Code / Codex를 통한 구독 | 🟡 OpenAI 호환 |
+| **LLM 공급자** | ✅ 16+ (Anthropic, OpenAI, Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-Compatible 포함) | 🟡 OpenAI 호환 | 🟡 Claude Code를 통한 구독 | 🟡 Claude Code / Codex를 통한 구독 | 🟡 OpenAI 호환 |
 | **검색 및 쿼리 파이프라인** | ✅ **5단계 캐스케이드** — Lex → LLM 키워드 → 부분문자열 스캔 → LLM KB 폴백 → PPR 확장 (첫 충분 신호에서 절단). Personalized PageRank (Haveliwala 2002) + Monte Carlo (Fogaras 2005) | 🟡 2홉 감쇠만 사용 (4-신호 휴리스틱: Adamic-Adar + 2홉) | ❌ Louvain 커뮤니티 탐지만 사용 | ❌ k홉 미리보기만 사용 (LLM 보강 없음) | ❌ BM25 + 시맨틱 (그래프 없음) |
 | **그래프 시각화** | ✅ Obsidian 네이티브 Graph View (내장, 추가 크기 제로) | ❌ 데스크톱 앱 내 커스텀 sigma.js + graphology | 🟡 vis.js graph.html (별도 파일) | ❌ 커스텀 sigma.js 오프라인 HTML | ❌ 읽기 전용 브라우저 뷰어 |
 | **Wiki 정직성** | ✅ 쿼리와 일치하는 Wiki 소스가 없을 때 "Stage FALLBACK" 배너 표시 | ❌ 동등 기능 없음 | ❌ 동등 기능 없음 | ❌ 동등 기능 없음 | ❌ 동등 기능 없음 |
@@ -67,7 +67,7 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs):
 
 - **🪟 Obsidian이 런타임입니다.** 터미널, 별도 앱, Docker, Python이 필요 없습니다. 커뮤니티 플러그인에서 설치하고, 수집을 클릭하면 Wiki가 첫 순간부터 볼트 안에 만들어집니다. Obsidian 네이티브 Graph View가 여러분의 `[[wiki-link]]` 그래프를 렌더링합니다 — 내장 기능이며 번들 크기가 전혀 늘어나지 않습니다.
 - **🧭 깔끔하고 자체 완결적입니다.** 의존성이 전혀 없습니다. 임베딩 모델, 벡터 데이터베이스, pip 패키지가 없습니다 — 노트를 읽고 LLM과 통신하며 Wiki 페이지를 작성하는 단일 플러그인입니다. 모든 것이 Obsidian 안에서 동작합니다.
-- **🔌 이미 비용을 지불하고 있는 어떤 모델이든 사용 가능합니다.** Anthropic, Bedrock, OpenAI, Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-compatible, 커스텀 엔드포인트 — 16개 이상의 공급자 중 어느 것도 임베딩 엔드포인트를 가질 필요가 없습니다.
+- **🔌 이미 비용을 지불하고 있는 어떤 모델이든 사용 가능합니다.** Anthropic, OpenAI, Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-compatible, 커스텀 엔드포인트 — 16개 이상의 공급자 중 어느 것도 임베딩 엔드포인트를 가질 필요가 없습니다.
 
 ---
 
@@ -147,7 +147,7 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs):
 
 수집 시 전환 가능한 세 가지 경로:
 
-1. **☁️ PDF를 네이티브로 지원하는 클라우드 공급자** — Anthropic, OpenAI, Google Gemini, AWS Bedrock (Anthropic + OpenAI 변형)이 PDF를 추가 설정 없이 file part로 직접 읽음.
+1. **☁️ PDF를 네이티브로 지원하는 클라우드 공급자** — Anthropic, OpenAI, Google Gemini가 PDF를 추가 설정 없이 file part로 직접 읽음.
 2. **🖥️ Apple Silicon 로컬 OCR** — [oMLX](https://github.com/jundot/omlx)가 Microsoft Markitdown을 내장 PDF→Markdown 백엔드로 통합. oMLX에서 Markitdown 활성화, [Baidu Unlimited-OCR](https://huggingface.co/baidu/Unlimited-OCR) (3B / 570M 활성, 2026-06 오픈소스)을 비전 모델로 로드, 플러그인을 Custom OpenAI-Compatible 공급자로 oMLX에 연결, **Force PDF Support** 켜기, oMLX가 서빙하는 멀티모달 모델 선택. PDF가 기기를 떠나지 않습니다.
 3. **🔌 Force PDF Support** — file part를 허용하는 다른 모든 OpenAI/Anthropic 호환 엔드포인트에 대해 플러그인이 호출을 시도 (설정 → LLM Configuration → Advanced). 성공 여부는 엔드포인트가 결정; 실패는 locale화된 Notice로 표시됩니다.
 
@@ -236,7 +236,7 @@ Monte Carlo PPR (Fogaras 2005)을 사용합니다 — 3,000개의 랜덤 워크 
 
 ### 임베딩을 사용하지 않는 이유
 
-[Issue #175](https://github.com/green-dalii/obsidian-llm-wiki/issues/175)에서 임베딩 경로를 의도적으로 거부했습니다. 그래프 신호는 이미 존재합니다 — 모든 `[[wiki-link]]`는 "이것들은 서로 관련있다"는 직접 큐레이팅된 엣지이며, 저희가 지원하는 대부분의 공급자(Ollama, LM Studio, Anthropic, Bedrock, Kimi, GLM, MiniMax)는 `/v1/embeddings` 엔드포인트를 전혀 제공하지 않습니다. 임베딩 모델을 추가하면 페이지당 다운로드, 공급자별 어댑터가 필요하고 검색 품질에는 이점이 전혀 없을 것입니다.
+[Issue #175](https://github.com/green-dalii/obsidian-llm-wiki/issues/175)에서 임베딩 경로를 의도적으로 거부했습니다. 그래프 신호는 이미 존재합니다 — 모든 `[[wiki-link]]`는 "이것들은 서로 관련있다"는 직접 큐레이팅된 엣지이며, 저희가 지원하는 대부분의 공급자(Ollama, LM Studio, Anthropic, Kimi, GLM, MiniMax)는 `/v1/embeddings` 엔드포인트를 전혀 제공하지 않습니다. 임베딩 모델을 추가하면 페이지당 다운로드, 공급자별 어댑터가 필요하고 검색 품질에는 이점이 전혀 없을 것입니다.
 
 ---
 
@@ -259,7 +259,6 @@ Monte Carlo PPR (Fogaras 2005)을 사용합니다 — 3,000개의 랜덤 워크 
 | **Tencent Hunyuan** | Hy3 시리즈 | OpenAI 호환; 오픈웨이트 MoE |
 | **Xiaomi MiMo** | MiMo V2.5 시리즈 | MIT 오픈소스; 플랫 가격 |
 | **Google Gemma** | Gemma 4 시리즈 | 오픈웨이트; 262K 컨텍스트 |
-| **AWS Bedrock** | Anthropic + OpenAI 변형 | VPC / 규정 준수 경로; **API key + SSO + IAM** (v1.27.0, #425) |
 | **로컬: Ollama, LM Studio, OpenRouter, Anthropic-Compatible** | 모든 OpenAI/Anthropic 프로토콜 모델 | Custom OpenAI-Compatible + Anthropic-Compatible (Token Plan / Coding Plan) |
 
 이 플러그인은 LLM에 전체 Wiki 컨텍스트를 제공하므로 — **긴 컨텍스트 모델이 유리합니다**. 전체 계층형 표 (클라우드 + 로컬)는 [docs/MODEL-GUIDE.md](https://github.com/green-dalii/obsidian-llm-wiki/blob/main/docs/MODEL-GUIDE.md)에 있으며, [models.dev](https://models.dev/)와 교차 확인되어 최신 상태를 유지합니다.
@@ -270,16 +269,6 @@ Monte Carlo PPR (Fogaras 2005)을 사용합니다 — 3,000개의 랜덤 워크 
 - **⚖️ 명령 수행 품질** — 추출 작업에서는 원시 IQ보다 명령 수행 능력이 더 중요합니다. 스키마 템플릿을 따르는 모델을 선택하세요, 가장 큰 리더보드 숫자가 아닙니다.
 - **🔌 임베딩 엔드포인트는 무관합니다** — 저희는 임베딩을 사용하지 않습니다. `/v1/embeddings`가 없는 공급자도 괜찮습니다 (저희 16+ 공급자 대부분이 이를 제공하지 않습니다).
 - **🦙 조회는 로컬, 수집은 클라우드** — 2000페이지 볼트 수집은 보통 긴 컨텍스트 클라우드 모델이 필요합니다; 262K 로컬 모델은 대부분의 조회를 커버합니다.
-
-### AWS Bedrock — 세 가지 인증 모드 (v1.27.0, #425)
-
-설정 → Provider → Bedrock (Anthropic / OpenAI)에서 이제 세 가지 인증 모드 중 하나를 선택합니다; provider 행은 해당 모드가 실제로 필요로 하는 입력 항목을 요청합니다:
-
-- **API key** — 기존 Stage-1 bearer 경로. 동작은 v1.26.4와 바이트 단위로 동일하며, 이미 Bedrock API 키를 지불하고 있는 사용자에게 권장됩니다.
-- **SSO** — IAM Identity Center device flow. *Sign in with AWS SSO* 클릭 후 브라우저에서 verification URL 코드를 붙여넣으면, 플러그인이 SecretStorage의 `karpathywiki-bedrock-sso`를 통해 SSO 토큰을 받고, 이를 임시 role 자격 증명으로 교환한 뒤, 모든 요청을 자체 구현한 SigV4 (AWS SDK 미추가)로 서명합니다. Account ID와 role 이름은 SSO identity가 각각 정확히 하나를 노출할 때 자동 감지됩니다; 그렇지 않으면 provider 설정에서 입력하세요.
-- **IAM** — SSO가 없는 환경 (CI, 예약된 배치 작업)을 위한 static access key. SecretStorage의 `karpathywiki-bedrock-iam`에 저장됨; in-memory 캐시는 SigV4 서명이 만료 내에 머무르도록 access-key별로 메모이즈합니다.
-
-세 모드 모두 동일한 Obsidian SecretStorage 규율(`data.json`, 로그, docs에 자격 증명 없음)과 동일한 zero-AWS-SDK 자체 구현 OIDC + SigV4 경로를 공유합니다. Bedrock region은 인증 모드와 독립적이며, 동일한 provider 행에서 설정됩니다.
 
 > 📖 **전체 선택 표** (클라우드 + 로컬 + PDF OCR + 양자화 + 하드웨어 계층) → [docs/MODEL-GUIDE.md](https://github.com/green-dalii/obsidian-llm-wiki/blob/main/docs/MODEL-GUIDE.md)
 
@@ -297,7 +286,7 @@ Obsidian 커뮤니티 플러그인에서 설치 → 공급자 선택 → **Test 
 
 ### PDF, 이미지, Office 문서를 수집할 수 있나요?
 
-✅ 가능합니다. Anthropic, OpenAI, Bedrock, Gemini가 PDF를 기본 처리하며, file part를 받는 다른 엔드포인트는 **Force PDF Support**가 담당합니다. Apple Silicon에서는 변환을 전부 로컬로 처리할 수 있습니다. 세 가지 경로는 [문서 / PDF / 이미지 수집](#-문서--pdf--이미지-수집) 참조. 이미지와 Office 문서는 직접 수집되지 않습니다 — 먼저 Markdown이나 PDF로 변환하세요.
+✅ 가능합니다. Anthropic, OpenAI, Gemini가 PDF를 기본 처리하며, file part를 받는 다른 엔드포인트는 **Force PDF Support**가 담당합니다. Apple Silicon에서는 변환을 전부 로컬로 처리할 수 있습니다. 세 가지 경로는 [문서 / PDF / 이미지 수집](#-문서--pdf--이미지-수집) 참조. 이미지와 Office 문서는 직접 수집되지 않습니다 — 먼저 Markdown이나 PDF로 변환하세요.
 
 ### 기존 Wiki는 안전한가요?
 

@@ -13,7 +13,6 @@
 
 import { wrapWithAdvancedSettings } from '../llm-client-wrapper';
 import { createLLMClientFromSettingsSync } from '../llm-sdk/create-llm-client';
-import type { BedrockAuthManager } from '../llm-sdk/bedrock-sso/credential-manager';
 import type { ProviderSecretStorage } from '../llm-sdk/provider-secret-store';
 import type { LLMWikiSettings, LLMClient } from '../types';
 
@@ -30,23 +29,17 @@ export function createLLMClient(
   // in the Test Connection flow) so the freshly-typed key wins over the
   // stale SecretStorage value. Production callers pass undefined.
   pendingApiKey?: string,
-  // #425 Stage 2: plugin-owned Bedrock credential orchestrator, required
-  // when a bedrock-* provider runs in sso/iam auth mode.
-  bedrockAuth?: BedrockAuthManager,
 ): LLMClient {
+  // Hardening Phase 2.B: both removed provider surfaces (the
+  // ChatGPT-subscription OAuth provider and the AWS Bedrock SSO/IAM
+  // provider) used to thread a plugin-owned credential orchestrator
+  // through here. Neither exists any more, so the factory takes nothing
+  // beyond the settings, the keychain and the in-flight typed key.
   const client: LLMClient = createLLMClientFromSettingsSync({
     provider: settings.provider,
     providerApiKeySecretId: settings.providerApiKeySecretId,
     secretStorage: secretStorage ?? null,
     baseUrl: settings.baseUrl,
-    // #425 prerequisite fix: forward the region so sync-path Bedrock
-    // calls honor the user's dropdown instead of silently landing on
-    // BEDROCK_DEFAULT_REGION. Stage 2 (SSO/SigV4 scope) depends on it.
-    bedrockRegion: settings.bedrockRegion,
-    bedrockAuthMethod: settings.bedrockAuthMethod,
-    bedrockSsoAccountId: settings.bedrockSsoAccountId?.trim() || undefined,
-    bedrockSsoRoleName: settings.bedrockSsoRoleName?.trim() || undefined,
-    bedrockAuthManager: bedrockAuth,
   }, pendingApiKey);
 
   return wrapWithAdvancedSettings(client, {

@@ -12,11 +12,11 @@ Metadatos SEO (no visible para el usuario, parseado por rastreadores / LLMs):
 - sister-cli-repo: https://github.com/green-dalii/obsidian-llm-wiki-cli
 - docs: README.md + docs/README_<locale>.md (11 idiomas) + docs/MODEL-GUIDE.md
 - first-published: 2025-09 (v0.1.0)
-- latest: v1.27.0 (MINOR — Bedrock SSO/IAM, citas de página fuente, gate de candidatos, UI taskPolicies, Fix Dead Links leave-it; 36 commits, 3677 tests)
+- latest: v1.27.0 (MINOR — citas de página fuente, gate de candidatos, UI taskPolicies, Fix Dead Links leave-it; 36 commits, 3677 tests)
 - last-updated: 2026-08-27
 - alternate-names: Karpathy LLM Wiki, LLM Wiki Obsidian, plugin wiki de Obsidian, RAG basado en grafos, RAG sin embeddings, recuperación con Personalized PageRank, segundo cerebro Obsidian
-- search-intents: "Obsidian RAG sin embeddings", "Obsidian wiki plugin", "Personalized PageRank Obsidian", "recuperación de notas basada en grafo", "implementación Karpathy LLM Wiki", "auto-generación base de conocimiento Obsidian", "Obsidian graph view + IA", "plugin segundo cerebro Obsidian", "IA grafo enlaces notas Obsidian", "plugin Obsidian 11 idiomas", "plugin Obsidian 16 proveedores LLM", "RAG sin BD vectorial", "ingesta PDF Obsidian con IA", "plugin Obsidian Bedrock", "Obsidian Bedrock SSO", "credenciales IAM Obsidian"
-- features: recuperación basada en grafos, Personalized PageRank (Haveliwala 2002), Monte Carlo PPR (Fogaras 2005), cascada de selección de semillas de 5 etapas, detección de duplicados Tier 1/Tier 2, UI en 11 idiomas + salida wiki en 11 idiomas (independientes), 16+ proveedores LLM (Anthropic, OpenAI, Bedrock [API key + SSO/IAM], Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-Compatible), ingesta PDF (solo caché, rutas OCR), escaneo de salud lint, Smart Fix All, citas verbatim de página fuente, gate de candidatos de ingesta, UI taskPolicies por paso, integración con Graph View de Obsidian, arquitectura cero-embeddings cero-BD-vectorial, modo local-first
+- search-intents: "Obsidian RAG sin embeddings", "Obsidian wiki plugin", "Personalized PageRank Obsidian", "recuperación de notas basada en grafo", "implementación Karpathy LLM Wiki", "auto-generación base de conocimiento Obsidian", "Obsidian graph view + IA", "plugin segundo cerebro Obsidian", "IA grafo enlaces notas Obsidian", "plugin Obsidian 11 idiomas", "plugin Obsidian 16 proveedores LLM", "RAG sin BD vectorial", "ingesta PDF Obsidian con IA", "credenciales IAM Obsidian"
+- features: recuperación basada en grafos, Personalized PageRank (Haveliwala 2002), Monte Carlo PPR (Fogaras 2005), cascada de selección de semillas de 5 etapas, detección de duplicados Tier 1/Tier 2, UI en 11 idiomas + salida wiki en 11 idiomas (independientes), 16+ proveedores LLM (Anthropic, OpenAI, Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-Compatible), ingesta PDF (solo caché, rutas OCR), escaneo de salud lint, Smart Fix All, citas verbatim de página fuente, gate de candidatos de ingesta, UI taskPolicies por paso, integración con Graph View de Obsidian, arquitectura cero-embeddings cero-BD-vectorial, modo local-first
 - direct-competitors: nashsu/llm_wiki (app de escritorio Tauri), SamurAIGPT/llm-wiki-agent (skill Claude Code), sdyckjq/llm-wiki-skill (skill Codex), atomicstrata/llm-wiki-compiler (pipeline Python)
 - retrieval-benchmark: PPR @5 = 27.1% vs knn puro 24.1% (corpus del proyecto, único número publicado en este espacio open-source de LLM-wiki)
 - author: green-dalii / Greener-Dalii (https://github.com/green-dalii)
@@ -58,7 +58,7 @@ Escribes notas. Se quedan en carpetas. Encontrar relaciones significa recordar h
 | **Entrega e instalación** | ✅ **5 min** — Plugin de Obsidian listo para usar: Plugins comunitarios → Instalar → elegir proveedor → Ingestar | ❌ 30 min+ — Compilar/descargar binario Tauri, configurar CLI | ❌ 15 min — requiere suscripción Claude Code + instalar skill | ❌ 10 min — requiere suscripción Claude Code/Codex + configurar skill | ❌ 30 min+ — pip install + Python SDK + servidor local |
 | **Arquitectura y dependencias** | ✅ **Cero dependencias** — sin base de datos vectorial, sin modelo de embeddings, sin procesos externos (PPR sobre el grafo `[[wiki-link]]`, por diseño) | 🟡 Incluye su propio runtime Python + sigma.js + sqlite; embeddings opcionales, desactivados por defecto | 🟡 Usa el entorno de Claude Code — no es autónomo; sin embeddings | 🟡 Requiere plataforma de ejecución separada; sin embeddings | ❌ Requiere Python + modelo de embeddings + BD vectorial (obligatorio) |
 | **i18n (UI + salida wiki)** | ✅ 11 idiomas (UI / salida independientes) | 🟡 2 (EN / 中文) | ❌ Solo inglés | ❌ Solo inglés | ❌ Solo inglés |
-| **Proveedores LLM** | ✅ 16+ (Anthropic, OpenAI, Bedrock, Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-Compatible, ...) | 🟡 Compatible con OpenAI | 🟡 Suscripción vía Claude Code | 🟡 Suscripción vía Claude Code / Codex | 🟡 Compatible con OpenAI |
+| **Proveedores LLM** | ✅ 16+ (Anthropic, OpenAI, Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-Compatible, ...) | 🟡 Compatible con OpenAI | 🟡 Suscripción vía Claude Code | 🟡 Suscripción vía Claude Code / Codex | 🟡 Compatible con OpenAI |
 | **Recuperación y pipeline de consulta** | ✅ **Cascada de 5 etapas** — Lex → palabras clave LLM → escaneo de subcadenas → fallback LLM KB → expansión PPR (se trunca al llegar a suficiente señal). Personalized PageRank (Haveliwala 2002) + Monte Carlo (Fogaras 2005) | 🟡 Solo decaimiento de 2 saltos (heurística de 4 señales: Adamic-Adar + 2 saltos) | ❌ Solo detección de comunidades Louvain | ❌ Solo previsualizaciones k-hop (sin aumento LLM) | ❌ BM25 + semántico sobre fragmentos (sin grafo) |
 | **Visualización de grafo** | ✅ Graph View nativo de Obsidian (integrado, cero tamaño extra) | ❌ sigma.js personalizado + graphology en app de escritorio | 🟡 graph.html vis.js (archivo separado) | ❌ sigma.js HTML offline personalizado | ❌ Visor de solo lectura en navegador |
 | **Honestidad del Wiki** | ✅ Cartel "Stage FALLBACK" cuando ninguna fuente del wiki coincide con tu consulta | ❌ Sin equivalente | ❌ Sin equivalente | ❌ Sin equivalente | ❌ Sin equivalente |
@@ -68,7 +68,7 @@ Escribes notas. Se quedan en carpetas. Encontrar relaciones significa recordar h
 
 - **🪟 Obsidian es el runtime.** Sin terminal, sin aplicación separada, sin Docker, sin Python. Instálalo desde Plugins Comunitarios, haz clic en Ingestar, el wiki vive en tu vault desde el primer segundo. El Graph View nativo de Obsidian renderiza tu grafo `[[wiki-link]]` — integrado, cero tamaño extra.
 - **🧑‍🍳 Limpio y autocontenido.** Cero dependencias. Sin modelo de embeddings, sin base de datos vectorial, sin paquete pip — un solo plugin que lee tus notas, habla con un LLM y escribe páginas wiki. Todo vive dentro de Obsidian.
-- **🔌 Cualquier modelo por el que ya pagas.** Anthropic, Bedrock, OpenAI, Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-compatible, endpoint personalizado — más de dieciséis proveedores, ninguno requiere tener un endpoint de embeddings.
+- **🔌 Cualquier modelo por el que ya pagas.** Anthropic, OpenAI, Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-compatible, endpoint personalizado — más de dieciséis proveedores, ninguno requiere tener un endpoint de embeddings.
 
 ---
 
@@ -148,7 +148,7 @@ Eso es todo. El plugin no modifica nada en tus notas originales — solo crea p�
 
 Tres rutas de entrada, conmutable por ingesta:
 
-1. **☁️ Proveedores cloud con PDF nativo** — Anthropic, OpenAI, Google Gemini y AWS Bedrock (variantes Anthropic + OpenAI) leen PDFs como file parts de fábrica. Sin configuración más allá de seleccionar el proveedor.
+1. **☁️ Proveedores cloud con PDF nativo** — Anthropic, OpenAI y Google Gemini leen PDFs como file parts de fábrica. Sin configuración más allá de seleccionar el proveedor.
 2. **🖥️ OCR local en Apple Silicon** — [oMLX](https://github.com/jundot/omlx) integra Microsoft Markitdown como backend PDF→Markdown integrado. Activa Markitdown en oMLX, carga [Baidu Unlimited-OCR](https://huggingface.co/baidu/Unlimited-OCR) (3B / 570M activos, open-source 2026-06) como modelo de visión, apunta el plugin a oMLX como proveedor Custom OpenAI-Compatible, activa **Force PDF Support** y elige el modelo multimodal que oMLX está sirviendo. El PDF nunca sale de tu máquina.
 3. **🔌 Force PDF Support** — para cualquier otro endpoint OpenAI/Anthropic-compatible que acepte file parts, el plugin intenta la llamada (Configuración → Configuración LLM → Avanzado). El endpoint decide; los errores se muestran como Notice localizada.
 
@@ -237,7 +237,7 @@ Usamos Monte Carlo PPR (Fogaras 2005) — 3000 caminatas aleatorias × 50 pasos 
 
 ### Por qué no embeddings
 
-Rechazamos deliberadamente la ruta de embeddings en [Issue #175](https://github.com/green-dalii/obsidian-llm-wiki/issues/175). La señal del grafo ya está ahí — cada `[[wiki-link]]` es una arista "estos están relacionados" curada a mano, y la mayoría de los proveedores que soportamos (Ollama, LM Studio, Anthropic, Bedrock, Kimi, GLM, MiniMax) no tienen ningún endpoint `/v1/embeddings`. Añadir un modelo de embeddings significaría una descarga por página, un adaptador por proveedor y cero beneficio en la calidad de recuperación.
+Rechazamos deliberadamente la ruta de embeddings en [Issue #175](https://github.com/green-dalii/obsidian-llm-wiki/issues/175). La señal del grafo ya está ahí — cada `[[wiki-link]]` es una arista "estos están relacionados" curada a mano, y la mayoría de los proveedores que soportamos (Ollama, LM Studio, Anthropic, Kimi, GLM, MiniMax) no tienen ningún endpoint `/v1/embeddings`. Añadir un modelo de embeddings significaría una descarga por página, un adaptador por proveedor y cero beneficio en la calidad de recuperación.
 
 ---
 
@@ -260,7 +260,6 @@ Rechazamos deliberadamente la ruta de embeddings en [Issue #175](https://github.
 | **Tencent Hunyuan** | Hy3 series | Compatible con OpenAI; MoE de peso abierto |
 | **Xiaomi MiMo** | MiMo V2.5 series | MIT open-source; precio plano |
 | **Google Gemma** | Gemma 4 series | Peso abierto; contexto 262K |
-| **AWS Bedrock** | Variantes Anthropic + OpenAI | Ruta VPC / cumplimiento normativo; **API key + SSO + IAM** (v1.27.0, #425) |
 | **Local: Ollama, LM Studio, OpenRouter, Anthropic-Compatible** | Cualquier modelo de protocolo OpenAI-/Anthropic- | Custom OpenAI-Compatible + Anthropic-Compatible (Token Plan / Coding Plan) |
 
 Este plugin alimenta al LLM con el contexto completo de tu Wiki por consulta — por lo que **los modelos de contexto largo ganan**. La tabla completa por niveles (cloud + local) vive en [docs/MODEL-GUIDE.md](https://github.com/green-dalii/obsidian-llm-wiki/blob/main/docs/MODEL-GUIDE.md), cotejada con [models.dev](https://models.dev/) para que las recomendaciones se mantengan actualizadas.
@@ -272,17 +271,7 @@ Este plugin alimenta al LLM con el contexto completo de tu Wiki por consulta —
 - **🔌 El endpoint de embeddings es irrelevante** — no usamos embeddings. Un proveedor que carezca de `/v1/embeddings` funciona bien (la mayoría de nuestros 16+ proveedores no lo proveen).
 - **🦙 Local funciona para consulta, cloud para ingesta** — la ingesta en un vault de 2000 páginas normalmente necesita un modelo cloud de contexto largo; un modelo local de 262K cubre la mayoría de las consultas.
 
-Para ingesta de PDF, consulta [Ingesta de Documentos / PDF / Imágenes](#-ingesta-de-documentos--pdf--imágenes) en Características — Anthropic, OpenAI, Bedrock y Gemini leen PDFs como file parts de forma nativa; **Force PDF Support** cubre cualquier otro endpoint que acepte file parts.
-
-### AWS Bedrock — tres modos de autenticación (v1.27.0, #425)
-
-Configuración → Provider → Bedrock (Anthropic / OpenAI) ahora elige uno de tres modos de autenticación; la fila del proveedor pide entonces solo las entradas que ese modo realmente necesita:
-
-- **API key** — la ruta bearer original de Stage 1; el comportamiento es idéntico byte a byte al de v1.26.4 y la opción recomendada para usuarios que ya pagan por una clave API de Bedrock.
-- **SSO** — flujo de dispositivo de IAM Identity Center. Haz clic en *Sign in with AWS SSO*, pega el código de la URL de verificación en el navegador; el plugin recibe un token SSO a través de `karpathywiki-bedrock-sso` en SecretStorage, lo intercambia por credenciales temporales de rol, y firma cada petición con SigV4 hecho a mano (sin añadir el AWS SDK). El ID de cuenta y el nombre del rol se autodetectan cuando la identidad SSO expone exactamente uno de cada uno; en caso contrario, introdúcelos en la configuración del proveedor.
-- **IAM** — claves de acceso estáticas para entornos sin SSO (CI, jobs por lotes programados). Almacenadas en `karpathywiki-bedrock-iam` en SecretStorage; la caché en memoria memoiza por access-key para mantener la firma SigV4 dentro de la expiración.
-
-Los tres modos comparten la misma disciplina de Obsidian SecretStorage (sin credenciales en `data.json`, logs ni docs) y la misma ruta OIDC + SigV4 hecha a mano sin AWS SDK. La región de Bedrock es independiente del modo de autenticación y se configura en la misma fila del proveedor.
+Para ingesta de PDF, consulta [Ingesta de Documentos / PDF / Imágenes](#-ingesta-de-documentos--pdf--imágenes) en Características — Anthropic, OpenAI, Gemini leen PDFs como file parts de forma nativa; **Force PDF Support** cubre cualquier otro endpoint que acepte file parts.
 
 > 📖 **Tabla completa de selección** (cloud + local + OCR PDF + cuantización + niveles de hardware) → [docs/MODEL-GUIDE.md](https://github.com/green-dalii/obsidian-llm-wiki/blob/main/docs/MODEL-GUIDE.md)
 
@@ -304,7 +293,7 @@ Instala desde Plugins Comunitarios de Obsidian → elige un proveedor → **Test
 
 ### Puedo ingestar PDFs, imágenes y documentos Office?
 
-✅ Sí. Anthropic, OpenAI, Bedrock y Gemini leen PDFs de forma nativa; **Force PDF Support** cubre cualquier otro endpoint que acepte file parts, y en Apple Silicon la conversión puede ejecutarse íntegramente en local. Las tres rutas están en [Ingesta de Documentos / PDF / Imágenes](#-ingesta-de-documentos--pdf--imágenes). Las imágenes y los documentos Office no se ingieren directamente: conviértelos antes a Markdown o PDF.
+✅ Sí. Anthropic, OpenAI, Gemini leen PDFs de forma nativa; **Force PDF Support** cubre cualquier otro endpoint que acepte file parts, y en Apple Silicon la conversión puede ejecutarse íntegramente en local. Las tres rutas están en [Ingesta de Documentos / PDF / Imágenes](#-ingesta-de-documentos--pdf--imágenes). Las imágenes y los documentos Office no se ingieren directamente: conviértelos antes a Markdown o PDF.
 
 ### Mis datos se envían a algún sitio?
 

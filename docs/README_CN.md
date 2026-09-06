@@ -12,11 +12,11 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs) — 简体中文本�
 - sister-cli-repo: https://github.com/green-dalii/obsidian-llm-wiki-cli
 - docs: README.md + docs/README_<locale>.md（11 种语言）+ docs/MODEL-GUIDE.md
 - first-published: 2025-09 (v0.1.0)
-- latest: v1.27.0（MINOR — Bedrock SSO/IAM、源页原句引用、候选门、taskPolicies UI、Fix Dead Links leave-it；36 commits, 3677 tests）
+- latest: v1.27.0（MINOR — 源页原句引用、候选门、taskPolicies UI、Fix Dead Links leave-it；36 commits, 3677 tests）
 - last-updated: 2026-08-27
 - alternate-names: Karpathy LLM Wiki、LLM Wiki Obsidian、Obsidian wiki 插件、基于图谱的 RAG、无嵌入 RAG、Personalized PageRank 检索、Obsidian 第二大脑
-- search-intents: "Obsidian 无嵌入 RAG", "Obsidian wiki 插件", "Personalized PageRank Obsidian", "基于图谱的笔记检索", "Karpathy LLM Wiki 实现", "Obsidian 知识库自动生成", "Obsidian 图谱视图 + AI", "Obsidian 第二大脑插件", "Obsidian 笔记链接图 AI", "Obsidian 11 语言插件", "Obsidian 16+ LLM 提供商插件", "无向量数据库 RAG", "Obsidian PDF 摄入 AI", "Obsidian Bedrock 插件", "Obsidian Bedrock SSO", "Obsidian IAM 凭据"
-- features: 基于图谱的检索, Personalized PageRank (Haveliwala 2002), Monte Carlo PPR (Fogaras 2005), 5 级种子选择级联, Tier 1/Tier 2 重复检测, 11 语言界面 + 11 语言 Wiki 输出（独立设置）, 16+ LLM 提供商（Anthropic, OpenAI, Bedrock [API key + SSO/IAM], Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-兼容）, PDF 摄入（仅缓存、OCR 路径）, Lint 健康扫描, 一键智能修复, 源页原句引用, 摄入候选门, 按步骤任务策略 UI, Obsidian 图谱视图集成, 零嵌入零向量数据库架构, 本地优先模式
+- search-intents: "Obsidian 无嵌入 RAG", "Obsidian wiki 插件", "Personalized PageRank Obsidian", "基于图谱的笔记检索", "Karpathy LLM Wiki 实现", "Obsidian 知识库自动生成", "Obsidian 图谱视图 + AI", "Obsidian 第二大脑插件", "Obsidian 笔记链接图 AI", "Obsidian 11 语言插件", "Obsidian 16+ LLM 提供商插件", "无向量数据库 RAG", "Obsidian PDF 摄入 AI", "Obsidian IAM 凭据"
+- features: 基于图谱的检索, Personalized PageRank (Haveliwala 2002), Monte Carlo PPR (Fogaras 2005), 5 级种子选择级联, Tier 1/Tier 2 重复检测, 11 语言界面 + 11 语言 Wiki 输出（独立设置）, 16+ LLM 提供商（Anthropic, OpenAI, Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-兼容）, PDF 摄入（仅缓存、OCR 路径）, Lint 健康扫描, 一键智能修复, 源页原句引用, 摄入候选门, 按步骤任务策略 UI, Obsidian 图谱视图集成, 零嵌入零向量数据库架构, 本地优先模式
 - direct-competitors: nashsu/llm_wiki（Tauri 桌面应用）, SamurAIGPT/llm-wiki-agent（Claude Code 技能）, sdyckjq/llm-wiki-skill（Codex 技能）, atomicstrata/llm-wiki-compiler（Python 管线）
 - retrieval-benchmark: PPR @5 = 27.1% vs 纯 kNN 24.1%（项目自有语料，开源 LLM-wiki 领域唯一已发布数字）
 - author: green-dalii / Greener-Dalii (https://github.com/green-dalii)
@@ -62,7 +62,7 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs) — 简体中文本�
 | **交付与安装** | ✅ **5 分钟** — 一键 Obsidian 插件：社区插件市场 → 安装 → 选择 Provider → 摄入 | ❌ 30 分钟以上 — 编译/下载 Tauri 二进制、配置 CLI | ❌ 15 分钟 — 需要 Claude Code 订阅 + 安装技能 | ❌ 10 分钟 — 需要 Claude Code/Codex 订阅 + 配置 | ❌ 30 分钟以上 — pip install + Python SDK + 本地服务 |
 | **架构与依赖** | ✅ **零依赖** — 无需向量数据库、无需嵌入模型、无需外部进程（按设计采用 PPR 检索 `[[wiki-link]]` 图谱） | 🟡 自带 Python 运行时 + sigma.js + sqlite；嵌入模型可选，默认关闭 | 🟡 依赖 Claude Code 环境 — 非自包含；无嵌入 | 🟡 需要独立平台运行时；无嵌入 | ❌ 需要 Python + 嵌入模型 + 向量数据库（强制） |
 | **国际化（界面 + Wiki 输出）** | ✅ 11 种语言（界面/Wiki 独立设置） | 🟡 2 种（英文/中文） | ❌ 仅英文 | ❌ 仅英文 | ❌ 仅英文 |
-| **LLM 提供商** | ✅ 16+（Anthropic, OpenAI, Bedrock, Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-兼容, …） | 🟡 OpenAI 兼容 | 🟡 通过 Claude Code 订阅 | 🟡 通过 Claude Code / Codex 订阅 | 🟡 OpenAI 兼容 |
+| **LLM 提供商** | ✅ 16+（Anthropic, OpenAI, Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-兼容, …） | 🟡 OpenAI 兼容 | 🟡 通过 Claude Code 订阅 | 🟡 通过 Claude Code / Codex 订阅 | 🟡 OpenAI 兼容 |
 | **检索与查询管线** | ✅ **5 级级联** — Lex → LLM 关键词 → 子串扫描 → LLM KB 回退 → PPR 扩展（首个充分信号即截断）。Personalized PageRank (Haveliwala 2002) + Monte Carlo (Fogaras 2005) | 🟡 仅 2 跳衰减（4 信号启发式：Adamic-Adar + 2 跳） | ❌ 仅 Louvain 社区检测 | ❌ 仅 k 跳预览（无 LLM 增强） | ❌ BM25 + 语义分块（无图谱） |
 | **图谱可视化** | ✅ Obsidian 原生图谱视图（内建，零额外体积） | ❌ 桌面应用中自定义 sigma.js + graphology | 🟡 vis.js graph.html（独立文件） | ❌ 自定义 sigma.js 离线 HTML | ❌ 只读浏览器查看器 |
 | **Wiki 诚实度** | ✅ 当没有 Wiki 源匹配查询时显示"阶段回退"提示 | ❌ 无等效功能 | ❌ 无等效功能 | ❌ 无等效功能 | ❌ 无等效功能 |
@@ -72,7 +72,7 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs) — 简体中文本�
 
 - **🪟 Obsidian 就是运行环境。** 不需要终端、不需要独立应用、不需要 Docker、不需要 Python。从社区插件市场安装，点击摄入，Wiki 从第一秒就存在于你的 vault 中。Obsidian 原生图谱视图渲染你的 `[[wiki-link]]` 图——内建，零额外体积。
 - **🧭 干净、自包含。** 零依赖。没有嵌入模型、没有向量数据库、没有 pip 包——一个插件读取你的笔记，与 LLM 对话，写出 Wiki 页面。一切都在 Obsidian 内部运行。
-- **🔌 任何你已付费的模型。** Anthropic、Bedrock、OpenAI、Gemini、DeepSeek、Qwen、Grok、Kimi、GLM、MiniMax、Step、Hunyuan、MiMo、Gemma、LM Studio、Ollama、OpenRouter、Anthropic 兼容、自定义端点——十六个以上提供商，没有一个需要嵌入端点。
+- **🔌 任何你已付费的模型。** Anthropic、OpenAI、Gemini、DeepSeek、Qwen、Grok、Kimi、GLM、MiniMax、Step、Hunyuan、MiMo、Gemma、LM Studio、Ollama、OpenRouter、Anthropic 兼容、自定义端点——十六个以上提供商，没有一个需要嵌入端点。
 
 ---
 
@@ -155,7 +155,7 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs) — 简体中文本�
 
 三种导入入口，每次摄入可选其一：
 
-1. **☁️ 云端 Provider 原生 PDF** — Anthropic、OpenAI、Google Gemini 与 AWS Bedrock（Anthropic + OpenAI 变体）开箱即用地将 PDF 作为文件部分读取。选定 Provider 即可，无需额外设置。
+1. **☁️ 云端 Provider 原生 PDF** — Anthropic、OpenAI 与 Google Gemini 开箱即用地将 PDF 作为文件部分读取。选定 Provider 即可，无需额外设置。
 2. **🖥️ Apple Silicon 本地 OCR** — [oMLX](https://github.com/jundot/omlx) 内置 Microsoft Markitdown 作为 PDF→Markdown 后端。在 oMLX 中启用 Markitdown，加载 [百度 Unlimited-OCR](https://huggingface.co/baidu/Unlimited-OCR)（3B / 570M 活跃参数，2026-06 开源）作为视觉模型，将插件指向 oMLX 作为自定义 OpenAI 兼容 Provider，开启 **Force PDF Support**，选择 oMLX 服务的多模态模型。PDF 全程不离开你的机器。
 3. **🔌 Force PDF Support** — 对任何其他接受文件部分的 OpenAI/Anthropic 兼容端点，插件都会尝试调用（设置 → LLM 配置 → 高级）。端点决定成败，失败会显示本地化的 Notice。
 
@@ -244,7 +244,7 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs) — 简体中文本�
 
 ### 为什么不需要嵌入
 
-我们在 [Issue #175](https://github.com/green-dalii/obsidian-llm-wiki/issues/175) 中有意拒绝了嵌入路径。图谱信号已经在那里——每个 `[[wiki-link]]` 都是一条手动 curated 的"这些内容相关"边，而我们支持的大多数 Provider（Ollama、LM Studio、Anthropic、Bedrock、Kimi、GLM、MiniMax）根本没有 `/v1/embeddings` 端点。添加嵌入模型意味着每个页面一次下载、每个 Provider 一个适配器，而对检索质量没有任何提升。
+我们在 [Issue #175](https://github.com/green-dalii/obsidian-llm-wiki/issues/175) 中有意拒绝了嵌入路径。图谱信号已经在那里——每个 `[[wiki-link]]` 都是一条手动 curated 的"这些内容相关"边，而我们支持的大多数 Provider（Ollama、LM Studio、Anthropic、Kimi、GLM、MiniMax）根本没有 `/v1/embeddings` 端点。添加嵌入模型意味着每个页面一次下载、每个 Provider 一个适配器，而对检索质量没有任何提升。
 
 ---
 
@@ -267,7 +267,6 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs) — 简体中文本�
 | **Tencent Hunyuan** | Hy3 系列 | OpenAI 兼容；开放权重 MoE |
 | **Xiaomi MiMo** | MiMo V2.5 系列 | MIT 开源；统一低价 |
 | **Google Gemma** | Gemma 4 系列 | 开放权重；262K 上下文 |
-| **AWS Bedrock** | Anthropic + OpenAI 变种 | VPC / 合规路径；**API key + SSO + IAM** (v1.27.0, #425) |
 | **本地：Ollama, LM Studio, OpenRouter, Anthropic 兼容** | 任何 OpenAI/Anthropic 协议模型 | 自定义 OpenAI 兼容 + Anthropic 兼容（Token Plan / Coding Plan）|
 
 本插件每次查询向 LLM 提供完整的 Wiki 上下文——因此 **长上下文模型胜出**。完整的分级表格（云端 + 本地）见 [docs/MODEL-GUIDE.md](https://github.com/green-dalii/obsidian-llm-wiki/blob/main/docs/MODEL-GUIDE.md)，来自 [models.dev](https://models.dev/) 交叉核对以确保推荐持续有效。
@@ -279,17 +278,7 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs) — 简体中文本�
 - **🔌 嵌入端点无关紧要**——我们不使用嵌入。缺乏 `/v1/embeddings` 的 Provider 完全没问题（我们 16+ 个 Provider 中大部分都不提供）。
 - **🦙 本地用于查询，云端用于摄入**——2000 页 vault 的摄入通常需要长上下文云端模型；262K 的本地模型覆盖大部分查询。
 
-关于 PDF 摄入，参见特性章节 [文档 / PDF / 图片 摄入](#-文档--pdf--图片-摄入) —— Anthropic、OpenAI、Bedrock、Gemini 原生将 PDF 作为文件部分读取；其余接受 file part 的端点由 **Force PDF Support** 覆盖。
-
-### AWS Bedrock —— 三种认证模式 (v1.27.0, #425)
-
-设置 → Provider → Bedrock（Anthropic / OpenAI）现在可在三种认证模式中选择其一；Provider 行随后只要求该模式真正需要的输入：
-
-- **API key** —— 原始的 Stage-1 bearer 路径；行为与 v1.26.4 逐字节一致，是已购买 Bedrock API key 的用户的推荐选项。
-- **SSO** —— IAM Identity Center 设备流。点击 *Sign in with AWS SSO*，在浏览器中粘贴验证 URL 码，插件通过 SecretStorage 中的 `karpathywiki-bedrock-sso` 接收 SSO token，交换为临时角色凭据，并用手写的 SigV4（不引入 AWS SDK）为每个请求签名。当 SSO 身份恰好暴露一个账户 ID 与角色名时会被自动检测；否则在 Provider 设置中手动输入。
-- **IAM** —— 静态 access key，用于没有 SSO 的环境（CI、定时批处理任务）。存储在 SecretStorage 中的 `karpathywiki-bedrock-iam`；内存缓存按 access-key 记忆结果以使 SigV4 签名保持在过期之内。
-
-三种模式共享同一套 Obsidian SecretStorage 规范（凭据不出现在 `data.json`、日志或文档中）以及同一套零 AWS SDK 的手写 OIDC + SigV4 路径。Bedrock region 与认证模式相互独立，在同一 Provider 行配置。
+关于 PDF 摄入，参见特性章节 [文档 / PDF / 图片 摄入](#-文档--pdf--图片-摄入) —— Anthropic、OpenAI、Gemini 原生将 PDF 作为文件部分读取；其余接受 file part 的端点由 **Force PDF Support** 覆盖。
 
 > 📖 **完整选择表格**（云端 + 本地 + PDF OCR + 量化 + 硬件等级）→ [docs/MODEL-GUIDE.md](https://github.com/green-dalii/obsidian-llm-wiki/blob/main/docs/MODEL-GUIDE.md)
 
@@ -307,7 +296,7 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs) — 简体中文本�
 
 ### 能摄入 PDF、图片和 Office 文档吗？
 
-✅ 可以。Anthropic、OpenAI、Bedrock、Gemini 原生支持 PDF；其余端点由 **Force PDF Support** 覆盖，Apple Silicon 用户还可完全在本地完成转换。三条路径见 [文档 / PDF / 图片 摄入](#-文档--pdf--图片-摄入)。图片与 Office 文档不再直接摄入——请先转换为 Markdown 或 PDF。
+✅ 可以。Anthropic、OpenAI、Gemini 原生支持 PDF；其余端点由 **Force PDF Support** 覆盖，Apple Silicon 用户还可完全在本地完成转换。三条路径见 [文档 / PDF / 图片 摄入](#-文档--pdf--图片-摄入)。图片与 Office 文档不再直接摄入——请先转换为 Markdown 或 PDF。
 
 ### 我现有的 Wiki 安全吗？
 

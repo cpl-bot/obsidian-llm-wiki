@@ -52,6 +52,7 @@ export const IT_TEXTS = {
     keychainUnavailableNotice: 'Portachiavi non disponibile — le funzioni LLM restano disattivate finché non è leggibile: {}',
     plaintextApiKeyScrubbedNotice: 'Chiave API in chiaro rimossa da data.json — ruota questa chiave.',
     removedOAuthProviderNotice: 'Il provider di accesso tramite abbonamento ChatGPT è stato rimosso in questa build; il provider è stato reimpostato e le credenziali memorizzate sono state cancellate. Scegli un provider e un modello nelle Impostazioni.',
+    removedProviderResetNotice: 'In questo vault era configurato un provider che questa build non include più. Il provider è stato riportato al valore predefinito e le credenziali cloud memorizzate sono state cancellate — scegli un provider e inserisci una chiave nelle Impostazioni.',
     unsupportedPlatform: 'LLM Wiki non supporta Windows. Il plugin non è stato caricato.',
 
     // URL di base
@@ -157,36 +158,6 @@ export const IT_TEXTS = {
     testConnectionSuccessful: 'Connessione riuscita',
     testConnectionFailed: 'Connessione fallita',
     testConnectionProvider: 'Provider: ',
-    bedrockSsoRequired: 'Accedi con AWS SSO (Impostazioni → Bedrock) prima di verificare la connessione.',
-    bedrockIamRequired: 'Inserisci le tue chiavi di accesso IAM (Impostazioni → Bedrock) prima di verificare la connessione.',
-    bedrockAuthMethodName: 'Autenticazione',
-    bedrockAuthMethodDesc: 'Chiave API usa una chiave API Bedrock; AWS SSO firma le richieste con le credenziali di IAM Identity Center; le chiavi IAM usano chiavi di accesso statiche.',
-    bedrockAuthOptionApiKey: 'Chiave API',
-    bedrockAuthOptionSso: 'AWS SSO',
-    bedrockAuthOptionIam: 'Chiavi IAM',
-    bedrockSsoStartUrlName: 'URL iniziale SSO',
-    bedrockSsoStartUrlDesc: 'URL del portale della tua organizzazione, es. https://d-xxxxxxxxx.awsapps.com/start',
-    bedrockSsoAccountIdName: 'ID account AWS',
-    bedrockSsoAccountIdDesc: 'Account a 12 cifre di cui si assumerà il ruolo, es. 123456789012',
-    bedrockSsoRoleNameName: 'Nome del ruolo',
-    bedrockSsoRoleNameDesc: "Ruolo IAM da assumere per l'accesso a Bedrock, es. PowerUserAccess",
-    bedrockSsoLoginButton: 'Accedi con AWS SSO',
-    bedrockSsoSignOutButton: 'Disconnetti da AWS SSO',
-    bedrockSsoStatusSignedIn: 'Accesso effettuato · scade {}',
-    bedrockSsoStatusSignedOut: 'Non connesso',
-    bedrockSsoBusy: 'Accesso in corso…',
-    bedrockSsoUserCodeInstructions: 'Codice AWS SSO: {}. Apri il collegamento e approva l’accesso.',
-    bedrockSsoCopyCode: 'Copia codice',
-    bedrockSsoFailed: 'Accesso ad AWS SSO non riuscito: {}',
-    bedrockSsoDetectedPrefill: 'Account/ruolo rilevati: {}',
-    bedrockIamKeyName: 'ID chiave di accesso',
-    bedrockIamKeyDesc: 'Identificatore della chiave di accesso IAM, es. AKIA… o ASIA…',
-    bedrockIamSecretName: 'Chiave di accesso segreta',
-    bedrockIamSecretDesc: 'Salvata solo nell\'archivio segreti di questo dispositivo — mai in data.json',
-    bedrockIamSessionTokenName: 'Token di sessione (facoltativo)',
-    bedrockIamSessionTokenDesc: 'Necessario solo per credenziali temporanee (STS)',
-    bedrockIamClearButton: 'Cancella chiavi IAM salvate',
-    bedrockIamSaveFailed: 'Salvataggio delle chiavi IAM non riuscito: {}',
     errorUnknown: 'Errore sconosciuto',
 
     // Issue #137: avvisi di fallback LLM (mostrati quando avviene un
@@ -313,10 +284,6 @@ export const IT_TEXTS = {
     anthropicSDK: 'Anthropic SDK',
     openaiSDK: 'OpenAI SDK',
 
-    // v1.24.1 PATCH Bedrock Stage 1
-    bedrockRegionName: 'Regione AWS',
-    bedrockRegionDesc: 'Regione Amazon Bedrock per questo account. Determina l\'URL dell\'endpoint bedrock-mantle; non può essere sovrascritta tramite baseURL.',
-    bedrockRegionHint: 'bedrock-mantle è disponibile in 18 regioni; la copertura dei modelli varia in base alla regione.',
 
     // Altro
     availableModelsLoading: 'Caricamento dei modelli disponibili...',
@@ -514,7 +481,7 @@ export const IT_TEXTS = {
     pdfCacheCleared: 'Cache PDF svuotata ({count} voci rimosse).',
     // v1.25.0 PR3: Advanced PDF settings
     forcePdfSupportName: 'Forza supporto PDF',
-    forcePdfSupportDesc: 'Disattivato per impostazione predefinita. Attiva questa opzione se il tuo provider non è nell\'elenco nativo ma può comunque gestire i PDF. Quando è attiva, il PDF viene inviato al provider corrente; se viene rifiutato, vedrai un messaggio di avviso. I provider PDF nativi (Anthropic / OpenAI / Bedrock) non hanno bisogno di questa opzione.',
+    forcePdfSupportDesc: 'Disattivato per impostazione predefinita. Attiva questa opzione se il tuo provider non è nell\'elenco nativo ma può comunque gestire i PDF. Quando è attiva, il PDF viene inviato al provider corrente; se viene rifiutato, vedrai un messaggio di avviso. I provider PDF nativi (Anthropic / OpenAI) non hanno bisogno di questa opzione.',
     writePdfMarkdownToVaultName: 'Scrivi il Markdown convertito nel Vault',
     markdownConversionComplete: 'Conversione completata: {filename}',
     markdownConversionCompleteSaved: 'Conversione completata — scritto in {path}: {filename}',

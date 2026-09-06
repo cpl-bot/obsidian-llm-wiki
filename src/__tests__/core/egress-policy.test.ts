@@ -74,9 +74,14 @@ describe('egress host lists', () => {
     expect([...LOOPBACK_HOSTS].sort()).toEqual(['127.0.0.1', '::1', 'localhost']);
   });
 
-  it('exposes the AWS regional host patterns', () => {
-    expect(EGRESS_HOST_PATTERNS.map((p) => p.id)).toContain('aws-sso-oidc');
-    expect(EGRESS_HOST_PATTERNS.map((p) => p.id)).toContain('aws-bedrock-mantle');
+  // Hardening Phase 2.B: all four declared patterns belonged to the removed
+  // cloud provider (its SSO OIDC / portal hosts and its two data-plane
+  // hosts). The mechanism is retained — it is the only safe way to express a
+  // regional destination without blanket-allowing a suffix — but nothing
+  // declares a pattern any more, and the tests below pin that every host it
+  // used to admit is now denied.
+  it('declares no regional host patterns', () => {
+    expect(EGRESS_HOST_PATTERNS).toEqual([]);
   });
 });
 
@@ -94,29 +99,32 @@ describe('isAllowedHost', () => {
     expect(isAllowedHost('notapi.openai.com', STRICT)).toBe(false);
   });
 
-  it('accepts AWS regional hosts through the suffix patterns', () => {
-    expect(isAllowedHost('oidc.us-east-1.amazonaws.com', STRICT)).toBe(true);
-    expect(isAllowedHost('portal.sso.eu-central-1.amazonaws.com', STRICT)).toBe(true);
-    expect(isAllowedHost('bedrock-runtime.ap-northeast-1.amazonaws.com', STRICT)).toBe(true);
-    expect(isAllowedHost('bedrock-mantle.eu-central-1.api.aws', STRICT)).toBe(true);
+  // Hardening Phase 2.B: these four hosts were the ONLY ones the pattern
+  // list ever admitted, and the SSO device flow that reached them is gone.
+  // They are now ordinary unknown hosts and must be refused — a re-merge
+  // that restores the code without restoring the pattern rows fails here
+  // rather than silently exfiltrating to a live AWS endpoint.
+  it('refuses the regional hosts the removed provider used to reach', () => {
+    expect(isAllowedHost('oidc.us-east-1.amazonaws.com', STRICT)).toBe(false);
+    expect(isAllowedHost('portal.sso.eu-central-1.amazonaws.com', STRICT)).toBe(false);
+    expect(isAllowedHost('bedrock-runtime.ap-northeast-1.amazonaws.com', STRICT)).toBe(false);
+    expect(isAllowedHost('bedrock-mantle.eu-central-1.api.aws', STRICT)).toBe(false);
   });
 
   it('never blanket-allows *.awsapps.com — anyone can self-register a tenant there', () => {
-    // The SSO start URL is only ever a body field on a request to
-    // oidc.<region>.amazonaws.com; no awsapps.com host is ever fetched, so
-    // none may be reachable by default.
+    // This held while the SSO flow existed (the start URL was only ever a
+    // body field, never a fetch target) and must keep holding now that it
+    // does not: no pattern may ever be declared over a suffix under which
+    // anybody can register.
     expect(isAllowedHost('d-9067abcdef.awsapps.com', STRICT)).toBe(false);
     expect(isAllowedHost('attacker.awsapps.com', STRICT)).toBe(false);
     expect(EGRESS_HOST_PATTERNS.some((p) => p.suffix.endsWith('.awsapps.com'))).toBe(false);
   });
 
-  it('rejects AWS look-alikes with an extra label in the region slot', () => {
+  it('refuses look-alikes of the removed regional hosts too', () => {
     expect(isAllowedHost('oidc.evil.example.amazonaws.com', STRICT)).toBe(false);
     expect(isAllowedHost('bedrock-mantle.a.b.api.aws', STRICT)).toBe(false);
     expect(isAllowedHost('oidc.us-east-1.amazonaws.com.evil.net', STRICT)).toBe(false);
-  });
-
-  it('requires a dot boundary before a pattern suffix', () => {
     expect(isAllowedHost('evil-amazonaws.com', STRICT)).toBe(false);
     expect(isAllowedHost('oidcevil-amazonaws.com', STRICT)).toBe(false);
   });
@@ -125,12 +133,14 @@ describe('isAllowedHost', () => {
     expect(isAllowedHost('llm.corp.internal', { baseUrl: 'https://llm.corp.internal/v1' })).toBe(true);
   });
 
-  it('does not trust the Bedrock SSO start URL host — it is never a fetch target', () => {
-    // startDeviceAuthorization sends the start URL as a body field to
-    // oidc.<region>.amazonaws.com; admitting its host would widen the
-    // allowlist for a destination the plugin never contacts.
-    const settings = { baseUrl: '' } as EgressSettings & { bedrockSsoStartUrl: string };
-    settings.bedrockSsoStartUrl = 'https://sso.corp.example/start';
+  it('trusts no settings field but baseUrl as a destination', () => {
+    // `baseUrl` is the one URL the plugin fetches on the user's
+    // instruction. A URL sitting in any other settings field — the removed
+    // provider's SSO start URL was the historical case — is not thereby an
+    // approved destination, and admitting its host would widen the
+    // allowlist for somewhere the plugin never contacts.
+    const settings = { baseUrl: '' } as EgressSettings & { someOtherUrlField: string };
+    settings.someOtherUrlField = 'https://sso.corp.example/start';
     expect(isAllowedHost('sso.corp.example', settings)).toBe(false);
   });
 

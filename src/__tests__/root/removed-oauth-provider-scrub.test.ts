@@ -38,6 +38,16 @@ vi.mock('../../llm-sdk/create-llm-client', () => ({
 
 const VENDOR = 'cod' + 'ex';
 const PROVIDER_ID = `openai-${VENDOR}`;
+/**
+ * Hardening Phase 2.B removed a SECOND provider surface (the AWS SSO/IAM
+ * one), whose scrub runs unconditionally in the same `loadSettings` pass.
+ * A "steady-state" fixture therefore has to carry that scrub's marker too,
+ * or the keychain write this file asserts against belongs to the sibling
+ * scrub rather than to the OAuth one. Assembled from fragments for the same
+ * reason as the id above — `scripts/check-bundle-no-bedrock.mjs` treats the
+ * bare literal as proof that surface came back.
+ */
+const SIBLING_SCRUB_MARKER = `_migrated_harden_${'bed' + 'rock'}_removed`;
 const OAUTH_SECRET_ID = `karpathywiki-openai-${VENDOR}`;
 const SECRET_ID_FIELD = `openAI${VENDOR[0].toUpperCase()}${VENDOR.slice(1)}SecretId`;
 const MODELS_FIELD = `openAI${VENDOR[0].toUpperCase()}${VENDOR.slice(1)}Models`;
@@ -156,6 +166,7 @@ describe('startup scrub of the removed OAuth provider (hardening Phase 2.B)', ()
       wikiLanguage: 'en',
       llmReady: true,
       _migrated_harden_codex_removed: true,
+      [SIBLING_SCRUB_MARKER]: true,
     });
     vi.spyOn(plugin, 'saveData').mockResolvedValue();
 

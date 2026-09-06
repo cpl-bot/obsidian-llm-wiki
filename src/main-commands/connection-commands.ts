@@ -23,7 +23,7 @@ import type { LLMTask } from '../core/model-resolver';
 import { TEXTS } from '../texts';
 import { getText } from '../core/i18n';
 import { createLLMClient } from '../core/create-plugin-llm-client';
-import { providerRequiresApiKey, usesBedrockAwsCredentials } from '../core/provider-auth';
+import { providerRequiresApiKey } from '../core/provider-auth';
 import { resolveProviderApiKey } from '../llm-sdk/provider-api-key-resolver';
 import { isProviderSecretStorageError } from '../llm-sdk/provider-secret-store';
 import { redactError, redactSecrets } from '../core/redact';
@@ -40,8 +40,6 @@ export interface ConnectionCommandsHost {
   settings: LLMWikiSettings;
   llmClient: LLMClient | null;
   wikiEngine: import('../wiki/wiki-engine').WikiEngine;
-  /** #425 Bedrock Stage 2 — plugin-owned credential orchestrator. */
-  bedrockAuthManager: import('../llm-sdk/bedrock-sso/credential-manager').BedrockAuthManager | null;
   manifest: { version: string };
   initializeLLMClient(): void;
   saveSettings(): Promise<void>;
@@ -62,20 +60,6 @@ export const connectionCommands = {
   ): Promise<{ success: boolean; message: string }> {
     const t = TEXTS[this.settings.language] || TEXTS.en;
 
-    // #425 Bedrock Stage 2: in sso/iam modes AWS credentials replace the
-    // bearer key (single predicate in core/provider-auth), so the
-    // credential-presence gate runs BEFORE the API-key gate and never
-    // surfaces a misleading missing-key error.
-    const awsCredMode = usesBedrockAwsCredentials(this.settings.provider, this.settings.bedrockAuthMethod);
-    if (awsCredMode) {
-      const method = this.settings.bedrockAuthMethod!;
-      if (method === 'sso' && this.bedrockAuthManager?.hasSsoToken() !== true) {
-        return { success: false, message: t.bedrockSsoRequired };
-      }
-      if (method === 'iam' && this.bedrockAuthManager?.hasIamKeys() !== true) {
-        return { success: false, message: t.bedrockIamRequired };
-      }
-    }
     // v1.25.7 PATCH: accept an optional pendingApiKey so the Test
     // Connection button can forward the in-memory typed key from
     // tab.pendingApiKey, bypassing the stale SecretStorage value.
@@ -85,7 +69,7 @@ export const connectionCommands = {
     // missing key is already reported, so it is also where an unreadable
     // keychain gets its own message. Failing closed here keeps the probe
     // from reporting a provider-side auth error for a local problem.
-    if (!awsCredMode && providerRequiresApiKey(this.settings.provider)) {
+    if (providerRequiresApiKey(this.settings.provider)) {
       let resolvedKey: string;
       try {
         resolvedKey = resolveProviderApiKey(
@@ -123,7 +107,7 @@ export const connectionCommands = {
     }
 
     try {
-      const testClient = createLLMClient(this.settings, this.app.secretStorage, pendingApiKey, this.bedrockAuthManager ?? undefined);
+      const testClient = createLLMClient(this.settings, this.app.secretStorage, pendingApiKey);
 
       // Hardening Phase 2.B: a 404-driven "try the next model in the
       // catalogue" retry used to wrap this probe. It existed solely for the

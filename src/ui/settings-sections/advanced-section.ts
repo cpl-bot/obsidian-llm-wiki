@@ -33,7 +33,7 @@
  *   - Switching Advanced to default does NOT touch writePdfMarkdownToVault
  *     (that field lives in Wiki Configuration, v1.25.0 PR3).
  *   - forcePdfSupport toggle renders ONLY for non-native providers
- *     (anthropic/openai/bedrock-* already handle PDF natively, so the
+ *     (anthropic/openai already handle PDF natively, so the
  *     escape hatch is meaningless and would mislead users).
  *   - forcePdfSupport is reset to false when provider switches to a
  *     native one (handled in provider-section.ts, not here).
