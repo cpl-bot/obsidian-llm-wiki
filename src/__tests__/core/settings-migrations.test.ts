@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { applySettingsMigrations } from '../../core/settings-migrations';
+import { resolveModelForTask } from '../../core/model-resolver';
 import { DEFAULT_SETTINGS } from '../../types';
 
 // Hardening Phase 2.A (F-06): the removed document-conversion backend's
@@ -408,7 +409,7 @@ describe('applySettingsMigrations — hardening scrub of the removed provider su
     const { settings } = applySettingsMigrations(v1_27_0_data());
 
     expect(settings.wikiFolder).toBe('wiki');
-    expect(settings.model).toBe('anthropic.claude-3-5-sonnet');
+    expect(settings.language).toBe('en');
   });
 
   it('deletes every removed-provider key from the loaded settings', () => {
@@ -428,6 +429,51 @@ describe('applySettingsMigrations — hardening scrub of the removed provider su
     expect(settings.provider).toBe(DEFAULT_SETTINGS.provider);
     expect(settings.llmReady).toBe(false);
     expect(applied).toContain('harden-removed-provider-reset');
+  });
+
+  // provider and model are ONE pair. A model id minted for the removed
+  // provider is not a model the default provider has, and the resolver
+  // (per-task override first, then `settings.model`) would hand that stale
+  // id to every ingest / lint / query call against an endpoint that has
+  // never heard of it. The reset has to leave the same state a manual
+  // provider switch leaves in the UI.
+  it('resets the model pair, not just the provider', () => {
+    const savedData = {
+      ...v1_27_0_data(),
+      availableModels: ['anthropic.claude-3-5-sonnet', 'anthropic.claude-3-haiku'],
+      useCustomModel: true,
+      ingestModel: 'anthropic.claude-3-haiku',
+      lintModel: 'anthropic.claude-3-haiku',
+      queryModel: 'anthropic.claude-3-5-sonnet',
+    } as unknown as Partial<import('../../types').LLMWikiSettings>;
+
+    const { settings } = applySettingsMigrations(savedData);
+
+    expect(settings.model).toBe(DEFAULT_SETTINGS.model);
+    expect(settings.availableModels).toEqual([]);
+    expect(settings.useCustomModel).toBe(false);
+    expect(resolveModelForTask(settings, 'ingest')).toBe(DEFAULT_SETTINGS.model);
+    expect(resolveModelForTask(settings, 'lint')).toBe(DEFAULT_SETTINGS.model);
+    expect(resolveModelForTask(settings, 'query')).toBe(DEFAULT_SETTINGS.model);
+  });
+
+  // The mirror image: a user who had the removed provider's leftover keys
+  // on disk but a DIFFERENT provider actually selected keeps their working
+  // setup. Scrubbing the keys must not cost them their model or their
+  // readiness flag — that would strand them behind the onboarding flow for
+  // a provider they never used.
+  it('leaves the model and readiness alone when another provider is active', () => {
+    const savedData = {
+      provider: 'openai',
+      model: 'gpt-4.1',
+      llmReady: true,
+      [`${REMOVED_PROVIDER_VENDOR}Region`]: 'us-east-1',
+    } as unknown as Partial<import('../../types').LLMWikiSettings>;
+
+    const { settings } = applySettingsMigrations(savedData);
+
+    expect(settings.model).toBe('gpt-4.1');
+    expect(settings.llmReady).toBe(true);
   });
 
   it('leaves an unrelated provider alone and signals no reset', () => {
@@ -465,6 +511,58 @@ describe('applySettingsMigrations — hardening scrub of the removed provider su
 
     expect(JSON.stringify(settings)).not.toMatch(/PowerUserAccess/);
     expect(JSON.stringify(settings)).not.toMatch(/awsapps\.com/);
+  });
+
+  // The shape a sync conflict, a downgrade-then-upgrade cycle or an
+  // upstream re-merge produces: the marker says the scrub already ran, and
+  // the vendor's keys are on disk anyway. A marker-gated scrub loads them
+  // straight through and the next saveSettings() writes the AWS identity
+  // back — the same hole the Phase 3 review found in the plaintext scrub.
+  it('still deletes the removed keys when the marker is already set', () => {
+    const savedData = {
+      ...v1_27_0_data(),
+      [REMOVED_PROVIDER_MARKER]: true,
+    } as unknown as Partial<import('../../types').LLMWikiSettings>;
+
+    const { settings, applied } = applySettingsMigrations(savedData);
+    const record = settings as unknown as Record<string, unknown>;
+
+    const offenders = Object.keys(record).filter(
+      (key) => key !== REMOVED_PROVIDER_MARKER && key.toLowerCase().includes(REMOVED_PROVIDER_VENDOR),
+    );
+    expect(offenders).toEqual([]);
+    // `applied` must fire too, or main.ts never re-blanks the keychain
+    // slots the resurrected settings point at, and never persists the
+    // cleaned object.
+    expect(applied).toContain('harden-removed-provider-scrubbed');
+  });
+
+  it('still resets a resurrected provider id when the marker is already set', () => {
+    const savedData = {
+      provider: `${REMOVED_PROVIDER_VENDOR}-openai`,
+      model: 'openai.gpt-4o',
+      [REMOVED_PROVIDER_MARKER]: true,
+    } as unknown as Partial<import('../../types').LLMWikiSettings>;
+
+    const { settings, applied } = applySettingsMigrations(savedData);
+
+    expect(settings.provider).toBe(DEFAULT_SETTINGS.provider);
+    expect(settings.model).toBe(DEFAULT_SETTINGS.model);
+    expect(settings.llmReady).toBe(false);
+    expect(applied).toContain('harden-removed-provider-reset');
+  });
+
+  it('stays silent on a clean load that already carries the marker', () => {
+    const savedData = {
+      provider: 'openai',
+      model: 'gpt-4.1',
+      [REMOVED_PROVIDER_MARKER]: true,
+    } as unknown as Partial<import('../../types').LLMWikiSettings>;
+
+    const { applied } = applySettingsMigrations(savedData);
+
+    expect(applied).not.toContain('harden-removed-provider-scrubbed');
+    expect(applied).not.toContain('harden-removed-provider-reset');
   });
 });
 

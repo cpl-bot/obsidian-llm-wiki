@@ -19,9 +19,12 @@
  *     placeholders). `ai-gateway.vercel.sh` — the `ai` SDK's built-in
  *     default gateway — lives there deliberately: the tripwire tolerates
  *     the string, the runtime policy still blocks the request.
- *   - `knownRuntimePrefixes` are truncated literals such as
- *     `https://oidc.` that appear because the AWS region is concatenated
- *     at runtime; the scanner can only ever see the prefix.
+ *   - `knownRuntimePrefixes` are truncated literals that appear when a
+ *     hostname label (a region, a tenant) is concatenated at runtime — the
+ *     scanner can only ever see the part before the interpolation. The list
+ *     is EMPTY since hardening Phase 2.B removed the only surface that built
+ *     a hostname that way; the category stays because the matcher is the
+ *     only safe way to express a regional destination.
  *
  * Usage:
  *   node scripts/check-bundle-hosts.mjs                 # checks ./main.js

@@ -14,8 +14,8 @@
  *
  * The rule is deliberately a plain substring scan of the built bundle rather
  * than an import-graph check: any resurrection — code, a constant, a settings
- * key, an i18n string, a doc URL — carries the vendor's name or one of its
- * two hostname suffixes with it. Both suffixes are checked alongside the
+ * key, an i18n string, a doc URL — carries the vendor's name, one of its two
+ * hostname suffixes, or the name of its signing algorithm with it. Both suffixes are checked alongside the
  * vendor name because a URL is exactly what survives a code purge: the SSO
  * portal placeholder lived only in a translated settings description, and
  * `*.awsapps.com` is a namespace anyone can self-register under, so a single
@@ -51,6 +51,11 @@ const NEEDLES = [
   'bed' + 'rock',
   'amazon' + 'aws.com',
   'aws' + 'apps.com',
+  // The signing algorithm's own name. The signer is the one piece of the
+  // removed surface that carries no vendor name and no hostname of its own
+  // — a re-merged `sigv4.ts` would satisfy the three needles above while
+  // shipping the credential-signing code itself, so it gets its own.
+  'sig' + 'v4',
 ];
 
 let src;

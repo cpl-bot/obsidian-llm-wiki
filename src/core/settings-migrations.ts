@@ -264,29 +264,68 @@ export function applySettingsMigrations(
   // the caller (`main.ts loadSettings`) runs because this function must
   // stay IO-free; `main.ts` also owns the one-time Notice and drops the
   // marker again if the keychain write throws, so the next load retries.
-  // Idempotent via the marker: a second load is a no-op.
-  if (savedData && untrustedSettings[REMOVED_PROVIDER_SCRUB_MARKER] !== true) {
+  //
+  // The DELETE and the provider reset are UNCONDITIONAL — deliberately NOT
+  // gated on our own marker, exactly like the Phase 3 plaintext-key scrub
+  // above and unlike the shape this block first shipped in. A marker-gated
+  // scrub only fires the first time it sees the data, which is the wrong
+  // guarantee here: `{ _migrated_…: true, bedrockSsoRoleName: '…',
+  // provider: 'bedrock-anthropic' }` — the shape a sync conflict, a
+  // downgrade-then-upgrade cycle or an upstream re-merge produces — would
+  // load straight through into `this.settings`, the next `saveSettings()`
+  // would write the AWS identity back to disk, and the plugin would stay
+  // wedged on a provider id this build cannot construct.
+  //
+  // Idempotence is preserved where it matters — the WRITE. `applied` is
+  // pushed (so `main.ts` calls `saveData` and blanks the keychain slots)
+  // only when this load actually had something to remove, so a
+  // steady-state load is still silent and does no IO.
+  if (savedData) {
+    const alreadyScrubbed = untrustedSettings[REMOVED_PROVIDER_SCRUB_MARKER] === true;
     // Fragment match rather than a fixed field list, matching the Phase 2.A
     // scrub: `bedrockRegion`, `bedrockAuthMethod`, `bedrockSsoStartUrl`,
     // `bedrockSsoAccountId`, `bedrockSsoRoleName` — and anything a future
     // upstream merge adds under that name — cannot survive one upgrade.
     // The marker itself carries the vendor name, so it is skipped
     // explicitly; it is written after this loop either way.
+    let removedKey = false;
     for (const key of Object.keys(untrustedSettings)) {
       if (key === REMOVED_PROVIDER_SCRUB_MARKER) continue;
-      if (key.toLowerCase().includes(REMOVED_PROVIDER_VENDOR)) delete untrustedSettings[key];
+      if (!key.toLowerCase().includes(REMOVED_PROVIDER_VENDOR)) continue;
+      delete untrustedSettings[key];
+      removedKey = true;
     }
     // A provider id this build cannot construct would leave the plugin
     // wedged on every LLM call, so fall back to the default and drop the
     // readiness flag — the user has to re-pick a provider and a key.
-    if ((REMOVED_PROVIDER_IDS as readonly string[]).includes(settings.provider)) {
+    //
+    // The model fields go with it. `provider` and `model` are one pair: a
+    // model id minted for the removed provider is not a model the default
+    // provider has, and `resolveModelForTask()` would hand that stale id to
+    // every ingest / lint / query call (per-task overrides first, then
+    // `settings.model`) against an endpoint that has never heard of it.
+    // Resetting the whole pair to DEFAULT_SETTINGS is what the UI already
+    // does on a manual provider switch (llmReady + availableModels + model
+    // + useCustomModel — see `ui/settings-sections/provider-section.ts`);
+    // a switch the migration performs FOR the user must not leave a
+    // half-configured state the user never chose.
+    const resetProvider = (REMOVED_PROVIDER_IDS as readonly string[]).includes(settings.provider);
+    if (resetProvider) {
       settings.provider = DEFAULT_SETTINGS.provider;
       settings.baseUrl = DEFAULT_SETTINGS.baseUrl;
+      settings.model = DEFAULT_SETTINGS.model;
+      settings.availableModels = [];
+      settings.useCustomModel = false;
+      settings.ingestModel = '';
+      settings.lintModel = '';
+      settings.queryModel = '';
       settings.llmReady = false;
       applied.push('harden-removed-provider-reset');
     }
     untrustedSettings[REMOVED_PROVIDER_SCRUB_MARKER] = true;
-    applied.push('harden-removed-provider-scrubbed');
+    if (!alreadyScrubbed || removedKey || resetProvider) {
+      applied.push('harden-removed-provider-scrubbed');
+    }
   }
 
   return { settings, applied };
