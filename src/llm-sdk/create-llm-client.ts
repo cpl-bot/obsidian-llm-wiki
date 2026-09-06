@@ -19,7 +19,6 @@
 // (they all expect a sync `LLMClient` instance).
 
 import { LLMClient } from '../types';
-import type { CodexAuthManager } from './openai-codex/auth-manager';
 import { resolveProviderApiKey } from './provider-api-key-resolver';
 import type { ProviderSecretStorage } from './provider-secret-store';
 
@@ -41,16 +40,16 @@ export interface ProviderSettings {
   secretStorage?: ProviderSecretStorage | null;
   baseUrl?: string;
   useOfficialOpenAI?: boolean;
-  codexAuth?: CodexAuthManager;
-  codexVersion?: string;
-  codexQuotaMessage?: string;
 }
 
-// Hardening Phase 2.B: `resolveBedrockRegion()` and `createBedrockClient()`
-// used to sit here — the region-scoped mantle baseURL builder plus the SigV4
-// signing wrappers that replaced bearer auth on both fetch seams. The whole
-// AWS provider surface is gone, so every branch below authenticates with a
-// bearer key, Codex OAuth, or nothing at all.
+// Hardening Phase 2.B removed both credential-orchestrated provider
+// surfaces that used to be wired in here:
+//   - `resolveBedrockRegion()` / `createBedrockClient()` — the region-scoped
+//     mantle baseURL builder plus the SigV4 signing wrappers that replaced
+//     bearer auth on both fetch seams.
+//   - the ChatGPT-subscription OAuth branch and its dedicated SDK client.
+// Both are gone, so every branch below authenticates with a bearer key or
+// nothing at all, and `ProviderSettings` carries no auth-manager handle.
 
 /**
  * Async factory used by callers that can await (Test Connection,
@@ -63,7 +62,6 @@ export async function createLLMClientFromSettings(
   const { OpenAISdkClient } = await import('./openai-sdk-client');
   const { AnthropicSdkClient } = await import('./anthropic-sdk-client');
   const { OpenAICompatSdkClient } = await import('./openai-compat-sdk-client');
-  const { OpenAICodexSdkClient } = await import('./openai-codex-sdk-client');
 
   const provider = settings.provider;
   // v1.25.3 #182: read the key through the resolver — SecretStorage is
@@ -82,10 +80,6 @@ export async function createLLMClientFromSettings(
   );
   const baseUrl = settings.baseUrl?.trim() || undefined;
 
-  if (provider === 'openai-codex') {
-    if (!settings.codexAuth) throw new Error('Codex auth manager is required');
-    return new OpenAICodexSdkClient({ auth: settings.codexAuth, sessionId: () => crypto.randomUUID(), version: settings.codexVersion ?? 'unknown', quotaMessage: settings.codexQuotaMessage });
-  }
   if (provider === 'anthropic') {
     return new AnthropicSdkClient({ apiKey });
   }
@@ -121,7 +115,6 @@ export interface PreloadedSdkModules {
   OpenAISdkClient: typeof import('./openai-sdk-client').OpenAISdkClient;
   AnthropicSdkClient: typeof import('./anthropic-sdk-client').AnthropicSdkClient;
   OpenAICompatSdkClient: typeof import('./openai-compat-sdk-client').OpenAICompatSdkClient;
-  OpenAICodexSdkClient: typeof import('./openai-codex-sdk-client').OpenAICodexSdkClient;
 }
 
 let preloadedModules: PreloadedSdkModules | null = null;
@@ -133,17 +126,15 @@ let preloadedModules: PreloadedSdkModules | null = null;
  * sync API contract).
  */
 export async function preloadLLMClientModules(): Promise<void> {
-  const [openai, anthropic, compat, codex] = await Promise.all([
+  const [openai, anthropic, compat] = await Promise.all([
     import('./openai-sdk-client'),
     import('./anthropic-sdk-client'),
     import('./openai-compat-sdk-client'),
-    import('./openai-codex-sdk-client'),
   ]);
   preloadedModules = {
     OpenAISdkClient: openai.OpenAISdkClient,
     AnthropicSdkClient: anthropic.AnthropicSdkClient,
     OpenAICompatSdkClient: compat.OpenAICompatSdkClient,
-    OpenAICodexSdkClient: codex.OpenAICodexSdkClient,
   };
 }
 
@@ -163,7 +154,7 @@ export function createLLMClientFromSettingsSync(
       'Call `await preloadLLMClientModules()` during plugin onload() before any LLM call.'
     );
   }
-  const { OpenAISdkClient, AnthropicSdkClient, OpenAICompatSdkClient, OpenAICodexSdkClient } = preloadedModules;
+  const { OpenAISdkClient, AnthropicSdkClient, OpenAICompatSdkClient } = preloadedModules;
 
   const provider = settings.provider;
   // v1.25.3 #182: read the key through the resolver — SecretStorage is
@@ -182,10 +173,6 @@ export function createLLMClientFromSettingsSync(
   );
   const baseUrl = settings.baseUrl?.trim() || undefined;
 
-  if (provider === 'openai-codex') {
-    if (!settings.codexAuth) throw new Error('Codex auth manager is required');
-    return new OpenAICodexSdkClient({ auth: settings.codexAuth, sessionId: () => crypto.randomUUID(), version: settings.codexVersion ?? 'unknown', quotaMessage: settings.codexQuotaMessage });
-  }
   if (provider === 'anthropic') {
     return new AnthropicSdkClient({ apiKey });
   }

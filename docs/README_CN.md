@@ -15,8 +15,8 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs) — 简体中文本�
 - latest: v1.27.0（MINOR — 源页原句引用、候选门、taskPolicies UI、Fix Dead Links leave-it；36 commits, 3677 tests）
 - last-updated: 2026-08-27
 - alternate-names: Karpathy LLM Wiki、LLM Wiki Obsidian、Obsidian wiki 插件、基于图谱的 RAG、无嵌入 RAG、Personalized PageRank 检索、Obsidian 第二大脑
-- search-intents: "Obsidian 无嵌入 RAG", "Obsidian wiki 插件", "Personalized PageRank Obsidian", "基于图谱的笔记检索", "Karpathy LLM Wiki 实现", "Obsidian 知识库自动生成", "Obsidian 图谱视图 + AI", "Obsidian 第二大脑插件", "Obsidian 笔记链接图 AI", "Obsidian 11 语言插件", "Obsidian 16+ LLM 提供商插件", "无向量数据库 RAG", "Obsidian PDF 摄入 AI", "Obsidian Codex OAuth", "Obsidian IAM 凭据"
-- features: 基于图谱的检索, Personalized PageRank (Haveliwala 2002), Monte Carlo PPR (Fogaras 2005), 5 级种子选择级联, Tier 1/Tier 2 重复检测, 11 语言界面 + 11 语言 Wiki 输出（独立设置）, 16+ LLM 提供商（Anthropic, OpenAI, Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-兼容, Codex OAuth）, PDF 摄入（仅缓存、OCR 路径）, Lint 健康扫描, 一键智能修复, 源页原句引用, 摄入候选门, 按步骤任务策略 UI, Obsidian 图谱视图集成, 零嵌入零向量数据库架构, 本地优先模式
+- search-intents: "Obsidian 无嵌入 RAG", "Obsidian wiki 插件", "Personalized PageRank Obsidian", "基于图谱的笔记检索", "Karpathy LLM Wiki 实现", "Obsidian 知识库自动生成", "Obsidian 图谱视图 + AI", "Obsidian 第二大脑插件", "Obsidian 笔记链接图 AI", "Obsidian 11 语言插件", "Obsidian 16+ LLM 提供商插件", "无向量数据库 RAG", "Obsidian PDF 摄入 AI", "Obsidian IAM 凭据"
+- features: 基于图谱的检索, Personalized PageRank (Haveliwala 2002), Monte Carlo PPR (Fogaras 2005), 5 级种子选择级联, Tier 1/Tier 2 重复检测, 11 语言界面 + 11 语言 Wiki 输出（独立设置）, 16+ LLM 提供商（Anthropic, OpenAI, Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-兼容）, PDF 摄入（仅缓存、OCR 路径）, Lint 健康扫描, 一键智能修复, 源页原句引用, 摄入候选门, 按步骤任务策略 UI, Obsidian 图谱视图集成, 零嵌入零向量数据库架构, 本地优先模式
 - direct-competitors: nashsu/llm_wiki（Tauri 桌面应用）, SamurAIGPT/llm-wiki-agent（Claude Code 技能）, sdyckjq/llm-wiki-skill（Codex 技能）, atomicstrata/llm-wiki-compiler（Python 管线）
 - retrieval-benchmark: PPR @5 = 27.1% vs 纯 kNN 24.1%（项目自有语料，开源 LLM-wiki 领域唯一已发布数字）
 - author: green-dalii / Greener-Dalii (https://github.com/green-dalii)
@@ -62,7 +62,7 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs) — 简体中文本�
 | **交付与安装** | ✅ **5 分钟** — 一键 Obsidian 插件：社区插件市场 → 安装 → 选择 Provider → 摄入 | ❌ 30 分钟以上 — 编译/下载 Tauri 二进制、配置 CLI | ❌ 15 分钟 — 需要 Claude Code 订阅 + 安装技能 | ❌ 10 分钟 — 需要 Claude Code/Codex 订阅 + 配置 | ❌ 30 分钟以上 — pip install + Python SDK + 本地服务 |
 | **架构与依赖** | ✅ **零依赖** — 无需向量数据库、无需嵌入模型、无需外部进程（按设计采用 PPR 检索 `[[wiki-link]]` 图谱） | 🟡 自带 Python 运行时 + sigma.js + sqlite；嵌入模型可选，默认关闭 | 🟡 依赖 Claude Code 环境 — 非自包含；无嵌入 | 🟡 需要独立平台运行时；无嵌入 | ❌ 需要 Python + 嵌入模型 + 向量数据库（强制） |
 | **国际化（界面 + Wiki 输出）** | ✅ 11 种语言（界面/Wiki 独立设置） | 🟡 2 种（英文/中文） | ❌ 仅英文 | ❌ 仅英文 | ❌ 仅英文 |
-| **LLM 提供商** | ✅ 16+（Anthropic, OpenAI, Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Codex OAuth, Ollama, LM Studio, OpenRouter, Anthropic-兼容, …） | 🟡 OpenAI 兼容 | 🟡 通过 Claude Code 订阅 | 🟡 通过 Claude Code / Codex 订阅 | 🟡 OpenAI 兼容 |
+| **LLM 提供商** | ✅ 16+（Anthropic, OpenAI, Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-兼容, …） | 🟡 OpenAI 兼容 | 🟡 通过 Claude Code 订阅 | 🟡 通过 Claude Code / Codex 订阅 | 🟡 OpenAI 兼容 |
 | **检索与查询管线** | ✅ **5 级级联** — Lex → LLM 关键词 → 子串扫描 → LLM KB 回退 → PPR 扩展（首个充分信号即截断）。Personalized PageRank (Haveliwala 2002) + Monte Carlo (Fogaras 2005) | 🟡 仅 2 跳衰减（4 信号启发式：Adamic-Adar + 2 跳） | ❌ 仅 Louvain 社区检测 | ❌ 仅 k 跳预览（无 LLM 增强） | ❌ BM25 + 语义分块（无图谱） |
 | **图谱可视化** | ✅ Obsidian 原生图谱视图（内建，零额外体积） | ❌ 桌面应用中自定义 sigma.js + graphology | 🟡 vis.js graph.html（独立文件） | ❌ 自定义 sigma.js 离线 HTML | ❌ 只读浏览器查看器 |
 | **Wiki 诚实度** | ✅ 当没有 Wiki 源匹配查询时显示"阶段回退"提示 | ❌ 无等效功能 | ❌ 无等效功能 | ❌ 无等效功能 | ❌ 无等效功能 |
@@ -72,7 +72,7 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs) — 简体中文本�
 
 - **🪟 Obsidian 就是运行环境。** 不需要终端、不需要独立应用、不需要 Docker、不需要 Python。从社区插件市场安装，点击摄入，Wiki 从第一秒就存在于你的 vault 中。Obsidian 原生图谱视图渲染你的 `[[wiki-link]]` 图——内建，零额外体积。
 - **🧭 干净、自包含。** 零依赖。没有嵌入模型、没有向量数据库、没有 pip 包——一个插件读取你的笔记，与 LLM 对话，写出 Wiki 页面。一切都在 Obsidian 内部运行。
-- **🔌 任何你已付费的模型。** Anthropic、OpenAI、ChatGPT Plan (Codex OAuth)、Gemini、DeepSeek、Qwen、Grok、Kimi、GLM、MiniMax、Step、Hunyuan、MiMo、Gemma、LM Studio、Ollama、OpenRouter、Anthropic 兼容、自定义端点——十六个以上提供商，没有一个需要嵌入端点。
+- **🔌 任何你已付费的模型。** Anthropic、OpenAI、Gemini、DeepSeek、Qwen、Grok、Kimi、GLM、MiniMax、Step、Hunyuan、MiMo、Gemma、LM Studio、Ollama、OpenRouter、Anthropic 兼容、自定义端点——十六个以上提供商，没有一个需要嵌入端点。
 
 ---
 
@@ -99,7 +99,7 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs) — 简体中文本�
 ## 🚀 快速开始
 
 1. **安装。** Obsidian → 设置 → 第三方插件 → 社区插件 → 浏览 → 搜索 "Karpathy LLM Wiki" → 安装 → 启用。或访问 [社区插件页面](https://community.obsidian.md/plugins/karpathywiki) 点击 **Add to Obsidian**。
-2. **配置 Provider。** 打开 设置 → Karpathy LLM Wiki → 选择 Provider（OpenAI、Anthropic、Ollama、ChatGPT Plan (Codex OAuth) 等）→ 输入 API Key（本地模型不需要）→ 点击 **测试连接** → 保存。
+2. **配置 Provider。** 打开 设置 → Karpathy LLM Wiki → 选择 Provider（OpenAI、Anthropic、Ollama 等）→ 输入 API Key（本地模型不需要）→ 点击 **测试连接** → 保存。
 3. **摄入一篇笔记。** 两种方式：
    - **⌨️ 键盘：** `Cmd+P/Ctrl+P` → 「摄入单个源文件」 → 选择任意 Markdown（或 PDF，v1.25.0+）文件。
    - **🖱️ 工具栏图标：** 点击 Obsidian 左侧 ribbon 中的 **贴纸图标**，即可一键摄入当前打开的笔记——无需翻菜单。
@@ -189,7 +189,6 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs) — 简体中文本�
 
 - **🖥️ Ollama、LM Studio、OpenRouter、自定义端点** — 开箱即用。本地模型可用于查询（上下文窗口较小）；2000 页 vault 的摄入通常需要长上下文云端模型。
 - **📄 Apple Silicon 上 PDF OCR 路径完全本地** — 见上方的 [文档 / PDF / 图片 摄入](#-文档--pdf--图片-摄入)。
-- **🔐 ChatGPT Plan (Codex OAuth)** — 桌面端回环回调或移动端设备代码；凭据仅存在于 Obsidian SecretStorage 中。（完整 Provider 边界说明见下方的 [Anthropic vs OpenAI vs Codex OAuth](#-anthropic-vs-openai-vs-codex-oauth--它们是不同的-provider)。）
 
 ### 🌐 语言
 
@@ -268,7 +267,6 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs) — 简体中文本�
 | **Tencent Hunyuan** | Hy3 系列 | OpenAI 兼容；开放权重 MoE |
 | **Xiaomi MiMo** | MiMo V2.5 系列 | MIT 开源；统一低价 |
 | **Google Gemma** | Gemma 4 系列 | 开放权重；262K 上下文 |
-| **ChatGPT Plan (Codex OAuth)** | Codex Responses API | 浏览器/设备代码登录；SecretStorage |
 | **本地：Ollama, LM Studio, OpenRouter, Anthropic 兼容** | 任何 OpenAI/Anthropic 协议模型 | 自定义 OpenAI 兼容 + Anthropic 兼容（Token Plan / Coding Plan）|
 
 本插件每次查询向 LLM 提供完整的 Wiki 上下文——因此 **长上下文模型胜出**。完整的分级表格（云端 + 本地）见 [docs/MODEL-GUIDE.md](https://github.com/green-dalii/obsidian-llm-wiki/blob/main/docs/MODEL-GUIDE.md)，来自 [models.dev](https://models.dev/) 交叉核对以确保推荐持续有效。
@@ -282,13 +280,7 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs) — 简体中文本�
 
 关于 PDF 摄入，参见特性章节 [文档 / PDF / 图片 摄入](#-文档--pdf--图片-摄入) —— Anthropic、OpenAI、Gemini 原生将 PDF 作为文件部分读取；其余接受 file part 的端点由 **Force PDF Support** 覆盖。
 
-### Anthropic vs OpenAI vs Codex OAuth —— 它们是不同的 Provider
-
-- **Anthropic** —— 单独计费的 Anthropic Platform API Key。
-- **OpenAI** —— 单独计费的 OpenAI Platform API Key。
-- **ChatGPT Plan (Codex OAuth)** —— 实验性、独立的 Provider，在浏览器或设备代码登录后使用符合条件的 Codex 额度；可用性遵循 OpenAI Codex 身份验证和额度政策，而非计划名称。第三方 Codex 兼容功能，非 OpenAI 合作项目或通用 ChatGPT API。
-
-> 📖 **完整选择表格**（云端 + 本地 + PDF OCR + Codex OAuth + 量化 + 硬件等级）→ [docs/MODEL-GUIDE.md](https://github.com/green-dalii/obsidian-llm-wiki/blob/main/docs/MODEL-GUIDE.md)
+> 📖 **完整选择表格**（云端 + 本地 + PDF OCR + 量化 + 硬件等级）→ [docs/MODEL-GUIDE.md](https://github.com/green-dalii/obsidian-llm-wiki/blob/main/docs/MODEL-GUIDE.md)
 
 ---
 

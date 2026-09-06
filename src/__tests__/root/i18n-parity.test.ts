@@ -16,32 +16,7 @@ import { SECTION_LABELS } from '../../wiki/system-prompts';
 
 const EN_KEYS = Object.keys(TEXTS.en).sort();
 const LOCALES = Object.keys(TEXTS) as Array<keyof typeof TEXTS>;
-const CODEX_AUTH_ENGLISH = {
-  codexAuthName: 'ChatGPT Plan sign-in',
-  codexAuthDesc: 'Experimental Codex OAuth access using your ChatGPT plan allowance. OpenAI Platform API billing remains separate.',
-  codexAuthSignedOut: 'Not signed in',
-  codexAuthSignedIn: 'Signed in',
-  codexAuthBrowserButton: 'Sign in with browser',
-  codexAuthDeviceButton: 'Use device code',
-  codexAuthDeviceInstructions: 'Enter this code on the OpenAI page: {}',
-  codexAuthSignOutButton: 'Sign out',
-  codexAuthBusy: 'Waiting for OpenAI authorization...',
-  codexAuthRequired: 'Sign in to ChatGPT Plan before testing the connection.',
-  codexAuthFailed: 'ChatGPT authorization failed: {}',
-  codexAuthQuota: 'ChatGPT Codex allowance reached. Wait for the displayed reset period and try again.',
-  codexAuthExperimental: 'Experimental: availability follows OpenAI Codex authentication and model policies.',
-} as const;
-
 describe('UI text parity across all locales', () => {
-  it('defines the canonical English Codex authentication copy', () => {
-    for (const [key, value] of Object.entries(CODEX_AUTH_ENGLISH)) expect(TEXTS.en[key as keyof typeof TEXTS.en]).toBe(value);
-  });
-
-  it.each(LOCALES)('locale "%s" defines every Codex authentication key', (locale) => {
-    const texts = TEXTS[locale] as unknown as Record<string, unknown>;
-    for (const key of Object.keys(CODEX_AUTH_ENGLISH)) expect(typeof texts[key], `missing ${key} in ${locale}`).toBe('string');
-  });
-
   // The contract getText() relies on: every locale must cover every EN key,
   // otherwise it silently falls back to English at runtime. (Extra keys are
   // harmless dead entries — some pre-existing locales carry orphan keys — so
@@ -84,6 +59,32 @@ describe('UI text parity across all locales', () => {
 // The needle is assembled from fragments so this test file does not itself
 // contain the literal it forbids.
 const REMOVED_BACKEND_NEEDLE = 'min' + 'eru';
+
+// Hardening Phase 2.B: the ChatGPT-subscription OAuth provider was removed
+// because it ran a loopback HTTP listener on the user's machine and drove an
+// OAuth flow against two hosts unrelated to any documented API surface. Same
+// reasoning as the Phase 2.A guard below: i18n is where a fragment of a
+// removed feature survives longest, and an orphan key here would put the
+// provider's copy (and its sign-in instructions) back into the shipped bundle.
+//
+// The needle is the provider's own name, matched case-insensitively so
+// `codexAuthName`, `openAICodexModels` and `CODEX_*` are all caught.
+const REMOVED_OAUTH_NEEDLE = 'codex';
+
+describe('removed OAuth provider leaves no i18n trace (hardening Phase 2.B)', () => {
+  it.each(LOCALES)('locale "%s" has no key naming the removed OAuth provider', (locale) => {
+    const offenders = Object.keys(TEXTS[locale]).filter((key) => key.toLowerCase().includes(REMOVED_OAUTH_NEEDLE));
+    expect(offenders, `removed-provider keys in ${locale}`).toEqual([]);
+  });
+
+  it.each(LOCALES)('locale "%s" has no value mentioning the removed OAuth provider', (locale) => {
+    const texts = TEXTS[locale] as unknown as Record<string, unknown>;
+    const offenders = Object.entries(texts)
+      .filter(([, value]) => typeof value === 'string' && value.toLowerCase().includes(REMOVED_OAUTH_NEEDLE))
+      .map(([key]) => key);
+    expect(offenders, `removed-provider copy in ${locale}`).toEqual([]);
+  });
+});
 
 describe('removed conversion backend leaves no i18n trace (hardening Phase 2.A)', () => {
   it.each(LOCALES)('locale "%s" has no key naming the removed backend', (locale) => {

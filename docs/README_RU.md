@@ -33,7 +33,7 @@
 | **Доставка и установка** | ✅ **5 мин** — Плагин Obsidian в один клик: Community Plugins → Install → выбор провайдера → Ingest | ❌ 30 мин+ — Компиляция/загрузка Tauri-бинарника, настройка CLI | ❌ 15 мин — Подписка Claude Code + установка навыка | ❌ 10 мин — Подписка Claude Code/Codex + настройка навыка | ❌ 30 мин+ — pip install + Python SDK + локальный сервер |
 | **Архитектура и зависимости** | ✅ **Ноль зависимостей** — нет векторной БД, нет модели эмбеддингов, нет внешних процессов (PPR по графу `[[wiki-link]]`, по замыслу) | 🟡 Встраивает Python-рантайм + sigma.js + sqlite; опциональные эмбеддинги выкл по умолчанию | 🟡 Использует окружение Claude Code — не самодостаточный; без эмбеддингов | 🟡 Требует отдельный рантайм платформы; без эмбеддингов | ❌ Требует Python + модель эмбеддингов + векторную БД (обязательно) |
 | **i18n (UI + вывод Wiki)** | ✅ 11 языков (UI / вывод независимы) | 🟡 2 (EN / 中文) | ❌ Только английский | ❌ Только английский | ❌ Только английский |
-| **Провайдеры LLM** | ✅ 16+ (Anthropic, OpenAI, Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Codex OAuth, Ollama, LM Studio, OpenRouter, Anthropic-Compatible, ...) | 🟡 OpenAI-compatible | 🟡 Подписка через Claude Code | 🟡 Подписка через Claude Code / Codex | 🟡 OpenAI-compatible |
+| **Провайдеры LLM** | ✅ 16+ (Anthropic, OpenAI, Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-Compatible, ...) | 🟡 OpenAI-compatible | 🟡 Подписка через Claude Code | 🟡 Подписка через Claude Code / Codex | 🟡 OpenAI-compatible |
 | **Извлечение и конвейер запросов** | ✅ **5-ступенчатый каскад** — Lex → LLM-ключевые слова → substring-скан → LLM KB fallback → PPR-расширение (усечение на первом достаточном сигнале). Personalized PageRank (Haveliwala 2002) + Monte Carlo (Fogaras 2005) | 🟡 2-hop decay (4-сигнальная эвристика: Adamic-Adar + 2-hop) | ❌ Только обнаружение сообществ Louvain | ❌ Только k-hop предпросмотры (без LLM-усиления) | ❌ BM25 + семантика по чанкам (без графа) |
 | **Визуализация графа** | ✅ Нативный Graph View от Obsidian (встроенный, нулевой размер) | ❌ Кастомный sigma.js + graphology в десктоп-приложении | 🟡 vis.js graph.html (отдельный файл) | ❌ Кастомный sigma.js офлайн HTML | ❌ Read-only браузерный вьюер |
 | **Честность Wiki** | ✅ Баннер «Stage FALLBACK», когда ни один источник Wiki не соответствует вашему запросу | ❌ Нет эквивалента | ❌ Нет эквивалента | ❌ Нет эквивалента | ❌ Нет эквивалента |
@@ -43,7 +43,7 @@
 
 - **🪟 Obsidian — это среда выполнения.** Никакого терминала, никакого отдельного приложения, никакого Docker, никакого Python. Установите из Community Plugins, нажмите Ingest — Wiki живёт в вашем хранилище с первой секунды. Нативный Graph View от Obsidian отображает ваш граф `[[wiki-link]]` — встроенный, нулевой дополнительный размер бандла.
 - **🧭 Чисто и самодостаточно.** Ноль зависимостей. Никакой модели эмбеддингов, никакой векторной базы данных, никакого pip-пакета — один плагин, который читает ваши заметки, общается с LLM и пишет страницы Wiki. Всё живёт внутри Obsidian.
-- **🔌 Любая модель, за которую вы уже платите.** Anthropic, OpenAI, ChatGPT Plan (Codex OAuth), Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-compatible, пользовательский эндпоинт — более шестнадцати провайдеров, ни один из которых не обязан иметь эндпоинт эмбеддингов.
+- **🔌 Любая модель, за которую вы уже платите.** Anthropic, OpenAI, Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-compatible, пользовательский эндпоинт — более шестнадцати провайдеров, ни один из которых не обязан иметь эндпоинт эмбеддингов.
 
 ---
 
@@ -70,7 +70,7 @@
 ## 🚀 Быстрый старт
 
 1. **Установите.** Obsidian → Настройки → Сторонние плагины → Обзор → найдите «Karpathy LLM Wiki» → Установить → Включить. Или посетите [страницу плагина сообщества](https://community.obsidian.md/plugins/karpathywiki) и нажмите **Add to Obsidian**.
-2. **Настройте провайдера.** Откройте Настройки → Karpathy LLM Wiki → выберите провайдера (OpenAI, Anthropic, Ollama, ChatGPT Plan (Codex OAuth) и т.д.) → введите API Key (не нужен для локальных) → нажмите **Проверить подключение** → Сохранить.
+2. **Настройте провайдера.** Откройте Настройки → Karpathy LLM Wiki → выберите провайдера (OpenAI, Anthropic, Ollama и т.д.) → введите API Key (не нужен для локальных) → нажмите **Проверить подключение** → Сохранить.
 3. **Импортируйте одну заметку.** Два способа:
    - **⌨️ Клавиатура:** `Cmd+P/Ctrl+P` → «Импорт одного источника» → выберите любой Markdown (или PDF, v1.25.0+) файл.
    - **🖱️ Значок на панели:** Нажмите **значок стикера** в левой ленте Obsidian, чтобы мгновенно импортировать текущую открытую заметку — без поиска в меню.
@@ -158,7 +158,6 @@
 
 - **🖥️ Ollama, LM Studio, OpenRouter, пользовательский эндпоинт** — из коробки. Локальные модели работают для запросов (меньшие контекстные окна); импорт в хранилище с 2000 страниц обычно требует облачную модель с длинным контекстом.
 - **📄 Путь OCR PDF полностью локальный на Apple Silicon** — см. [Импорт документов / PDF / изображений](#-импорт-документов--pdf--изображений) выше.
-- **🔐 ChatGPT Plan (Codex OAuth)** — loopback на десктопе или device-code на мобильном; учётные данные живут только в Obsidian SecretStorage. (См. [Anthropic vs OpenAI vs Codex OAuth](#-anthropic-vs-openai-vs-codex-oauth--это-разные-провайдеры) ниже для полного объяснения границ между провайдерами.)
 
 ### 🌐 Язык
 
@@ -237,7 +236,6 @@
 | **Tencent Hunyuan** | Hy3 series | OpenAI-совместимый; open-weight MoE |
 | **Xiaomi MiMo** | MiMo V2.5 series | MIT open-source; плоское ценообразование |
 | **Google Gemma** | Gemma 4 series | Open-weight; 262K контекст |
-| **ChatGPT Plan (Codex OAuth)** | Codex Responses API | Вход через браузер/device-code; SecretStorage |
 | **Локальные: Ollama, LM Studio, OpenRouter, Anthropic-Compatible** | Любая модель с протоколом OpenAI-/Anthropic | Custom OpenAI-Compatible + Anthropic-Compatible (Token Plan / Coding Plan) |
 
 Этот плагин подаёт LLM ваш полный контекст Wiki за каждый запрос — поэтому **выигрывают модели с длинным контекстом**. Полная многоуровневая таблица (облако + локальные) живёт в [docs/MODEL-GUIDE.md](https://github.com/green-dalii/obsidian-llm-wiki/blob/main/docs/MODEL-GUIDE.md), проверено по [models.dev](https://models.dev/), чтобы выбор оставался актуальным.
@@ -251,13 +249,7 @@
 
 Для импорта PDF см. [Импорт документов / PDF / изображений](#-импорт-документов--pdf--изображений) в Возможностях — Anthropic, OpenAI, Gemini читают PDF как file parts нативно; любой другой эндпоинт, принимающий file parts, покрывает **Force PDF Support**.
 
-### Anthropic vs OpenAI vs Codex OAuth — это разные провайдеры
-
-- **Anthropic** — отдельно тарифицируемый Anthropic Platform API key.
-- **OpenAI** — отдельно тарифицируемый OpenAI Platform API key.
-- **ChatGPT Plan (Codex OAuth)** — экспериментальный, отдельный провайдер, использующий подходящее пособие Codex после входа через браузер или device-code; доступность следует политикам аутентификации и пособия OpenAI Codex, а не имени тарифа. Сторонняя совместимость с Codex, не партнёрство с OpenAI и не общий ChatGPT API.
-
-> 📖 **Полная таблица выбора** (облако + локальные + OCR PDF + Codex OAuth + квантизация + аппаратные уровни) → [docs/MODEL-GUIDE.md](https://github.com/green-dalii/obsidian-llm-wiki/blob/main/docs/MODEL-GUIDE.md)
+> 📖 **Полная таблица выбора** (облако + локальные + OCR PDF + квантизация + аппаратные уровни) → [docs/MODEL-GUIDE.md](https://github.com/green-dalii/obsidian-llm-wiki/blob/main/docs/MODEL-GUIDE.md)
 
 ## ❓ FAQ
 

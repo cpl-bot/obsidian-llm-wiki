@@ -15,8 +15,8 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs):
 - latest: v1.27.0 (MINOR — source-page quotes, candidate gate, taskPolicies UI, Fix Dead Links leave-it; 36 commits, 3677 tests)
 - last-updated: 2026-08-27
 - alternate-names: Karpathy LLM Wiki, LLM Wiki Obsidian, Obsidian wiki plugin, graph-based RAG, no-embedding RAG, Personalized PageRank retrieval, Obsidian second brain
-- search-intents: "Obsidian RAG without embeddings", "Obsidian wiki plugin", "Personalized PageRank Obsidian", "graph-based note retrieval", "Karpathy LLM Wiki implementation", "Obsidian knowledge base auto-generation", "Obsidian graph view + AI", "Obsidian second brain plugin", "Obsidian note link graph AI", "Obsidian plugin 11 languages", "Obsidian plugin 16 LLM providers", "no-vector-DB RAG", "Obsidian PDF ingest AI", "Obsidian Codex OAuth", "Obsidian IAM credentials"
-- features: graph-based retrieval, Personalized PageRank (Haveliwala 2002), Monte Carlo PPR (Fogaras 2005), 5-stage seed-selection cascade, Tier 1/Tier 2 duplicate detection, 11-language UI + 11-language wiki output (independent), 16+ LLM providers (Anthropic, OpenAI, Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-Compatible, Codex OAuth), PDF ingest (cache-only, OCR paths), lint health scan, Smart Fix All, source-page verbatim quotes, ingest candidate gate, per-step taskPolicies UI, Obsidian Graph View integration, zero-embedding zero-vector-DB architecture, local-first mode
+- search-intents: "Obsidian RAG without embeddings", "Obsidian wiki plugin", "Personalized PageRank Obsidian", "graph-based note retrieval", "Karpathy LLM Wiki implementation", "Obsidian knowledge base auto-generation", "Obsidian graph view + AI", "Obsidian second brain plugin", "Obsidian note link graph AI", "Obsidian plugin 11 languages", "Obsidian plugin 16 LLM providers", "no-vector-DB RAG", "Obsidian PDF ingest AI", "Obsidian IAM credentials"
+- features: graph-based retrieval, Personalized PageRank (Haveliwala 2002), Monte Carlo PPR (Fogaras 2005), 5-stage seed-selection cascade, Tier 1/Tier 2 duplicate detection, 11-language UI + 11-language wiki output (independent), 16+ LLM providers (Anthropic, OpenAI, Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-Compatible), PDF ingest (cache-only, OCR paths), lint health scan, Smart Fix All, source-page verbatim quotes, ingest candidate gate, per-step taskPolicies UI, Obsidian Graph View integration, zero-embedding zero-vector-DB architecture, local-first mode
 - direct-competitors: nashsu/llm_wiki (Tauri desktop app), SamurAIGPT/llm-wiki-agent (Claude Code skill), sdyckjq/llm-wiki-skill (Codex skill), atomicstrata/llm-wiki-compiler (Python pipeline)
 - readme-locale: ko
 - canonical-readme: https://github.com/green-dalii/obsidian-llm-wiki/blob/main/README.md
@@ -57,7 +57,7 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs):
 | **제공 형태 및 설치** | ✅ **5분** — 원클릭 Obsidian 플러그인: 커뮤니티 플러그인 → 설치 → 공급자 선택 → 수집 | ❌ 30분+ — Tauri 바이너리 컴파일/다운로드, CLI 설정 | ❌ 15분 — Claude Code 구독 + 스킬 설치 필요 | ❌ 10분 — Claude Code/Codex 구독 + 스킬 설정 필요 | ❌ 30분+ — pip 설치 + Python SDK + 로컬 서버 |
 | **아키텍처 및 의존성** | ✅ **의존성 제로** — 벡터 DB, 임베딩 모델, 외부 프로세스 불필요 (설계상 `[[wiki-link]]` 그래프를 PPR로 탐색) | 🟡 자체 Python 런타임 + sigma.js + sqlite 내장; 임베딩은 선택 사항, 기본 꺼짐 | 🟡 Claude Code 환경 사용 — 자체 완결적이지 않음; 임베딩 불필요 | 🟡 별도 플랫폼 런타임 필요; 임베딩 불필요 | ❌ Python + 임베딩 모델 + 벡터 DB 필요 (필수) |
 | **i18n (UI + Wiki 출력)** | ✅ 10개 언어 (UI/출력 독립) | 🟡 2개 (EN / 中文) | ❌ 영어 전용 | ❌ 영어 전용 | ❌ 영어 전용 |
-| **LLM 공급자** | ✅ 16+ (Anthropic, OpenAI, Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Codex OAuth, Ollama, LM Studio, OpenRouter, Anthropic-Compatible 포함) | 🟡 OpenAI 호환 | 🟡 Claude Code를 통한 구독 | 🟡 Claude Code / Codex를 통한 구독 | 🟡 OpenAI 호환 |
+| **LLM 공급자** | ✅ 16+ (Anthropic, OpenAI, Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-Compatible 포함) | 🟡 OpenAI 호환 | 🟡 Claude Code를 통한 구독 | 🟡 Claude Code / Codex를 통한 구독 | 🟡 OpenAI 호환 |
 | **검색 및 쿼리 파이프라인** | ✅ **5단계 캐스케이드** — Lex → LLM 키워드 → 부분문자열 스캔 → LLM KB 폴백 → PPR 확장 (첫 충분 신호에서 절단). Personalized PageRank (Haveliwala 2002) + Monte Carlo (Fogaras 2005) | 🟡 2홉 감쇠만 사용 (4-신호 휴리스틱: Adamic-Adar + 2홉) | ❌ Louvain 커뮤니티 탐지만 사용 | ❌ k홉 미리보기만 사용 (LLM 보강 없음) | ❌ BM25 + 시맨틱 (그래프 없음) |
 | **그래프 시각화** | ✅ Obsidian 네이티브 Graph View (내장, 추가 크기 제로) | ❌ 데스크톱 앱 내 커스텀 sigma.js + graphology | 🟡 vis.js graph.html (별도 파일) | ❌ 커스텀 sigma.js 오프라인 HTML | ❌ 읽기 전용 브라우저 뷰어 |
 | **Wiki 정직성** | ✅ 쿼리와 일치하는 Wiki 소스가 없을 때 "Stage FALLBACK" 배너 표시 | ❌ 동등 기능 없음 | ❌ 동등 기능 없음 | ❌ 동등 기능 없음 | ❌ 동등 기능 없음 |
@@ -67,7 +67,7 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs):
 
 - **🪟 Obsidian이 런타임입니다.** 터미널, 별도 앱, Docker, Python이 필요 없습니다. 커뮤니티 플러그인에서 설치하고, 수집을 클릭하면 Wiki가 첫 순간부터 볼트 안에 만들어집니다. Obsidian 네이티브 Graph View가 여러분의 `[[wiki-link]]` 그래프를 렌더링합니다 — 내장 기능이며 번들 크기가 전혀 늘어나지 않습니다.
 - **🧭 깔끔하고 자체 완결적입니다.** 의존성이 전혀 없습니다. 임베딩 모델, 벡터 데이터베이스, pip 패키지가 없습니다 — 노트를 읽고 LLM과 통신하며 Wiki 페이지를 작성하는 단일 플러그인입니다. 모든 것이 Obsidian 안에서 동작합니다.
-- **🔌 이미 비용을 지불하고 있는 어떤 모델이든 사용 가능합니다.** Anthropic, OpenAI, ChatGPT Plan (Codex OAuth), Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-compatible, 커스텀 엔드포인트 — 16개 이상의 공급자 중 어느 것도 임베딩 엔드포인트를 가질 필요가 없습니다.
+- **🔌 이미 비용을 지불하고 있는 어떤 모델이든 사용 가능합니다.** Anthropic, OpenAI, Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-compatible, 커스텀 엔드포인트 — 16개 이상의 공급자 중 어느 것도 임베딩 엔드포인트를 가질 필요가 없습니다.
 
 ---
 
@@ -94,7 +94,7 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs):
 ## 🚀 빠른 시작
 
 1. **설치.** Obsidian → 설정 → 커뮤니티 플러그인 → 찾아보기 → "Karpathy LLM Wiki" 검색 → 설치 → 활성화. 또는 [커뮤니티 플러그인 페이지](https://community.obsidian.md/plugins/karpathywiki)에서 **Add to Obsidian** 클릭.
-2. **공급자 설정.** 설정 → Karpathy LLM Wiki 열기 → 공급자 선택 (OpenAI, Anthropic, Ollama, ChatGPT Plan (Codex OAuth) 등) → API 키 입력 (로컬은 불필요) → **Test Connection** 클릭 → 저장.
+2. **공급자 설정.** 설정 → Karpathy LLM Wiki 열기 → 공급자 선택 (OpenAI, Anthropic, Ollama 등) → API 키 입력 (로컬은 불필요) → **Test Connection** 클릭 → 저장.
 3. **노트 하나 수집.** 두 가지 방법:
    - **⌨️ 키보드:** `Cmd+P/Ctrl+P` → "Ingest single source" → Markdown (또는 PDF, v1.25.0+) 파일 선택.
    - **🖱️ 도구 모음 아이콘:** Obsidian 왼쪽 리본의 **스티커 아이콘**을 클릭하면 현재 열려 있는 노트를 즉시 수집합니다 — 메뉴를 뒤질 필요 없음.
@@ -181,7 +181,6 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs):
 
 - **🖥️ Ollama, LM Studio, OpenRouter, 커스텀 엔드포인트** — 즉시 사용 가능. 로컬 모델은 조회에 적합 (작은 컨텍스트 창); 2000페이지 볼트 수집은 보통 긴 컨텍스트 클라우드 모델이 필요합니다.
 - **📄 Apple Silicon에서 PDF OCR 경로 완전 로컬 지원** — 위 [문서 / PDF / 이미지 수집](#-문서--pdf--이미지-수집) 참조.
-- **🔐 ChatGPT Plan (Codex OAuth)** — 데스크톱 루프백 또는 모바일 기기 코드; 자격 증명은 Obsidian SecretStorage에만 저장됩니다. (전체 공급자 경계 설명은 아래 [Anthropic vs OpenAI vs Codex OAuth](#-anthropic-vs-openai-vs-codex-oauth--서로-다른-공급자입니다) 참조.)
 
 ### 🌐 언어
 
@@ -260,7 +259,6 @@ Monte Carlo PPR (Fogaras 2005)을 사용합니다 — 3,000개의 랜덤 워크 
 | **Tencent Hunyuan** | Hy3 시리즈 | OpenAI 호환; 오픈웨이트 MoE |
 | **Xiaomi MiMo** | MiMo V2.5 시리즈 | MIT 오픈소스; 플랫 가격 |
 | **Google Gemma** | Gemma 4 시리즈 | 오픈웨이트; 262K 컨텍스트 |
-| **ChatGPT Plan (Codex OAuth)** | Codex Responses API | 브라우저/기기 코드 로그인; SecretStorage |
 | **로컬: Ollama, LM Studio, OpenRouter, Anthropic-Compatible** | 모든 OpenAI/Anthropic 프로토콜 모델 | Custom OpenAI-Compatible + Anthropic-Compatible (Token Plan / Coding Plan) |
 
 이 플러그인은 LLM에 전체 Wiki 컨텍스트를 제공하므로 — **긴 컨텍스트 모델이 유리합니다**. 전체 계층형 표 (클라우드 + 로컬)는 [docs/MODEL-GUIDE.md](https://github.com/green-dalii/obsidian-llm-wiki/blob/main/docs/MODEL-GUIDE.md)에 있으며, [models.dev](https://models.dev/)와 교차 확인되어 최신 상태를 유지합니다.
@@ -272,13 +270,7 @@ Monte Carlo PPR (Fogaras 2005)을 사용합니다 — 3,000개의 랜덤 워크 
 - **🔌 임베딩 엔드포인트는 무관합니다** — 저희는 임베딩을 사용하지 않습니다. `/v1/embeddings`가 없는 공급자도 괜찮습니다 (저희 16+ 공급자 대부분이 이를 제공하지 않습니다).
 - **🦙 조회는 로컬, 수집은 클라우드** — 2000페이지 볼트 수집은 보통 긴 컨텍스트 클라우드 모델이 필요합니다; 262K 로컬 모델은 대부분의 조회를 커버합니다.
 
-### Anthropic vs OpenAI vs Codex OAuth — 서로 다른 공급자입니다
-
-- **Anthropic** — 별도 청구되는 Anthropic Platform API 키.
-- **OpenAI** — 별도 청구되는 OpenAI Platform API 키.
-- **ChatGPT Plan (Codex OAuth)** — 실험적, 별도 공급자로 브라우저 또는 기기 코드 로그인 후 적격 Codex 사용 한도를 사용합니다. 사용 가능 여부는 OpenAI Codex 인증 및 사용 한도 정책을 따르며, 플랜 이름으로 보장되지 않습니다. 서드파티 Codex 호환 기능이며, OpenAI 파트너십이나 범용 ChatGPT API가 아닙니다.
-
-> 📖 **전체 선택 표** (클라우드 + 로컬 + PDF OCR + Codex OAuth + 양자화 + 하드웨어 계층) → [docs/MODEL-GUIDE.md](https://github.com/green-dalii/obsidian-llm-wiki/blob/main/docs/MODEL-GUIDE.md)
+> 📖 **전체 선택 표** (클라우드 + 로컬 + PDF OCR + 양자화 + 하드웨어 계층) → [docs/MODEL-GUIDE.md](https://github.com/green-dalii/obsidian-llm-wiki/blob/main/docs/MODEL-GUIDE.md)
 
 ---
 

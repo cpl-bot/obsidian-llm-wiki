@@ -36,8 +36,6 @@ describe('egress host lists', () => {
     for (const host of [
       'api.anthropic.com',
       'api.openai.com',
-      'auth.openai.com',
-      'chatgpt.com',
       'generativelanguage.googleapis.com',
       'openrouter.ai',
       'api.deepseek.com',
@@ -46,6 +44,17 @@ describe('egress host lists', () => {
       'open.bigmodel.cn',
     ]) {
       expect(EGRESS_ALLOWLIST.has(host), `${host} must be fetch-allowlisted`).toBe(true);
+    }
+  });
+
+  // Hardening Phase 2.B: the two hosts the removed ChatGPT-subscription OAuth
+  // provider talked to are gone from the allowlist. Nothing in the shipped
+  // code fetches them any more, so a request to either must be denied even
+  // though they sit under a domain whose API host is still allowlisted.
+  it('denies the removed OAuth provider hosts', () => {
+    for (const host of ['auth.openai.com', 'chatgpt.com']) {
+      expect(EGRESS_ALLOWLIST.has(host), `${host} must not be fetch-allowlisted`).toBe(false);
+      expect(isAllowedHost(host, STRICT), `${host} must be denied`).toBe(false);
     }
   });
 

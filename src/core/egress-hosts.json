@@ -7,8 +7,6 @@
     "api.minimaxi.com",
     "api.moonshot.cn",
     "api.openai.com",
-    "auth.openai.com",
-    "chatgpt.com",
     "generativelanguage.googleapis.com",
     "open.bigmodel.cn",
     "openrouter.ai"
@@ -17,7 +15,7 @@
   "hostPatterns": [],
   "_loopbackHosts": "http: is permitted only for these (Ollama / LM Studio / OAuth loopback listener).",
   "loopbackHosts": ["localhost", "127.0.0.1", "::1"],
-  "_knownDocHosts": "Hosts that appear as literals in the bundle but are NEVER fetched: documentation links, links opened in the user's browser, and placeholder examples. `ai-gateway.vercel.sh` is the `ai` SDK's built-in default gateway — it is deliberately listed HERE and NOT in `allowlist`, so the tripwire passes while the policy blocks any request to it.",
+  "_knownDocHosts": "Hosts that appear as literals in the bundle but are NEVER fetched: documentation links, links opened in the user's browser, and placeholder examples. `ai-gateway.vercel.sh` is the `ai` SDK's built-in default gateway — it is deliberately listed HERE and NOT in `allowlist`, so the tripwire passes while the policy blocks any request to it. `cookbook.openai.com` and `developers.openai.com` are @see links inside the bundled @ai-sdk/openai JSDoc — they survived the Phase 2.B removal of the ChatGPT-subscription OAuth provider (which took the two hosts it fetched out of `allowlist`) because the SDK, not that provider, is what mentions them. `scripts/check-bundle-no-codex.mjs` names those two hosts; nothing else in the repo may.",
   "knownDocHosts": [
     "ai-gateway.vercel.sh",
     "ai-sdk.dev",

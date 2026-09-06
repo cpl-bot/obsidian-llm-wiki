@@ -35,7 +35,7 @@ Du schreibst Notizen. Sie liegen in Ordnern. Zusammenhänge zu finden bedeutet, 
 | **Lieferung & Installation** | ✅ **5 Min.** — One-Click-Obsidian-Plugin: Community Plugins → Installieren → Provider wählen → Ingest | ❌ 30 Min.+ — Tauri-Binary kompilieren/herunterladen, CLI konfigurieren | ❌ 15 Min. — benötigt Claude-Code-Abo + Skill-Installation | ❌ 10 Min. — benötigt Claude-Code-/Codex-Abo + Skill-Einrichtung | ❌ 30 Min.+ — pip install + Python SDK + lokaler Server |
 | **Architektur & Abhängigkeiten** | ✅ **Keine Abhängigkeiten** — keine Vektor-DB, kein Embedding-Modell, keine externen Prozesse (PPR über `[[wiki-link]]`-Graph, bewusst so gewählt) | 🟡 Eigenes Python-Runtime + sigma.js + sqlite; Embeddings optional, standardmäßig aus | 🟡 Nutzt Claude-Code-Umgebung — nicht eigenständig; keine Embeddings | 🟡 Erfordert separate Plattform-Laufzeitumgebung; keine Embeddings | ❌ Erfordert Python + Embedding-Modell + Vektor-DB (zwingend) |
 | **i18n (UI + Wiki-Ausgabe)** | ✅ 10 Sprachen (unabhängige UI/Ausgabe) | 🟡 2 (EN / 中文) | ❌ Nur Englisch | ❌ Nur Englisch | ❌ Nur Englisch |
-| **LLM-Anbieter** | ✅ 16+ (inkl. Anthropic, OpenAI, Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Codex OAuth, Ollama, LM Studio, OpenRouter, Anthropic-Compatible) | 🟡 OpenAI-kompatibel | 🟡 Abo über Claude Code | 🟡 Abo über Claude Code / Codex | 🟡 OpenAI-kompatibel |
+| **LLM-Anbieter** | ✅ 16+ (inkl. Anthropic, OpenAI, Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-Compatible) | 🟡 OpenAI-kompatibel | 🟡 Abo über Claude Code | 🟡 Abo über Claude Code / Codex | 🟡 OpenAI-kompatibel |
 | **Suche & Query-Pipeline** | ✅ **5-Stufen-Kaskade** — Lex → LLM-Keywords → Substring-Scan → LLM-KB-Fallback → PPR-Expansion (bricht bei erstem ausreichendem Signal ab). Personalized PageRank (Haveliwala 2002) + Monte Carlo (Fogaras 2005) | 🟡 Nur 2-Hop-Decay (4-Signal-Heuristik: Adamic-Adar + 2-Hop) | ❌ Nur Louvain-Community-Erkennung | ❌ Nur k-Hop-Vorschauen (keine LLM-Erweiterung) | ❌ BM25 + semantisch über Chunks (kein Graph) |
 | **Graph-Visualisierung** | ✅ Obsidians nativer Graph View (integriert, null zusätzliche Größe) | ❌ Benutzerdefiniertes sigma.js + graphology in Desktop-App | 🟡 vis.js graph.html (separate Datei) | ❌ Benutzerdefiniertes sigma.js offline HTML | ❌ Read-only-Browser-Viewer |
 | **Wiki-Ehrlichkeit** | ✅ „Stage FALLBACK"-Banner, wenn keine Wiki-Quelle zur Abfrage passt | ❌ Kein Äquivalent | ❌ Kein Äquivalent | ❌ Kein Äquivalent | ❌ Kein Äquivalent |
@@ -45,7 +45,7 @@ Du schreibst Notizen. Sie liegen in Ordnern. Zusammenhänge zu finden bedeutet, 
 
 - **🪟 Obsidian ist die Laufzeitumgebung.** Kein Terminal, keine separate App, kein Docker, kein Python. Aus Community-Plugins installieren, auf Ingest klicken, das Wiki lebt von der ersten Sekunde an in deinem Vault. Obsidians nativer Graph View rendert deinen `[[wiki-link]]`-Graphen — integriert, null zusätzliche Bundle-Größe.
 - **🧭 Sauber und autark.** Keine Abhängigkeiten. Kein Embedding-Modell, keine Vektor-Datenbank, kein pip-Paket — ein einziges Plugin, das deine Notizen liest, mit einem LLM spricht und Wiki-Seiten schreibt. Alles lebt innerhalb von Obsidian.
-- **🔌 Jedes Modell, für das du bereits bezahlst.** Anthropic, OpenAI, ChatGPT Plan (Codex OAuth), Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-kompatibel, eigener Endpunkt — sechzehn-plus Anbieter, keiner davon benötigt einen Embedding-Endpunkt.
+- **🔌 Jedes Modell, für das du bereits bezahlst.** Anthropic, OpenAI, Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-kompatibel, eigener Endpunkt — sechzehn-plus Anbieter, keiner davon benötigt einen Embedding-Endpunkt.
 
 ---
 
@@ -72,7 +72,7 @@ Du schreibst Notizen. Sie liegen in Ordnern. Zusammenhänge zu finden bedeutet, 
 ## 🚀 Schnellstart
 
 1. **Installieren.** Obsidian → Einstellungen → Community-Plugins → Durchsuchen → „Karpathy LLM Wiki" suchen → Installieren → Aktivieren. Oder besuche die [Community-Plugin-Seite](https://community.obsidian.md/plugins/karpathywiki) und klicke auf **Zu Obsidian hinzufügen**.
-2. **Provider konfigurieren.** Einstellungen → Karpathy LLM Wiki → Provider wählen (OpenAI, Anthropic, Ollama, ChatGPT Plan (Codex OAuth) usw.) → API-Key eingeben (nicht nötig bei lokalen Anbietern) → **Test Connection** klicken → Speichern.
+2. **Provider konfigurieren.** Einstellungen → Karpathy LLM Wiki → Provider wählen (OpenAI, Anthropic, Ollama usw.) → API-Key eingeben (nicht nötig bei lokalen Anbietern) → **Test Connection** klicken → Speichern.
 3. **Eine Notiz ingestieren.** Zwei Wege:
    - **⌨️ Tastatur:** `Cmd+P/Ctrl+P` → „Ingest single source" → eine beliebige Markdown- (oder PDF-, v1.25.0+) Datei wählen.
    - **🖱️ Toolbar-Symbol:** Klicke auf das **Sticker-Symbol** im linken Ribbon von Obsidian, um die aktuell geöffnete Notiz sofort aufzunehmen — kein Menü-Suchen.
@@ -159,7 +159,6 @@ Drei On-Ramps, pro Ingest umschaltbar:
 
 - **🖥️ Ollama, LM Studio, OpenRouter, eigener Endpunkt** — sofort einsatzbereit. Lokale Modelle funktionieren für Abfragen (kleinere Kontextfenster); Ingest in einem 2.000-Seiten-Vault benötigt normalerweise ein Cloud-Modell mit langem Kontext.
 - **📄 PDF-OCR-Pfad ist auf Apple Silicon vollständig lokal** — siehe [Dokument- / PDF- / Bild-Ingest](#-dokument---pdf---bild-ingest) oben.
-- **🔐 ChatGPT Plan (Codex OAuth)** — Desktop-Loopback oder Mobil-Gerätecode; Anmeldeinformationen leben nur in Obsidian SecretStorage. (Siehe [Anthropic vs. OpenAI vs. Codex OAuth — es sind unterschiedliche Anbieter](#-anthropic-vs-openai-vs-codex-oauth--es-sind-unterschiedliche-anbieter) unten für die vollständige Provider-Grenzen-Erklärung.)
 
 ### 🌐 Sprache
 
@@ -238,7 +237,6 @@ Wir haben den Embedding-Pfad in [Issue #175](https://github.com/green-dalii/obsi
 | **Tencent Hunyuan** | Hy3-Serie | OpenAI-kompatibel; Open-Weight MoE |
 | **Xiaomi MiMo** | MiMo V2.5-Serie | MIT Open-Source; Flat-Pricing |
 | **Google Gemma** | Gemma 4-Serie | Open-Weight; 262K Kontext |
-| **ChatGPT Plan (Codex OAuth)** | Codex Responses API | Browser-/Gerätecode-Anmeldung; SecretStorage |
 | **Lokal: Ollama, LM Studio, OpenRouter, Anthropic-Compatible** | Jedes OpenAI-/Anthropic-Protokoll-Modell | Custom OpenAI-Compatible + Anthropic-Compatible (Token Plan / Coding Plan) |
 
 Dieses Plugin füttert dem LLM pro Abfrage den gesamten Wiki-Kontext — daher gewinnen **Modelle mit langem Kontextfenster**. Die vollständige Tabelle (Cloud + Lokal) befindet sich in [docs/MODEL-GUIDE.md](https://github.com/green-dalii/obsidian-llm-wiki/blob/main/docs/MODEL-GUIDE.md), geprüft gegen [models.dev](https://models.dev/), damit die Empfehlungen aktuell bleiben.
@@ -250,13 +248,7 @@ Dieses Plugin füttert dem LLM pro Abfrage den gesamten Wiki-Kontext — daher g
 - **🔌 Embedding-Endpunkt ist irrelevant** — wir verwenden keine Embeddings. Ein Anbieter ohne `/v1/embeddings` ist in Ordnung (die meisten unserer 16+ Anbieter bieten keinen an).
 - **🦙 Lokal für Abfragen, Cloud für Ingest** — Ingest in einem 2.000-Seiten-Vault benötigt normalerweise ein Cloud-Modell mit langem Kontext; ein 262K-lokales Modell deckt die meisten Abfragen ab.
 
-### Anthropic vs. OpenAI vs. Codex OAuth — es sind unterschiedliche Anbieter
-
-- **Anthropic** — separat abgerechneter Anthropic-Platform-API-Key.
-- **OpenAI** — separat abgerechneter OpenAI-Platform-API-Key.
-- **ChatGPT Plan (Codex OAuth)** — experimenteller, eigenständiger Anbieter, der nach Browser- oder Gerätecode-Anmeldung berechtigtes Codex-Kontingent nutzt; die Verfügbarkeit folgt den OpenAI-Codex-Authentifizierungs- und Kontingentrichtlinien, nicht dem Plannamen. Drittanbieter-Codex-Kompatibilität, keine OpenAI-Partnerschaft oder allgemeine ChatGPT-API.
-
-> 📖 **Vollständige Auswahltabelle** (Cloud + Lokal + PDF-OCR + Codex OAuth + Quantisierung + Hardware-Stufen) → [docs/MODEL-GUIDE.md](https://github.com/green-dalii/obsidian-llm-wiki/blob/main/docs/MODEL-GUIDE.md)
+> 📖 **Vollständige Auswahltabelle** (Cloud + Lokal + PDF-OCR + Quantisierung + Hardware-Stufen) → [docs/MODEL-GUIDE.md](https://github.com/green-dalii/obsidian-llm-wiki/blob/main/docs/MODEL-GUIDE.md)
 
 ---
 

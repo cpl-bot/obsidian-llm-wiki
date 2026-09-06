@@ -27,8 +27,6 @@ import { providerRequiresApiKey } from '../core/provider-auth';
 import { resolveProviderApiKey } from '../llm-sdk/provider-api-key-resolver';
 import { isProviderSecretStorageError } from '../llm-sdk/provider-secret-store';
 import { redactError, redactSecrets } from '../core/redact';
-import type { CodexAuthManager } from '../llm-sdk/openai-codex/auth-manager';
-import { applyCodexModelPolicy } from '../core/openai-codex-model-policy';
 import { resolveModelForTask } from '../core/model-resolver';
 import { TOKENS_QUERY_MODEL_DETECT, NOTICE_ERROR } from '../constants';
 
@@ -42,7 +40,6 @@ export interface ConnectionCommandsHost {
   settings: LLMWikiSettings;
   llmClient: LLMClient | null;
   wikiEngine: import('../wiki/wiki-engine').WikiEngine;
-  codexAuthManager: CodexAuthManager | null;
   manifest: { version: string };
   initializeLLMClient(): void;
   saveSettings(): Promise<void>;
@@ -63,9 +60,6 @@ export const connectionCommands = {
   ): Promise<{ success: boolean; message: string }> {
     const t = TEXTS[this.settings.language] || TEXTS.en;
 
-    if (this.settings.provider === 'openai-codex' && this.codexAuthManager?.hasCredential() !== true) {
-      return { success: false, message: t.codexAuthRequired };
-    }
     // v1.25.7 PATCH: accept an optional pendingApiKey so the Test
     // Connection button can forward the in-memory typed key from
     // tab.pendingApiKey, bypassing the stale SecretStorage value.
@@ -113,42 +107,23 @@ export const connectionCommands = {
     }
 
     try {
-      const testClient = createLLMClient(this.settings, this.codexAuthManager ?? undefined, this.manifest.version, this.app.secretStorage, pendingApiKey);
+      const testClient = createLLMClient(this.settings, this.app.secretStorage, pendingApiKey);
 
+      // Hardening Phase 2.B: a 404-driven "try the next model in the
+      // catalogue" retry used to wrap this probe. It existed solely for the
+      // removed OAuth provider, whose per-account model catalogue could list
+      // models the account was not entitled to. Every remaining provider
+      // reports an unusable model as an error the user has to act on, so the
+      // probe now surfaces it directly.
       for (const probe of probePlan) {
-        const attempted = new Set<string>();
-        let fallbackAttempted = false;
-        while (true) {
-          try {
-            await testClient.createMessage({
-              model: probe.model,
-              max_tokens: TOKENS_QUERY_MODEL_DETECT,
-              messages: [{
-                role: 'user',
-                content: 'Test connection. Please reply "Connection successful".'
-              }]
-            });
-            break;
-          } catch (error) {
-            const statusCode = typeof error === 'object' && error !== null && 'statusCode' in error
-              ? (error as { statusCode?: unknown }).statusCode
-              : null;
-            if (this.settings.provider !== 'openai-codex' || statusCode !== 404) throw error;
-            attempted.add(probe.model);
-            this.settings.openAICodexUnavailableModels = [...new Set([...(this.settings.openAICodexUnavailableModels ?? []), probe.model])];
-            this.settings.openAICodexModels = (this.settings.openAICodexModels ?? []).filter((entry) => entry.slug !== probe.model);
-            applyCodexModelPolicy(this.settings);
-            if (fallbackAttempted) throw error;
-            fallbackAttempted = true;
-            const nextModel = this.settings.availableModels?.find((model) => !attempted.has(model));
-            if (!nextModel) throw error;
-            if (probe.label === 'unified') this.settings.model = nextModel;
-            if (probe.label === 'ingest') this.settings.ingestModel = nextModel;
-            if (probe.label === 'lint') this.settings.lintModel = nextModel;
-            if (probe.label === 'query') this.settings.queryModel = nextModel;
-            probe.model = nextModel;
-          }
-        }
+        await testClient.createMessage({
+          model: probe.model,
+          max_tokens: TOKENS_QUERY_MODEL_DETECT,
+          messages: [{
+            role: 'user',
+            content: 'Test connection. Please reply "Connection successful".'
+          }]
+        });
       }
 
       this.settings.llmReady = true;

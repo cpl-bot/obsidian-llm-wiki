@@ -33,7 +33,7 @@
 | **交付與安裝** | ✅ **5 分鐘** — 一鍵 Obsidian 外掛：社群外掛市集 → 安裝 → 選 Provider → 攝入 | ❌ 30 分鐘以上 — 編譯/下載 Tauri 二進位檔，設定 CLI | ❌ 15 分鐘 — 需要 Claude Code 訂閱 + 安裝技能 | ❌ 30 分鐘以上 — pip 安裝 + Python SDK + 本地伺服器 |
 | **架構與依賴** | ✅ **零依賴** — 無向量 DB、無嵌入模型、無外部程序（刻意設計，採用 PPR 檢索 `[[wiki-link]]` 圖譜） | 🟡 內建 Python 執行環境 + sigma.js + sqlite；嵌入模型可選，預設關閉 | 🟡 依賴 Claude Code 環境 — 非自包含；無嵌入 | ❌ 需要 Python + 嵌入模型 + 向量 DB（強制） |
 | **國際化（UI + Wiki 輸出）** | ✅ 11 種語言（UI/Wiki 互相獨立） | 🟡 2 種（EN / 中文） | ❌ 僅英文 | ❌ 僅英文 |
-| **LLM Provider** | ✅ 16 種以上（Anthropic、OpenAI、Gemini、DeepSeek、Qwen、Grok、Kimi、GLM、MiniMax、Step、Hunyuan、MiMo、Gemma、Codex OAuth、Ollama、LM Studio、OpenRouter、Anthropic 相容等） | 🟡 OpenAI 相容 | 🟡 透過 Claude Code 訂閱 | 🟡 透過 Claude Code / Codex 訂閱 | 🟡 OpenAI 相容 |
+| **LLM Provider** | ✅ 16 種以上（Anthropic、OpenAI、Gemini、DeepSeek、Qwen、Grok、Kimi、GLM、MiniMax、Step、Hunyuan、MiMo、Gemma、Ollama、LM Studio、OpenRouter、Anthropic 相容等） | 🟡 OpenAI 相容 | 🟡 透過 Claude Code 訂閱 | 🟡 透過 Claude Code / Codex 訂閱 | 🟡 OpenAI 相容 |
 | **檢索與查詢管線** | ✅ **5 階段級聯** — Lex → LLM 關鍵詞 → 子字串掃描 → LLM KB 回退 → PPR 擴展（在第一個足夠信號處截斷）。Personalized PageRank（Haveliwala 2002）+ Monte Carlo（Fogaras 2005） | 🟡 僅 2 跳衰減（4 信號啟發式：Adamic-Adar + 2 跳） | ❌ 僅 Louvain 社群偵測 | ❌ 僅 k-hop 預覽（無 LLM 增強） | ❌ 基於區塊的 BM25 + 語義（無圖譜） |
 | **圖譜視覺化** | ✅ Obsidian 原生圖譜檢視（內建，零額外體積） | ❌ 桌面應用中自訂 sigma.js + graphology | 🟡 vis.js graph.html（獨立檔案） | ❌ 自訂 sigma.js 離線 HTML | ❌ 唯讀瀏覽器檢視器 |
 | **Wiki 誠實度** | ✅ 當查詢沒有匹配的 Wiki 來源時顯示「Stage FALLBACK」提示 | ❌ 無對應功能 | ❌ 無對應功能 | ❌ 無對應功能 | ❌ 無對應功能 |
@@ -43,7 +43,7 @@
 
 - **🪟 Obsidian 就是執行環境。** 不需要終端機、獨立應用、Docker 或 Python。從社群外掛市集安裝，按一下「攝入」，Wiki 從第一秒就存在你的 vault 中。Obsidian 原生的圖譜檢視會呈現你的 `[[wiki-link]]` 圖譜——內建功能，完全不增加套件體積。
 - **🧭 簡潔且自包含。** 零依賴。不需要嵌入模型、向量資料庫或 pip 套件——單一外掛就能讀取筆記、與 LLM 溝通、並寫入 Wiki 頁面。一切都在 Obsidian 內部運作。
-- **🔌 任何你已付費的模型都能用。** Anthropic、OpenAI、ChatGPT Plan (Codex OAuth)、Gemini、DeepSeek、Qwen、Grok、Kimi、GLM、MiniMax、Step、Hunyuan、MiMo、Gemma、Ollama、LM Studio、OpenRouter、Anthropic 相容、自訂端點——十六種以上的 Provider，沒有一個需要嵌入端點。
+- **🔌 任何你已付費的模型都能用。** Anthropic、OpenAI、Gemini、DeepSeek、Qwen、Grok、Kimi、GLM、MiniMax、Step、Hunyuan、MiMo、Gemma、Ollama、LM Studio、OpenRouter、Anthropic 相容、自訂端點——十六種以上的 Provider，沒有一個需要嵌入端點。
 
 ---
 
@@ -70,7 +70,7 @@
 ## 🚀 快速開始
 
 1. **安裝。** Obsidian → 設定 → 社群外掛 → 瀏覽 → 搜尋「Karpathy LLM Wiki」→ 安裝 → 啟用。或造訪 [社群外掛頁面](https://community.obsidian.md/plugins/karpathywiki) 點選 **Add to Obsidian**。
-2. **設定 Provider。** 開啟設定 → Karpathy LLM Wiki → 選擇 Provider（OpenAI、Anthropic、Ollama、ChatGPT Plan (Codex OAuth) 等）→ 輸入 API Key（本地模型不需要）→ 點選 **測試連線** → 儲存。
+2. **設定 Provider。** 開啟設定 → Karpathy LLM Wiki → 選擇 Provider（OpenAI、Anthropic、Ollama 等）→ 輸入 API Key（本地模型不需要）→ 點選 **測試連線** → 儲存。
 3. **攝入一則筆記。** 兩種方式：
    - **⌨️ 鍵盤：** `Cmd+P/Ctrl+P` →「攝入單個源文件」→ 選擇任意 Markdown（或 PDF，v1.25.0+）檔案。
    - **🖱️ 工具列圖示：** 點擊 Obsidian 左側 ribbon 中的 **貼紙圖示**，即可一鍵攝入當前開啟的筆記——無需翻找選單。
@@ -158,7 +158,6 @@
 
 - **🖥️ Ollama、LM Studio、OpenRouter、自訂端點** — 開箱即用。本地模型可用於查詢（較小的上下文窗口）；2000 頁 vault 的攝入通常需要長上下文雲端模型。
 - **📄 Apple Silicon 上 PDF OCR 路徑完全本機** — 請參閱上方 [文件 / PDF / 圖片擷取](#-文件--pdf--圖片擷取)。
-- **🔐 ChatGPT Plan (Codex OAuth)** — 桌面端透過迴圈回呼，行動端透過裝置代碼；憑證僅存在 Obsidian SecretStorage 中。（完整的 Provider 邊界說明見下方 [Anthropic vs OpenAI vs Codex OAuth](#anthropic-vs-openai-vs-codex-oauth三者是不同的-provider)。）
 
 ### 🌐 語言
 
@@ -233,7 +232,6 @@
 | **Tencent Hunyuan** | Hy3 系列 | OpenAI 相容；開源權重 MoE |
 | **Xiaomi MiMo** | MiMo V2.5 系列 | MIT 開源；平價方案 |
 | **Google Gemma** | Gemma 4 系列 | 開源權重；262K 上下文 |
-| **ChatGPT Plan (Codex OAuth)** | Codex Responses API | 瀏覽器/裝置代碼登入；SecretStorage |
 | **本地：Ollama、LM Studio、OpenRouter、Anthropic 相容** | 任何 OpenAI/Anthropic 協定模型 | Custom OpenAI-Compatible + Anthropic-Compatible（Token Plan / Coding Plan） |
 
 此外掛在每次查詢時會將完整的 Wiki 上下文餵給 LLM——所以**長上下文模型勝出**。完整的分級表（雲端 + 本地）請見 [docs/MODEL-GUIDE.md](https://github.com/green-dalii/obsidian-llm-wiki/blob/main/docs/MODEL-GUIDE.md)，已與 [models.dev](https://models.dev/) 交叉驗證以確保建議保持最新。
@@ -247,13 +245,7 @@
 
 關於 PDF 擷取，請見核心特性中的 [文件 / PDF / 圖片擷取](#-文件--pdf--圖片擷取)——Anthropic、OpenAI、Gemini 可原生把 PDF 當作 file part 讀取；其餘接受 file part 的端點則由 **Force PDF Support** 涵蓋。
 
-### Anthropic vs OpenAI vs Codex OAuth——三者是不同的 Provider
-
-- **Anthropic** ——單獨計費的 Anthropic Platform API Key。
-- **OpenAI**——單獨計費的 OpenAI Platform API Key。
-- **ChatGPT Plan (Codex OAuth)**——實驗性的獨立 Provider，在瀏覽器或裝置代碼登入後使用符合資格的 Codex 方案額度；可用性取決於 OpenAI Codex 的驗證和額度政策，而非僅憑方案名稱。這是第三方 Codex 相容功能，並非 OpenAI 合作項目或通用 ChatGPT API。
-
-> 📖 **完整選擇表**（雲端 + 本地 + PDF OCR + Codex OAuth + 量化 + 硬體分級）→ [docs/MODEL-GUIDE.md](https://github.com/green-dalii/obsidian-llm-wiki/blob/main/docs/MODEL-GUIDE.md)
+> 📖 **完整選擇表**（雲端 + 本地 + PDF OCR + 量化 + 硬體分級）→ [docs/MODEL-GUIDE.md](https://github.com/green-dalii/obsidian-llm-wiki/blob/main/docs/MODEL-GUIDE.md)
 
 ---
 

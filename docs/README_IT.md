@@ -15,8 +15,8 @@ SEO metadata (not user-visible, parsed by crawlers / LLMs):
 - latest: v1.27.0 (MINOR — source-page quotes, candidate gate, taskPolicies UI, Fix Dead Links leave-it; 36 commits, 3677 tests)
 - last-updated: 2026-08-27
 - alternate-names: Karpathy LLM Wiki, LLM Wiki Obsidian, plugin wiki Obsidian, RAG basato su grafo, RAG senza embedding, recupero Personalized PageRank, secondo cervello Obsidian
-- search-intents: "Obsidian RAG senza embedding", "plugin wiki Obsidian", "Personalized PageRank Obsidian", "recupero note basato su grafo", "implementazione Karpathy LLM Wiki", "generazione automatica base di conoscenza Obsidian", "Obsidian Graph View + AI", "plugin second brain Obsidian", "grafo dei link tra note Obsidian AI", "plugin Obsidian 11 lingue", "plugin Obsidian 16 provider LLM", "RAG senza DB vettoriale", "Obsidian ingest PDF AI", "Obsidian Codex OAuth", "credenziali IAM Obsidian"
-- features: recupero basato su grafo, Personalized PageRank (Haveliwala 2002), Monte Carlo PPR (Fogaras 2005), cascata seed-selection a 5 stadi, rilevamento duplicati Tier 1/Tier 2, interfaccia 11 lingue + output wiki 11 lingue (indipendenti), 16+ provider LLM (Anthropic, OpenAI, Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-Compatible, Codex OAuth), ingest PDF (cache-only, percorsi OCR), scansione salute lint, Smart Fix All, citazioni verbatim della pagina sorgente, gate candidati in ingest, UI taskPolicies per-step, integrazione Obsidian Graph View, architettura zero-embedding zero-vector-DB, modalità local-first
+- search-intents: "Obsidian RAG senza embedding", "plugin wiki Obsidian", "Personalized PageRank Obsidian", "recupero note basato su grafo", "implementazione Karpathy LLM Wiki", "generazione automatica base di conoscenza Obsidian", "Obsidian Graph View + AI", "plugin second brain Obsidian", "grafo dei link tra note Obsidian AI", "plugin Obsidian 11 lingue", "plugin Obsidian 16 provider LLM", "RAG senza DB vettoriale", "Obsidian ingest PDF AI", "credenziali IAM Obsidian"
+- features: recupero basato su grafo, Personalized PageRank (Haveliwala 2002), Monte Carlo PPR (Fogaras 2005), cascata seed-selection a 5 stadi, rilevamento duplicati Tier 1/Tier 2, interfaccia 11 lingue + output wiki 11 lingue (indipendenti), 16+ provider LLM (Anthropic, OpenAI, Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-Compatible), ingest PDF (cache-only, percorsi OCR), scansione salute lint, Smart Fix All, citazioni verbatim della pagina sorgente, gate candidati in ingest, UI taskPolicies per-step, integrazione Obsidian Graph View, architettura zero-embedding zero-vector-DB, modalità local-first
 - direct-competitors: nashsu/llm_wiki (app desktop Tauri), SamurAIGPT/llm-wiki-agent (skill Claude Code), sdyckjq/llm-wiki-skill (skill Codex), atomicstrata/llm-wiki-compiler (pipeline Python)
 - retrieval-benchmark: PPR @5 = 27,1% vs pura kNN 24,1% (corpus del progetto, unico numero pubblicato in questo spazio open-source LLM-wiki)
 - author: green-dalii / Greener-Dalii (https://github.com/green-dalii)
@@ -58,7 +58,7 @@ Prendi appunti. Loro restano in cartelle. Trovare cosa è collegato a cosa signi
 | **Distribuzione e installazione** | ✅ **5 min** — Plugin Obsidian con un clic: Community Plugins → Installa → scegli provider → Ingest | ❌ 30 min+ — Compila/scarica il binario Tauri, configura CLI | ❌ 15 min — richiede abbonamento Claude Code + installazione skill | ❌ 10 min — richiede abbonamento Claude Code / Codex + configurazione skill | ❌ 30 min+ — pip install + Python SDK + server locale |
 | **Architettura e dipendenze** | ✅ **Zero dipendenze** — niente DB vettoriale, niente modello di embedding, niente processi esterni (PPR sul grafo `[[wiki-link]]`, per progettazione) | 🟡 Incorpora il proprio runtime Python + sigma.js + sqlite; embedding opzionali, disattivati per default | 🟡 Usa l'ambiente di Claude Code — non autonomo; nessun embedding | 🟡 Richiede piattaforma runtime separata; nessun embedding | ❌ Richiede Python + modello di embedding + DB vettoriale (obbligatorio) |
 | **i18n (interfaccia + output wiki)** | ✅ 11 lingue (interfaccia / output indipendenti) | 🟡 2 (EN / 中文) | ❌ Solo inglese | ❌ Solo inglese | ❌ Solo inglese |
-| **Provider LLM** | ✅ 16+ (Anthropic, OpenAI, Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Codex OAuth, Ollama, LM Studio, OpenRouter, Anthropic-Compatible, ...) | 🟡 Compatibile OpenAI | 🟡 Abbonamento via Claude Code | 🟡 Abbonamento via Claude Code / Codex | 🟡 Compatibile OpenAI |
+| **Provider LLM** | ✅ 16+ (Anthropic, OpenAI, Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-Compatible, ...) | 🟡 Compatibile OpenAI | 🟡 Abbonamento via Claude Code | 🟡 Abbonamento via Claude Code / Codex | 🟡 Compatibile OpenAI |
 | **Recupero e pipeline di interrogazione** | ✅ **Cascata a 5 stadi** — Lex → keyword LLM → scansione sottostringhe → fallback KB LLM → espansione PPR (si interrompe al primo segnale sufficiente). Personalized PageRank (Haveliwala 2002) + Monte Carlo (Fogaras 2005) | 🟡 Solo decadimento 2-hop (euristica a 4 segnali: Adamic-Adar + 2-hop) | ❌ Solo rilevamento comunità Louvain | ❌ Solo anteprime k-hop (senza augment LLM) | ❌ BM25 + semantico su chunk (senza grafo) |
 | **Visualizzazione grafo** | ✅ Graph View nativa di Obsidian (integrata, dimensione zero aggiuntiva) | ❌ sigma.js + graphology personalizzati in app desktop | 🟡 vis.js graph.html (file separato) | ❌ sigma.js offline HTML personalizzato | ❌ Visualizzatore browser sola lettura |
 | **Onestà del wiki** | ✅ Banner "STADIO FALLBACK" quando nessuna fonte wiki corrisponde alla tua domanda | ❌ Nessun equivalente | ❌ Nessun equivalente | ❌ Nessun equivalente | ❌ Nessun equivalente |
@@ -68,7 +68,7 @@ Prendi appunti. Loro restano in cartelle. Trovare cosa è collegato a cosa signi
 
 - **🪟 Obsidian è il runtime.** Niente terminale, niente app separata, niente Docker, niente Python. Installa da Community Plugins, clicca Ingest, il wiki vive nel tuo vault dal primo secondo. La Graph View nativa di Obsidian renderizza il tuo grafo `[[wiki-link]]` — integrata, dimensione zero aggiuntiva nel bundle.
 - **🧭 Pulito e autonomo.** Zero dipendenze. Niente modello di embedding, niente database vettoriale, niente pacchetto pip — un singolo plugin che legge le tue note, parla con un LLM e scrive pagine wiki. Tutto vive dentro Obsidian.
-- **🔌 Qualsiasi modello per cui già paghi.** Anthropic, OpenAI, ChatGPT Plan (Codex OAuth), Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-compatibile, endpoint personalizzato — oltre sedici provider, nessuno dei quali deve avere un endpoint per embedding.
+- **🔌 Qualsiasi modello per cui già paghi.** Anthropic, OpenAI, Gemini, DeepSeek, Qwen, Grok, Kimi, GLM, MiniMax, Step, Hunyuan, MiMo, Gemma, Ollama, LM Studio, OpenRouter, Anthropic-compatibile, endpoint personalizzato — oltre sedici provider, nessuno dei quali deve avere un endpoint per embedding.
 
 ---
 
@@ -95,7 +95,7 @@ Prendi appunti. Loro restano in cartelle. Trovare cosa è collegato a cosa signi
 ## 🚀 Avvio rapido
 
 1. **Installa.** Obsidian → Impostazioni → Plugin della community → Sfoglia → cerca "Karpathy LLM Wiki" → Installa → Abilita. Oppure visita la [pagina del plugin della community](https://community.obsidian.md/plugins/karpathywiki) e clicca su **Add to Obsidian**.
-2. **Configura un provider.** Apri Impostazioni → Karpathy LLM Wiki → scegli un provider (OpenAI, Anthropic, Ollama, ChatGPT Plan (Codex OAuth), ecc.) → inserisci la chiave API (non necessaria per provider locali) → clicca su **Test Connection** → Salva.
+2. **Configura un provider.** Apri Impostazioni → Karpathy LLM Wiki → scegli un provider (OpenAI, Anthropic, Ollama, ecc.) → inserisci la chiave API (non necessaria per provider locali) → clicca su **Test Connection** → Salva.
 3. **Ingerisci una nota.** Due modalità:
    - **⌨️ Tastiera:** `Cmd+P/Ctrl+P` → "Ingest single source" → scegli un file Markdown (o PDF, v1.25.0+).
    - **🖱️ Icona della barra degli strumenti:** Clicca sull'**icona sticker** nella barra sinistra di Obsidian per ingerire istantaneamente la nota attualmente aperta — niente menu da cercare.
@@ -182,7 +182,6 @@ Tre percorsi, commutabili per ingest:
 
 - **🖥️ Ollama, LM Studio, OpenRouter, endpoint personalizzato** — pronti all'uso. I modelli locali funzionano per le query (finestre di contesto più piccole); l'ingest su un vault di 2000 pagine di solito richiede un modello cloud a contesto lungo.
 - **📄 Il percorso OCR PDF è completamente locale su Apple Silicon** — vedi [Ingest di Documenti / PDF / Immagini](#-ingest-di-documenti--pdf--immagini) sopra.
-- **🔐 ChatGPT Plan (Codex OAuth)** — loopback desktop o codice dispositivo mobile; le credenziali vivono solo in Obsidian SecretStorage. (Vedi [Anthropic vs OpenAI vs Codex OAuth](#-anthropic-vs-openai-vs-codex-oauth--sono-provider-distinti) sotto per la spiegazione completa dei confini tra provider.)
 
 ### 🌐 Lingua
 
@@ -259,7 +258,6 @@ Abbiamo deliberatamente rifiutato il percorso degli embedding in [Issue #175](ht
 | **Tencent Hunyuan** | Serie Hy3 | Compatibile OpenAI; MoE open-weight |
 | **Xiaomi MiMo** | Serie MiMo V2.5 | Open-source MIT; prezzi piatti |
 | **Google Gemma** | Serie Gemma 4 | Open-weight; contesto 262K |
-| **ChatGPT Plan (Codex OAuth)** | Codex Responses API | Accesso via browser/codice dispositivo; SecretStorage |
 | **Locali: Ollama, LM Studio, OpenRouter, Anthropic-Compatibile** | Qualsiasi modello protocollo OpenAI/Anthropic | OpenAI-Compatibile Personalizzato + Anthropic-Compatibile (Token Plan / Coding Plan) |
 
 Questo plugin alimenta l'LLM con il contesto completo del tuo Wiki per ogni query — quindi **vincono i modelli a contesto lungo**. La tabella completa a livelli (cloud + locale) vive in [docs/MODEL-GUIDE.md](https://github.com/green-dalii/obsidian-llm-wiki/blob/main/docs/MODEL-GUIDE.md), verificata su [models.dev](https://models.dev/) per mantenere le scelte aggiornate.
@@ -273,13 +271,7 @@ Questo plugin alimenta l'LLM con il contesto completo del tuo Wiki per ogni quer
 
 Per l'ingest di PDF, vedi [Ingest di Documenti / PDF / Immagini](#-ingest-di-documenti--pdf--immagini) in Funzionalità — Anthropic, OpenAI, Gemini leggono i PDF come file parts nativamente; **Force PDF Support** copre qualsiasi altro endpoint che accetti file parts.
 
-### Anthropic vs OpenAI vs Codex OAuth — sono provider distinti
-
-- **Anthropic** — chiave API Anthropic Platform fatturata separatamente.
-- **OpenAI** — chiave API OpenAI Platform fatturata separatamente.
-- **ChatGPT Plan (Codex OAuth)** — provider sperimentale e distinto che usa un'idoneità Codex idonea dopo l'accesso via browser o codice dispositivo; la disponibilità segue le politiche di autenticazione e idoneità di OpenAI Codex, non il nome del piano. Compatibilità Codex di terze parti, non una partnership OpenAI o un'API ChatGPT generale.
-
-> 📖 **Tabella di scelta completa** (cloud + locale + OCR PDF + Codex OAuth + quantizzazione + livelli hardware) → [docs/MODEL-GUIDE.md](https://github.com/green-dalii/obsidian-llm-wiki/blob/main/docs/MODEL-GUIDE.md)
+> 📖 **Tabella di scelta completa** (cloud + locale + OCR PDF + quantizzazione + livelli hardware) → [docs/MODEL-GUIDE.md](https://github.com/green-dalii/obsidian-llm-wiki/blob/main/docs/MODEL-GUIDE.md)
 
 ---
 

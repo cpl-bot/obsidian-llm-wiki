@@ -158,7 +158,7 @@ export interface ProviderConfig {
   apiKeyPlaceholderEn?: string; // English placeholder
   apiKeyPlaceholderZh?: string; // Chinese placeholder
   requiresBaseUrl: boolean;
-  authMode: 'api-key' | 'none' | 'codex-oauth';
+  authMode: 'api-key' | 'none';
   /**
    * v1.26.3 PATCH (Issue #443): whether the openai-compat SDK client
    * should create the compat provider with
@@ -169,8 +169,8 @@ export interface ProviderConfig {
    * `custom`) accept this form; cloud compat servers
    * (openrouter / deepseek / kimi / glm) accept `json_object` and
    * should NOT receive `json_schema` (they may 400 on it). The
-   * openai / anthropic / codex paths go through their own SDK
-   * clients and are unaffected by this flag.
+   * openai / anthropic paths go through their own SDK clients and are
+   * unaffected by this flag.
    */
   supportsStructuredOutputs?: boolean;
 }
@@ -178,15 +178,6 @@ export interface ProviderConfig {
 // Plugin settings
 
 export type ExtractionGranularity = 'fine' | 'standard' | 'coarse' | 'minimal' | 'custom';
-
-export interface OpenAICodexModelCatalogEntry {
-  slug: string;
-  displayName: string;
-  supportedReasoningLevels: string[];
-  additionalSpeedTiers: string[];
-  serviceTiers: Array<{ id: string; name: string; description: string }>;
-  defaultServiceTier?: string;
-}
 
 export interface LLMWikiSettings {
   provider: string;
@@ -199,18 +190,14 @@ export interface LLMWikiSettings {
    * to quietly repopulate; `src/core/settings-migrations.ts` scrubs the
    * key off disk on first load. The live key lives only in
    * `providerApiKeySecretId`'s OS-keychain slot.
-   */
-  openAICodexSecretId: string;
-  /**
-   * v1.25.3 #182: stable ID for the provider API key in Obsidian
-   * SecretStorage (OS keychain). Mirrors `openAICodexSecretId`.
-   * All API-key-using providers share one slot (only the active
-   * provider's key needs to persist between restarts).
+   *
+   * v1.25.3 #182: that slot id is the field below — stable, and shared by
+   * every API-key-using provider (only the active provider's key needs to
+   * persist between restarts). Hardening Phase 2.B: it used to have a
+   * sibling naming the removed OAuth provider's slot; that field is gone,
+   * and the migration blanks the slot it pointed at.
    */
   providerApiKeySecretId: string;
-  openAICodexModels?: OpenAICodexModelCatalogEntry[];
-  openAICodexModelsFetchedAt?: number;
-  openAICodexUnavailableModels?: string[];
   baseUrl: string;
   /**
    * Phase 4.4 (F-04) — network egress control. `true` (the default, and
@@ -318,6 +305,15 @@ export interface LLMWikiSettings {
   // removed. The migration blanks its secret slot and deletes the legacy
   // backend keys from data.json. Idempotent — set true once the scrub runs.
   _migrated_harden_conversion_backend_removed?: boolean;
+  // Hardening (Phase 2.B): the ChatGPT-subscription OAuth provider was
+  // removed. The migration blanks its keychain slot, deletes its settings
+  // keys from data.json, and resets the active provider when it was the
+  // one selected. Idempotent — set true once the scrub runs.
+  //
+  // Unlike the AWS marker below this one may be a literal everywhere: the
+  // bundle assertion for this provider names its id and its two hosts, not
+  // the bare vendor fragment (see `scripts/check-bundle-no-codex.mjs`).
+  _migrated_harden_codex_removed?: boolean;
   // Hardening (Phase 2.B): the AWS Bedrock SSO/IAM provider surface was
   // removed. The migration blanks both of its keychain slots, deletes its
   // settings keys from data.json and resets the active provider when it was
@@ -427,9 +423,8 @@ export interface LLMWikiSettings {
    * The `openai` provider drops it: that path builds the Responses model, which
    * reports `seed` unsupported and leaves it out of the body — the best-effort
    * seed OpenAI documents belongs to Chat Completions, which this path does
-   * not use. Anthropic has no such parameter at all, and the Codex adapter
-   * omits it deliberately. So this reaches local servers and other
-   * OpenAI-compatible endpoints, and nothing else.
+   * not use. Anthropic has no such parameter at all. So this reaches local
+   * servers and other OpenAI-compatible endpoints, and nothing else.
    */
   samplingSeed?: number;
   chatTemperature?: number;
@@ -778,7 +773,7 @@ export interface LLMClient {
       | { type: 'json_object'; schema?: Record<string, unknown> };
     /**
      * Anthropic prompt-cache breakpoint offset. Anthropic SDK honors this;
-     * OpenAI / openai-compat / OpenAI Codex clients ignore the field (AI SDK
+     * OpenAI / openai-compat clients ignore the field (AI SDK
      * does not expose cache hooks for those providers). See Issue #449 + Issue #468.
      */
     cacheBreakpoint?: number;
@@ -852,7 +847,7 @@ export interface LLMClient {
   //
   // OPTIONAL — clients that don't implement it fall back to
   // `createMessage` + caller-side `parseJsonResponse`. Anthropic /
-  // OpenAI / Codex clients do not implement this method yet (their
+  // OpenAI clients do not implement this method yet (their
   // 3 callers — `seed-selector` etc. — currently use no schema; the
   // 6 P0 Phase B migrations only touch openai-compat callers).
   //
@@ -1002,18 +997,6 @@ export const PREDEFINED_PROVIDERS: Record<string, ProviderConfig> = {
     requiresBaseUrl: false,
     authMode: 'api-key'
   },
-  'openai-codex': {
-    id: 'openai-codex',
-    name: 'ChatGPT Plan (Codex OAuth)',
-    nameEn: 'ChatGPT Plan (Codex OAuth)',
-    nameZh: 'ChatGPT Plan (Codex OAuth)',
-    baseUrl: '',
-    apiKeyPlaceholder: '',
-    apiKeyPlaceholderEn: '',
-    apiKeyPlaceholderZh: '',
-    requiresBaseUrl: false,
-    authMode: 'codex-oauth'
-  },
   anthropic: {
     id: 'anthropic',
     name: 'Anthropic (Claude)',
@@ -1155,14 +1138,10 @@ export const PREDEFINED_PROVIDERS: Record<string, ProviderConfig> = {
 
 export const DEFAULT_SETTINGS: LLMWikiSettings = {
   provider: 'anthropic',
-  openAICodexSecretId: 'karpathywiki-openai-codex',
   // v1.25.3 #182: stable secretId for the provider API key in
   // Obsidian SecretStorage. Plugin namespace + semantic role makes
-  // the slot easy to find in the OS credential manager and avoids
-  // collision with the Codex OAuth slot above.
+  // the slot easy to find in the OS credential manager.
   providerApiKeySecretId: 'karpathywiki-provider-api-key',
-  openAICodexModels: [],
-  openAICodexModelsFetchedAt: 0,
   baseUrl: '',
   // Phase 4.4 (F-04): egress allowlist enforced unless the user opts out.
   strictEgress: true,

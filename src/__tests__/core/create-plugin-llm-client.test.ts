@@ -43,7 +43,7 @@ describe('createLLMClient — sync factory literal', () => {
       baseUrl: 'https://example.invalid',
     } as unknown as LLMWikiSettings;
 
-    createLLMClient(settings, undefined, 'test-version', secretStorage, 'pending-key');
+    createLLMClient(settings, secretStorage, 'pending-key');
 
     expect(createLLMClientFromSettingsSync).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -51,7 +51,6 @@ describe('createLLMClient — sync factory literal', () => {
         providerApiKeySecretId: 'karpathywiki-provider-api-key',
         baseUrl: 'https://example.invalid',
         secretStorage,
-        codexVersion: 'test-version',
       }),
       'pending-key',
     );
@@ -72,12 +71,13 @@ describe('createLLMClient — sync factory literal', () => {
     );
   });
 
-  // Hardening Phase 2.B: the factory used to take a sixth parameter, the
-  // plugin-owned AWS credential orchestrator, and copied four `bedrock*`
-  // settings fields into the literal. All of it is gone; nothing in the
-  // literal may name the removed vendor again.
-  it('puts no trace of the removed provider surface into the literal', () => {
-    const removedVendor = ['bed', 'rock'].join('');
+  // Hardening Phase 2.B: the factory used to take two plugin-owned
+  // credential orchestrators — the AWS one (plus four `bedrock*` settings
+  // fields copied into the literal) and the OAuth one (plus `codexAuth` /
+  // `codexVersion` / `codexQuotaMessage`). All of it is gone; nothing in the
+  // literal may name either removed vendor again.
+  it('puts no trace of the removed provider surfaces into the literal', () => {
+    const removedVendors = [['bed', 'rock'].join(''), ['cod', 'ex'].join('')];
     const settings = {
       provider: 'anthropic',
       providerApiKeySecretId: 'karpathywiki-provider-api-key',
@@ -87,7 +87,7 @@ describe('createLLMClient — sync factory literal', () => {
     createLLMClient(settings);
 
     const literal = vi.mocked(createLLMClientFromSettingsSync).mock.calls[0][0];
-    const offenders = Object.keys(literal).filter((key) => key.toLowerCase().includes(removedVendor));
+    const offenders = Object.keys(literal).filter((key) => removedVendors.some((vendor) => key.toLowerCase().includes(vendor)));
     expect(offenders).toEqual([]);
   });
 });

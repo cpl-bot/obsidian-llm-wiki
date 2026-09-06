@@ -9,9 +9,9 @@
  * **path** — specifically, the plugin's own folder under
  * `.obsidian/plugins/<id>/` — must follow that rename, or it keeps
  * reading/writing the *old* id's folder after the rename. Every identifier
- * that is a **secret-storage key or migration marker** (e.g.
- * `karpathywiki-mineru-api-token`, `karpathywiki-openai-codex`,
- * `_migrated_*`) must NOT follow it — renaming those would orphan a user's
+ * that is a **secret-storage key or migration marker** (the
+ * `karpathywiki-*` secret slots and every `_migrated_*` flag) must NOT
+ * follow it — renaming those would orphan a user's
  * already-stored keys or replay a migration that already ran. This module
  * is the single source of truth for the former category; it does not touch
  * the latter.

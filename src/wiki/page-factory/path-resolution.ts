@@ -94,7 +94,7 @@ export interface PathResolutionContext extends AliasesContext {
   getClient(): {
     createMessage: (...args: unknown[]) => Promise<string>;
     // v1.26.3 PATCH Issue #443 expanded scope: typed-output path. Optional
-    // so legacy clients (Anthropic/OpenAI/Codex) and test mocks without the
+    // so legacy clients (Anthropic/OpenAI) and test mocks without the
     // method still type-check; the call site falls back to createMessage.
     createMessageWithOutput?: (...args: unknown[]) => Promise<{ text: string }>;
   } | null;
