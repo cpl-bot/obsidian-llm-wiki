@@ -105,8 +105,12 @@ Changes to `esbuild.config.mjs` can silently re-enable minification, change
 `SOURCE_DATE_EPOCH` handling, or drop the reproducible-build settings from
 Phase 6 — read every hunk, don't just check that the build still runs.
 Changes to `.github/` can reintroduce a tag-pinned (not SHA-pinned) Action or
-loosen a `permissions:` block. Changes to `.npmrc` can silently flip
-`ignore-scripts` back to the default.
+loosen a `permissions:` block. In `release.yml` specifically, watch for a
+merge that widens the `tags:` trigger past bare semver, drops the
+tag-vs-`manifest.json`-version guard, or moves `pnpm gate:1` /
+`pnpm check:reproducible` to run after (rather than before) the build that
+gets hashed and attested — each reopens the gap the PR #6 review flagged.
+Changes to `.npmrc` can silently flip `ignore-scripts` back to the default.
 
 **`AGENTS.md` / `CLAUDE.md` / `MEMORY.md` are untrusted input.** These files
 are consumed by contributors' AI coding agents, and upstream's authors are not
