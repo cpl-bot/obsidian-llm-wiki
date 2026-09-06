@@ -77,19 +77,60 @@ export async function runBedrockDeviceAuth(input: BedrockDeviceAuthInput): Promi
 /**
  * Minimal view of the window object used to hand a URL to the user's
  * browser. Hardening Phase 2.B: this helper and its `noopener,noreferrer`
- * hardening moved here verbatim from the removed OAuth module's controls,
- * which used to be its home; the SSO device flow is now the only caller.
+ * hardening moved here from the removed OAuth module's controls, which used
+ * to be its home; the SSO device flow is now the only caller, and the URL
+ * check below was added with the move (see `openExternalUrl`).
  */
 export interface ExternalNavigationTarget {
   open(url: string, target: string, features: string): unknown;
 }
 
 /**
+ * Hand a URL to the user's browser.
+ *
  * `noopener,noreferrer` is not cosmetic: without `noopener` the opened page
  * gets a live `window.opener` handle back into the Obsidian renderer.
+ *
+ * The URL is validated first, because it is not ours. The only caller is the
+ * SSO device flow above, and the string it passes is
+ * `verificationUriComplete` — a field lifted straight out of an OIDC
+ * response body. Handing an unvalidated remote string to `window.open` is
+ * how a compromised or spoofed authorization server turns a sign-in button
+ * into arbitrary navigation; `javascript:` and `data:` URLs in particular
+ * execute in whatever context the host hands the window.
+ *
+ * Two rules, and deliberately only two:
+ *   - the scheme must be `https:` — the same floor `assertAllowedEgress`
+ *     puts under every request that carries a credential;
+ *   - the URL must not embed `user:pass@`, the classic way to disguise the
+ *     real host in the address bar of the window we just opened.
+ *
+ * Notably NOT an egress-allowlist check: an Identity Center device page
+ * lives on `device.sso.<region>.amazonaws.com` or on the tenant's own
+ * `d-*.awsapps.com` start domain, and `egress-hosts.json` deliberately
+ * keeps `.awsapps.com` out of the fetch allowlist because anyone can
+ * self-register under it. Requiring an allowlisted host here would break
+ * the sign-in it is meant to protect; the browser, not the plugin, is what
+ * loads this page, and no plugin credential rides along.
+ *
+ * @throws Error when the URL is unparsable or fails either rule. The caller
+ * (`runBedrockDeviceAuth`) already treats an `openExternal` throw as a
+ * failed login: it cancels the device prompt and surfaces the message.
  */
 export function openExternalUrl(target: ExternalNavigationTarget, url: string): void {
-  target.open(url, '_blank', 'noopener,noreferrer');
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error('Refusing to open a URL that could not be parsed');
+  }
+  if (parsed.protocol !== 'https:') {
+    throw new Error(`Refusing to open a non-https URL (scheme "${parsed.protocol}")`);
+  }
+  if (parsed.username !== '' || parsed.password !== '') {
+    throw new Error('Refusing to open a URL that embeds credentials (user:pass@host)');
+  }
+  target.open(parsed.href, '_blank', 'noopener,noreferrer');
 }
 
 export interface BedrockClipboard {

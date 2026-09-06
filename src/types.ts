@@ -190,12 +190,12 @@ export interface LLMWikiSettings {
    * to quietly repopulate; `src/core/settings-migrations.ts` scrubs the
    * key off disk on first load. The live key lives only in
    * `providerApiKeySecretId`'s OS-keychain slot.
-   */
-  /**
-   * v1.25.3 #182: stable ID for the provider API key in Obsidian
-   * SecretStorage (OS keychain). All API-key-using providers share one
-   * slot (only the active provider's key needs to persist between
-   * restarts).
+   *
+   * v1.25.3 #182: that slot id is the field below — stable, and shared by
+   * every API-key-using provider (only the active provider's key needs to
+   * persist between restarts). Hardening Phase 2.B: it used to have a
+   * sibling naming the removed OAuth provider's slot; that field is gone,
+   * and the migration blanks the slot it pointed at.
    */
   providerApiKeySecretId: string;
   baseUrl: string;

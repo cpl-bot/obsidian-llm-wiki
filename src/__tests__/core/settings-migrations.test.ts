@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { applySettingsMigrations } from '../../core/settings-migrations';
 import { DEFAULT_SETTINGS } from '../../types';
+import { resolveModelForTask } from '../../core/model-resolver';
 
 // Hardening Phase 2.A (F-06): the removed document-conversion backend's
 // vendor name is assembled from fragments, matching the production scrub in
@@ -414,6 +415,63 @@ describe('applySettingsMigrations — hardening scrub of the removed OAuth provi
     const { settings } = applySettingsMigrations(v1_27_0_data());
 
     expect(JSON.stringify(settings)).not.toContain(REMOVED_OAUTH_PROVIDER_ID);
+  });
+
+  // Review follow-up: the scrub used to be gated on its own marker, which is
+  // the exact hole Phase 3 closed in the apiKey scrub. A marker-gated scrub
+  // cleans only the first data.json it sees; a sync conflict, a restored
+  // backup or a downgrade-then-upgrade cycle presents a file that carries
+  // BOTH the marker and the provider's keys, and that file loaded straight
+  // through into `this.settings` and was written back by the next save.
+  it('re-scrubs a data.json that carries the marker AND the provider keys', () => {
+    const conflicted = {
+      ...v1_27_0_data(),
+      _migrated_harden_codex_removed: true,
+    } as unknown as Partial<import('../../types').LLMWikiSettings>;
+
+    const { settings, applied } = applySettingsMigrations(conflicted);
+    const record = settings as unknown as Record<string, unknown>;
+
+    expect(record).not.toHaveProperty(REMOVED_OAUTH_SECRET_ID_FIELD);
+    expect(record).not.toHaveProperty(REMOVED_OAUTH_MODELS_FIELD);
+    expect(settings.provider).toBe(DEFAULT_SETTINGS.provider);
+    expect(JSON.stringify(settings)).not.toContain(REMOVED_OAUTH_PROVIDER_ID);
+    // main.ts keys the keychain scrub and the saveData off these entries, so
+    // a re-scrub has to announce itself.
+    expect(applied).toContain('harden-oauth-provider-removed');
+    expect(applied).toContain('harden-oauth-provider-reset');
+  });
+
+  it('stays silent when the marker is set and nothing is left to remove', () => {
+    const clean = {
+      provider: 'anthropic',
+      model: 'claude-sonnet-4-6',
+      _migrated_harden_codex_removed: true,
+    } as unknown as Partial<import('../../types').LLMWikiSettings>;
+
+    const { applied } = applySettingsMigrations(clean);
+
+    // No entry means main.ts does no keychain IO and no saveData.
+    expect(applied).not.toContain('harden-oauth-provider-removed');
+    expect(applied).not.toContain('harden-oauth-provider-reset');
+  });
+
+  // `resolveModelForTask` reads the per-task override BEFORE `settings.model`,
+  // so a reset that clears only the unified model leaves every ingest / lint /
+  // query call pointed at a slug from the removed provider's catalogue.
+  it('clears the per-task model overrides with the rest of the selection', () => {
+    const { settings } = applySettingsMigrations({
+      ...v1_27_0_data(),
+      usePerTaskModels: true,
+      ingestModel: 'gpt-5.5',
+      lintModel: 'gpt-5.4',
+      queryModel: 'gpt-5.5',
+    } as unknown as Partial<import('../../types').LLMWikiSettings>);
+
+    for (const task of ['ingest', 'lint', 'query'] as const) {
+      expect(resolveModelForTask(settings, task)).toBe(DEFAULT_SETTINGS.model);
+    }
+    expect(JSON.stringify(settings)).not.toContain('gpt-5.5');
   });
 });
 

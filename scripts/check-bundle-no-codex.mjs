@@ -52,54 +52,74 @@
 
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-
-const target = process.argv[2] || 'main.js';
-const file = resolve(target);
+import { pathToFileURL } from 'node:url';
 
 /**
  * Assembled from fragments so this script does not itself trip a repo-wide
  * grep for the forbidden strings.
  */
 const VENDOR = 'cod' + 'ex';
-const NEEDLES = [
+
+/** The three strings that identify the removed surface, and nothing else. */
+export const NEEDLES = [
   { needle: 'chat' + 'gpt.com', what: 'the removed provider\'s backend host' },
   { needle: 'auth.' + 'openai.com', what: 'the removed provider\'s OAuth issuer' },
   { needle: 'openai-' + VENDOR, what: 'the removed provider id' },
 ];
 
-let src;
-try {
-  src = readFileSync(file, 'utf8');
-} catch (err) {
-  console.error(`✗ bundle check: cannot read ${file}: ${err.message} (run \`pnpm build\` first)`);
-  process.exit(1);
-}
-
-const haystack = src.toLowerCase();
-let failed = false;
-
-for (const { needle, what } of NEEDLES) {
-  let hits = 0;
-  const firstHitLines = [];
-  let index = haystack.indexOf(needle);
-  while (index !== -1) {
-    hits += 1;
-    if (firstHitLines.length < 5) firstHitLines.push(src.slice(0, index).split('\n').length);
-    index = haystack.indexOf(needle, index + needle.length);
+/**
+ * Every occurrence of every needle in `src`, as
+ * `{ needle, what, hits, lines }` (only needles that actually matched).
+ * Pure — exported so the fixture tests can assert both the positive and the
+ * negative case without spawning a build.
+ */
+export function findRemovedProviderHits(src) {
+  const haystack = src.toLowerCase();
+  const found = [];
+  for (const { needle, what } of NEEDLES) {
+    let hits = 0;
+    const lines = [];
+    let index = haystack.indexOf(needle);
+    while (index !== -1) {
+      hits += 1;
+      if (lines.length < 5) lines.push(src.slice(0, index).split('\n').length);
+      index = haystack.indexOf(needle, index + needle.length);
+    }
+    if (hits > 0) found.push({ needle, what, hits, lines });
   }
-  if (hits > 0) {
-    failed = true;
-    console.error(`✗ bundle check: ${target} contains ${what} (${hits} occurrence(s), first at line(s) ${firstHitLines.join(', ')})`);
+  return found;
+}
+
+/** Exit code: 0 when the bundle is clean, 1 when it is not (or is missing). */
+export function main(target = 'main.js') {
+  const file = resolve(target);
+  let src;
+  try {
+    src = readFileSync(file, 'utf8');
+  } catch (err) {
+    console.error(`✗ bundle check: cannot read ${file}: ${err.message} (run \`pnpm build\` first)`);
+    return 1;
   }
+
+  const found = findRemovedProviderHits(src);
+  for (const { what, hits, lines } of found) {
+    console.error(`✗ bundle check: ${target} contains ${what} (${hits} occurrence(s), first at line(s) ${lines.join(', ')})`);
+  }
+
+  if (found.length > 0) {
+    console.error('');
+    console.error('  The ChatGPT-subscription OAuth provider was removed in hardening Phase 2.B.');
+    console.error('  If an upstream merge reintroduced it, revert that hunk. If a dependency now');
+    console.error('  ships one of these strings for an unrelated reason, verify it is genuinely');
+    console.error('  unreachable before narrowing this check.');
+    return 1;
+  }
+
+  console.log(`✓ bundle check: ${target} carries no trace of the removed OAuth provider`);
+  return 0;
 }
 
-if (failed) {
-  console.error('');
-  console.error('  The ChatGPT-subscription OAuth provider was removed in hardening Phase 2.B.');
-  console.error('  If an upstream merge reintroduced it, revert that hunk. If a dependency now');
-  console.error('  ships one of these strings for an unrelated reason, verify it is genuinely');
-  console.error('  unreachable before narrowing this check.');
-  process.exit(1);
+// Run only when invoked directly, never on import from the test suite.
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+  process.exit(main(process.argv[2]));
 }
-
-console.log(`✓ bundle check: ${target} carries no trace of the removed OAuth provider`);

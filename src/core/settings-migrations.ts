@@ -22,6 +22,14 @@ const REMOVED_OAUTH_VENDOR = ['cod', 'ex'].join('');
 /** Provider id that selected the removed OAuth surface. */
 const REMOVED_OAUTH_PROVIDER_ID = `openai-${REMOVED_OAUTH_VENDOR}`;
 
+/**
+ * On-disk flag that records the Phase 2.B scrub already ran. Its own key
+ * carries the vendor fragment, so the scrub's fragment loop must skip it by
+ * name; it cannot be renamed without replaying the migration on every
+ * existing install.
+ */
+const MIGRATION_MARKER_KEY = '_migrated_harden_codex_removed';
+
 /** Keychain slot that held the removed provider's OAuth credential blob. */
 const REMOVED_OAUTH_SECRET_ID = `karpathywiki-openai-${REMOVED_OAUTH_VENDOR}`;
 
@@ -233,31 +241,57 @@ export function applySettingsMigrations(
   // was the removed one, and set the marker. The paired keychain slot is
   // blanked by `scrubRemovedOAuthProviderSecret()`, which the caller
   // (`main.ts loadSettings`) runs because this function must stay IO-free.
-  // Idempotent via the marker: a second load is a no-op.
-  if (savedData && !settings._migrated_harden_codex_removed) {
+  //
+  // The DELETE and the provider reset are UNCONDITIONAL — deliberately NOT
+  // gated on our own marker, for the same reason the Phase 3 apiKey scrub
+  // above is not. A marker-gated scrub only cleans the first `data.json` it
+  // sees, so `{ _migrated_harden_codex_removed: true, provider:
+  // 'openai-<vendor>', openAI<Vendor>Models: […] }` — the exact shape a
+  // sync conflict, a restored backup or a downgrade-then-upgrade cycle
+  // produces — would load straight through into `this.settings` and be
+  // written back by the next `saveSettings()`, leaving the plugin pointed at
+  // a provider the build cannot serve.
+  //
+  // Idempotence is preserved where it matters — the WRITE. `applied` is
+  // pushed (and `main.ts` therefore calls `saveData`, touches the keychain
+  // and shows the Notice) only when this load actually had something to do,
+  // so a steady-state load is still silent and does no IO.
+  if (savedData) {
+    const alreadyScrubbed = settings._migrated_harden_codex_removed === true;
     // Match on the vendor fragment rather than a fixed key list: the provider
     // owned `openAI<Vendor>SecretId`, `openAI<Vendor>Models`,
     // `openAI<Vendor>ModelsFetchedAt` and `openAI<Vendor>UnavailableModels`,
     // and a future upstream merge could add more under the same prefix.
-    // The marker is set AFTER this loop precisely because its own key
-    // carries the fragment too.
+    // The marker key carries the fragment too, so it is excluded by name and
+    // re-set below — otherwise an unconditional loop would erase the very
+    // flag that keeps this migration quiet on a steady-state load.
+    let removedKey = false;
     for (const key of Object.keys(untrustedSettings)) {
-      if (key.toLowerCase().includes(REMOVED_OAUTH_VENDOR)) delete untrustedSettings[key];
+      if (key === MIGRATION_MARKER_KEY) continue;
+      if (!key.toLowerCase().includes(REMOVED_OAUTH_VENDOR)) continue;
+      delete untrustedSettings[key];
+      removedKey = true;
     }
     // The active provider cannot stay pointed at a provider that no longer
     // exists — `PREDEFINED_PROVIDERS` has no entry for it, so every lookup
     // would come back undefined. Fall back to the shipped default and drop
-    // the model selection with it: the cached model slugs came from the
-    // removed provider's catalogue and mean nothing to the new provider.
+    // every model selection with it: the cached slugs came from the removed
+    // provider's catalogue and mean nothing to the new provider. The per-task
+    // overrides go too — `resolveModelForTask()` reads them BEFORE
+    // `settings.model`, so leaving them would keep sending a removed-provider
+    // slug to the default provider on every ingest/lint/query call.
     if (savedData.provider === REMOVED_OAUTH_PROVIDER_ID) {
       settings.provider = DEFAULT_SETTINGS.provider;
       settings.model = DEFAULT_SETTINGS.model;
+      settings.ingestModel = DEFAULT_SETTINGS.ingestModel;
+      settings.lintModel = DEFAULT_SETTINGS.lintModel;
+      settings.queryModel = DEFAULT_SETTINGS.queryModel;
       settings.availableModels = [];
       settings.llmReady = false;
       applied.push('harden-oauth-provider-reset');
     }
     settings._migrated_harden_codex_removed = true;
-    applied.push('harden-oauth-provider-removed');
+    if (!alreadyScrubbed || removedKey) applied.push('harden-oauth-provider-removed');
   }
 
   return { settings, applied };
